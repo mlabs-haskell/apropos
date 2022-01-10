@@ -71,6 +71,7 @@
               ps.freer-extras
               ps.goblins
               ps.measures
+              ps.minisat-solver
               ps.orphans-deriving-via
               ps.playground-common
               ps.plutus-contract

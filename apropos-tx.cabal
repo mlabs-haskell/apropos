@@ -38,6 +38,17 @@ common lang
     UndecidableInstances
 
   build-depends:      base ^>=4.14
+                    , containers
+                    , hedgehog
+                    , minisat-solver
+                    , pretty
+                    , pretty-show
+                    , plutus-core
+                    , plutus-tx
+                    , plutus-ledger
+                    , plutus-ledger-api
+                    , safe
+                    , text
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
@@ -46,4 +57,5 @@ common lang
 library
   import:          lang
   exposed-modules: Test
+                 , Proper.Plutus
   hs-source-dirs:  src

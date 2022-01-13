@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 module Proper.Plutus (
   Proper (..),
-  IsProperty,
+  Proposition,
   justDatumHash,
   Formula (..),
   CompiledObject (..),
@@ -133,7 +133,7 @@ import Prelude (
 -- conjunction.
 --------------------------------------------------------------------------------
 
-class (Enum c, Eq c, Ord c, Bounded c, Show c) => IsProperty c
+type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 
 -- Proper is a type family over a Model and its Properties
 -- It encapsulates the model checking pattern shown in this diagram
@@ -182,7 +182,7 @@ class Proper model where
   expect :: Formula (Property model)
   expect = Yes
 
-  satisfiesFormula :: IsProperty (Property model) => Formula (Property model) -> Set (Property model) -> Bool
+  satisfiesFormula :: Proposition (Property model) => Formula (Property model) -> Set (Property model) -> Bool
   satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
     where
       set :: [Property model]
@@ -190,37 +190,35 @@ class Proper model where
       unset :: [Property model]
       unset = filter (`notElem` s) ([minBound .. maxBound] :: [Property model])
 
-  enumerateScenariosWhere :: IsProperty (Property model) => Formula (Property model) -> [Set (Property model)]
+  enumerateScenariosWhere :: Proposition (Property model) => Formula (Property model) -> [Set (Property model)]
   enumerateScenariosWhere condition = enumerateSolutions $ logic :&&: condition :&&: allPresentInFormula
     where
       allPresentInFormula :: Formula (Property model)
       allPresentInFormula = All (mention <$> ([minBound .. maxBound] :: [Property model]))
       mention :: Property model -> Formula (Property model)
       mention p = Var p :||: Not (Var p)
-      fromSolution :: IsProperty p => M.Map p Bool -> Set p
+      fromSolution :: Proposition p => M.Map p Bool -> Set p
       fromSolution m = Set.fromList $ filter isInSet [minBound .. maxBound]
         where
           isInSet k = Just True == M.lookup k m
-      enumerateSolutions :: IsProperty p => Formula p -> [Set p]
+      enumerateSolutions :: Proposition p => Formula p -> [Set p]
       enumerateSolutions f = fromSolution <$> solve_all f
 
-  genGivenFormula :: (IsProperty (Property model), MonadGen m, GenBase m ~ Identity) => Formula (Property model) -> m (Set (Property model))
+  genGivenFormula :: (Proposition (Property model), MonadGen m, GenBase m ~ Identity) => Formula (Property model) -> m (Set (Property model))
   genGivenFormula f =
     let g = Set.fromList <$> Gen.subsequence [minBound .. maxBound]
      in Gen.filter (satisfiesFormula f) g
 
   -- compute the properties of a model
   properties ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Model model ->
     Set (Property model)
   properties x = Set.fromList $ filter (satisfiesProperty x) [minBound .. maxBound]
 
   -- generates a set of properties (gen)
   genProperties ::
-    MonadGen m =>
-    GenBase m ~ Identity =>
-    IsProperty (Property model) =>
+    (Proposition (Property model), MonadGen m, GenBase m ~ Identity) =>
     model ->
     m (Set (Property model))
   genProperties _ = genGivenFormula logic
@@ -336,7 +334,7 @@ class Proper model where
 
   wrapObjectAsScript ::
     Show (Model model) =>
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     MonadTest t =>
     Model model ->
     t Script
@@ -357,7 +355,7 @@ class Proper model where
 
   runScriptTest ::
     Show (Model model) =>
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     MonadTest t =>
     Model model ->
     t ()
@@ -370,7 +368,7 @@ class Proper model where
 
   deliverResult ::
     Show (Model model) =>
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     MonadTest m =>
     Model model ->
     Either ([Text], String) (ExBudget, [Text]) ->
@@ -429,7 +427,7 @@ class Proper model where
   -- HedgeHog properties and property groups
 
   modelTestGivenProperties ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
     Hedgehog.Property
@@ -439,7 +437,7 @@ class Proper model where
       properties model === properties'
 
   plutusTestGivenProperties ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
     Hedgehog.Property
@@ -449,7 +447,7 @@ class Proper model where
       runScriptTest model
 
   combinedTestGivenProperties ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
     Hedgehog.Property
@@ -460,7 +458,7 @@ class Proper model where
       runScriptTest model
 
   quickCheckModelTest ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     model ->
     Hedgehog.Property
@@ -471,7 +469,7 @@ class Proper model where
       properties model === properties'
 
   quickCheckPlutusTest ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     model ->
     Hedgehog.Property
@@ -482,7 +480,7 @@ class Proper model where
       runScriptTest model
 
   testEnumeratedScenarios ::
-    IsProperty (Property model) =>
+    Proposition (Property model) =>
     Show (Model model) =>
     Show model =>
     model ->

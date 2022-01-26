@@ -34,11 +34,11 @@ import Prelude (
   Bounded (..),
   Enum,
   Eq,
+  IO,
   Maybe (..),
   Ord,
   Show (..),
   String,
-  IO,
   filter,
   ($),
   (<$>),
@@ -69,7 +69,7 @@ type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 --         expect  |                  B                   \ translate
 --                 |                                       \
 --                 v          =                 eval        v
---               Result ------------- Result <----------- DeviceUnderTest
+--               Result ------------- Result <----------- Device
 --
 -- 'A' checks consistency between the model specification and its generator.
 -- 'B' (which can be written after 'A' is complete) tests the compiled script.
@@ -82,13 +82,16 @@ class Proper model where
   data Property model :: Type
 
   -- the device under test is the object we are verifying the properties of
-  data DeviceUnderTest model :: Type
+  data Device model :: Type
 
   -- check whether a property is satisfied
   satisfiesProperty :: Model model -> Property model -> Bool
 
   -- generates a model that satisfies a set of properties
   genModel :: MonadGen m => Set (Property model) -> m (Model model)
+
+  -- how to build the device under test from a model
+  buildDevice :: Model model -> Device model
 
   -- propositional logic over model properties defines sets of properties valid in conjunction
   logic :: Formula (Property model)
@@ -139,9 +142,6 @@ class Proper model where
     m (Set (Property model))
   genProperties _ = genGivenFormula logic
 
-  buildDeviceUnderTest :: Model model -> Maybe (DeviceUnderTest model)
-  buildDeviceUnderTest _ = Nothing
-
   -- HedgeHog properties and property groups
 
   modelTestGivenProperties ::
@@ -157,13 +157,13 @@ class Proper model where
   deviceTestGivenProperties ::
     Proposition (Property model) =>
     Show (Model model) =>
-    (Model model -> PropertyT IO ()) ->
+    (Device model -> PropertyT IO ()) ->
     Set (Property model) ->
     Hedgehog.Property
   deviceTestGivenProperties runDeviceTest properties' =
     property $ do
       model <- forAll $ genModel properties'
-      runDeviceTest model
+      runDeviceTest $ buildDevice model
 
   testEnumeratedScenarios ::
     Proposition (Property model) =>
@@ -179,4 +179,3 @@ class Proper model where
       [ (fromString $ show $ Set.toList p, test p)
       | p <- enumerateScenariosWhere cond
       ]
-

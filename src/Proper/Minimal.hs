@@ -62,11 +62,11 @@ type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 --              \ genP         = /           \ satisfies
 --               \              /      A      \
 --                \            /               \
---                 v          /      genM       \
+--                 v          /      genModel   \
 --          Set (Property model) -------------> Model model
 --                 |                                    \
 --                 |                                     \
---         expect  |                  B                   \ translate
+--         expect  |                  B                   \ buildDevice
 --                 |                                       \
 --                 v          =                 eval        v
 --               Result ------------- Result <----------- Device
@@ -157,13 +157,13 @@ class Proper model where
   deviceTestGivenProperties ::
     Proposition (Property model) =>
     Show (Model model) =>
-    (Device model -> PropertyT IO ()) ->
+    (Bool -> Device model -> PropertyT IO ()) ->
     Set (Property model) ->
     Hedgehog.Property
   deviceTestGivenProperties runDeviceTest properties' =
     property $ do
       model <- forAll $ genModel properties'
-      runDeviceTest $ buildDevice model
+      runDeviceTest (satisfiesFormula expect properties') $ buildDevice model
 
   testEnumeratedScenarios ::
     Proposition (Property model) =>

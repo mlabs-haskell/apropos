@@ -58,4 +58,5 @@ library
   import:          lang
   exposed-modules: Test
                  , Proper.Plutus
+                 , Proper.Minimal
   hs-source-dirs:  src

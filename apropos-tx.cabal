@@ -41,6 +41,9 @@ common lang
                     , containers
                     , hedgehog
                     , minisat-solver
+                    , plutarch
+                    , plutus-core
+                    , plutus-ledger-api
                     , pretty
                     , pretty-show
                     , safe
@@ -54,4 +57,5 @@ library
   import:          lang
   exposed-modules: Test
                  , Proper.Minimal
+                 , Proper.Script
   hs-source-dirs:  src

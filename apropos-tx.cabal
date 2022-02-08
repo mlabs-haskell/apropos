@@ -43,10 +43,6 @@ common lang
                     , minisat-solver
                     , pretty
                     , pretty-show
-                    , plutus-core
-                    , plutus-tx
-                    , plutus-ledger
-                    , plutus-ledger-api
                     , safe
                     , text
   ghc-options:
@@ -57,6 +53,5 @@ common lang
 library
   import:          lang
   exposed-modules: Test
-                 , Proper.Plutus
                  , Proper.Minimal
   hs-source-dirs:  src

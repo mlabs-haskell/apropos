@@ -41,7 +41,6 @@ common lang
                     , containers
                     , hedgehog
                     , minisat-solver
-                    , plutarch
                     , plutus-core
                     , plutus-ledger-api
                     , pretty

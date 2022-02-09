@@ -2,11 +2,6 @@
 
 source-repository-package
   type: git
-  location: https://github.com/Plutonomicon/plutarch
-  tag: 8d333bd622082bf83e570a9d26c2f62db580b139
-
-source-repository-package
-  type: git
   location: https://github.com/input-output-hk/plutus.git
   subdir:
     plutus-core

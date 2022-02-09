@@ -58,9 +58,12 @@
             nativeBuildInputs = [ pkgs.cabal-install pkgs.hlint pkgs.haskellPackages.fourmolu ];
 
             additional = ps: [
+              ps.plutarch
             ];
           };
           sha256map = {
+            "https://github.com/Plutonomicon/plutarch"."8d333bd622082bf83e570a9d26c2f62db580b139"
+              = "sha256-h1aAwaDZOmJNIeR4uCsHJfU+KJTSMsPkPSC0dXp4v70=";
             "https://github.com/input-output-hk/plutus.git"."6d8d25d1e84b2a4278da1036aab23da4161b8df8"
               = "o8m86TkI1dTo74YbE9CPPNrBfSDSrf//DMq+v2+woEY=";
             "https://github.com/Quid2/flat.git"."ee59880f47ab835dbd73bea0847dab7869fc20d8"

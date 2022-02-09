@@ -1,5 +1,5 @@
 {
-  description = "DanaSwap-Plutarch";
+  description = "apropos-tx";
 
   inputs = {
     haskell-nix.url = "github:input-output-hk/haskell.nix";

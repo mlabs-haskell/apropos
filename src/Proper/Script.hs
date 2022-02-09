@@ -64,12 +64,15 @@ import Prelude (
   String,
   filter,
   fmap,
+  fst,
+  snd,
   zip,
   ($),
   (&&),
   (.),
   (<$>),
   (<=),
+  (>=),
   (<>),
   (==),
   (>>),
@@ -169,11 +172,11 @@ class Proper model where
   script :: Model model -> Maybe Script
   script _ = Nothing
 
-  modelMemoryBudget :: Model model -> ExMemory
-  modelMemoryBudget _ = ExMemory maxBound
+  modelMemoryBounds :: Model model -> (ExMemory, ExMemory)
+  modelMemoryBounds _ = (ExMemory minBound, ExMemory maxBound)
 
-  modelCPUBudget :: Model model -> ExCPU
-  modelCPUBudget _ = ExCPU maxBound
+  modelCPUBounds :: Model model -> (ExCPU, ExCPU)
+  modelCPUBounds _ = (ExCPU minBound, ExCPU maxBound)
 
   -- Script compiled code test (eval)
   -----------------------------------
@@ -212,17 +215,20 @@ class Proper model where
       shouldPass = satisfiesFormula expect $ properties model
       successWithBudgetCheck :: MonadTest m => ExBudget -> m ()
       successWithBudgetCheck cost@(ExBudget cpu mem) =
-        if cpu <= modelCPUBudget model && mem <= modelMemoryBudget model
+        if inInterval cpu (modelCPUBounds model) && inInterval mem (modelMemoryBounds model)
           then success
           else failWithFootnote $ budgetCheckFailure cost
+            where inInterval :: Ord a => a -> (a,a) -> Bool
+                  inInterval a (l,u) = a >= l && a <= u
       failWithFootnote :: MonadTest m => String -> m ()
       failWithFootnote s = footnote s >> failure
       budgetCheckFailure :: ExBudget -> String
       budgetCheckFailure cost =
         renderStyle ourStyle $
           "Success! But at what cost?"
-            $+$ hang "Budget" 4 (ppDoc (ExBudget (modelCPUBudget model) (modelMemoryBudget model)))
-            $+$ hang "Cost" 4 (ppDoc cost)
+            $+$ hang "Lower Bound" 4 (ppDoc (ExBudget (fst (modelCPUBounds model)) (fst (modelMemoryBounds model))))
+            $+$ hang "Actual Cost" 4 (ppDoc cost)
+            $+$ hang "Upper Bound" 4 (ppDoc (ExBudget (snd (modelCPUBounds model)) (snd (modelMemoryBounds model))))
       unexpectedSuccess :: [Text] -> String
       unexpectedSuccess logs =
         renderStyle ourStyle $

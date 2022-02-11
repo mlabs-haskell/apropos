@@ -59,3 +59,25 @@ library
                  , Proper.Minimal
                  , Proper.Script
   hs-source-dirs:  src
+
+test-suite examples
+  import: lang
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: examples
+  other-modules:
+    Spec.TicTacToe
+  build-depends:
+    base,
+    apropos-tx,
+    plutarch,
+    tasty,
+    tasty-hedgehog,
+    hedgehog,
+    plutus-ledger-api,
+    plutus-core,
+    text,
+    containers,
+    mtl
+
+

@@ -1,10 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
 module Spec.TicTacToe ( ticTacToeTests ) where
 import Proper.Script
-import Hedgehog (MonadGen)
+--import Hedgehog (MonadGen)
 import Hedgehog.Gen (element,list)
-import qualified Hedgehog.Gen as HGen
-import Hedgehog.Range (linear,singleton)
+import qualified Hedgehog.Gen as Gen
+import Hedgehog.Range (linear)
 import Control.Monad.Reader
 import qualified Data.Set as Set
 import Test.Tasty (TestTree, testGroup)
@@ -46,8 +46,8 @@ reachableState b = let nn = numNoughts b
 boardIs3By3 :: Board -> Bool
 boardIs3By3 (Board b) = (all (==3) (length <$> b)) && (3 == length b)
 
-playableBoard :: Board -> Bool
-playableBoard b = length (filter isNothing (unrollBoard $ trimBoard b)) > 1
+--playableBoard :: Board -> Bool
+--playableBoard b = length (filter isNothing (unrollBoard $ trimBoard b)) > 1
 
 placementLegal :: Board -> Board -> Bool
 placementLegal a b =
@@ -62,10 +62,10 @@ placementLegal a b =
 hasMorePiecesThan :: Board -> Board -> Bool
 hasMorePiecesThan b a = numPieces b > numPieces a
 
-bothHavePlayed :: Board -> Bool
-bothHavePlayed b =
-  let b' = unrollBoard $ trimBoard b
-   in Just X `elem` b' && Just O `elem` b'
+--bothHavePlayed :: Board -> Bool
+--bothHavePlayed b =
+--  let b' = unrollBoard $ trimBoard b
+--   in Just X `elem` b' && Just O `elem` b'
 
 
 -- (screaming intensifies)
@@ -87,8 +87,8 @@ winFor p board =
                    || rowWin [(b!!!!0)!!!2,(b!!!!1)!!!1,(b!!!!2)!!!0]
   where rowWin = all (== Just p)
 
-gameWon :: Board -> Bool
-gameWon b = winFor O b || winFor X b
+--gameWon :: Board -> Bool
+--gameWon b = winFor O b || winFor X b
 
 unrollBoard :: Board -> [Maybe Player]
 unrollBoard (Board b) = join b
@@ -113,16 +113,16 @@ diffIndices a b =
 playerPiecePlaced :: Board -> Board -> Player -> Bool
 playerPiecePlaced a b p = any id $ zipWith (\a' b' -> (a' /= Just p) && (b' == Just p)) (unrollBoard $ padBoard a) (unrollBoard $ padBoard b)
 
-emptyIndices :: Eq a => [Maybe a] -> [Int]
-emptyIndices l = fst <$> (filter (\x -> Nothing == snd x) $ zip [0..] l)
-
-playerIndices :: Eq a => [Maybe a] -> a -> [Int]
-playerIndices l a = fst <$> (filter (\x -> Just a == snd x) $ zip [0..] l)
-
-replaceIndex :: [a] -> Int -> a -> [a]
-replaceIndex l i x = case splitAt i l of
-                       (a,_:b) -> a ++ x:b
-                       _ -> error "replaceIndex"
+--emptyIndices :: Eq a => [Maybe a] -> [Int]
+--emptyIndices l = fst <$> (filter (\x -> Nothing == snd x) $ zip [0..] l)
+--
+--playerIndices :: Eq a => [Maybe a] -> a -> [Int]
+--playerIndices l a = fst <$> (filter (\x -> Just a == snd x) $ zip [0..] l)
+--
+--replaceIndex :: [a] -> Int -> a -> [a]
+--replaceIndex l i x = case splitAt i l of
+--                       (a,_:b) -> a ++ x:b
+--                       _ -> error "replaceIndex"
 
 playersTurn :: Board -> Player
 playersTurn (Board b) = let m = length $ filter isNothing $ join b
@@ -136,6 +136,11 @@ otherPlayer O = X
 
 
 data TicTacToe = Model deriving stock (Show)
+
+instance Transformation (GenTransform TicTacToe) (Property TicTacToe) where
+  match _ = No
+  result _ = Set.empty
+
 
 instance Proper TicTacToe where
 
@@ -164,6 +169,11 @@ instance Proper TicTacToe where
       | WinAchieved
       | WinDeclared
     deriving stock (Bounded, Eq, Enum, Ord, Show)
+
+  data GenTransform TicTacToe = NoTransform
+    deriving stock (Bounded, Eq, Enum, Ord, Show)
+
+  transformations NoTransform = error "not a transformation"
 
   satisfiesProperty (MoveProposal f _ _ _) GameInInitialState = f == initialBoard
   satisfiesProperty (MoveProposal f _ p _) IsPlayersTurn = playersTurn f == p
@@ -201,153 +211,10 @@ instance Proper TicTacToe where
                          , FromBoardReachable
                          ]
 
-  genModel props = runReaderT genMoveProposal' props
-
-genMoveProposal' :: MonadGen m => ReaderT (Set.Set (Property TicTacToe)) m (Model TicTacToe)
-genMoveProposal' = do
-  win <- asks (Set.member WinAchieved)
-  if win
-     then HGen.filterT ((flip satisfiesProperty) WinAchieved) genMoveProposalForward
-     else HGen.filterT (not . (flip satisfiesProperty) WinAchieved) genMoveProposalForward
-
-genMoveProposalForward :: MonadGen m => ReaderT (Set.Set (Property TicTacToe)) m (Model TicTacToe)
-genMoveProposalForward = do
-  player' <- genPlayer
-  currentState <- genCurrentState player'
-  nextState <- genNextState currentState player'
-  win <- genDeclaration nextState
-  return $ MoveProposal currentState nextState player' win
-    where
-      genCurrentState :: MonadGen m => Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genCurrentState p = do
-        isInit <- asks (Set.member GameInInitialState)
-        if isInit
-           then return initialBoard
-           else genRandomBoard''' p
-
-      genNextState :: MonadGen m => Board -> Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genNextState b p = genPlacement b p >>= genModifyBoardShape
-
-      genRandomBoard''' :: MonadGen m => Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genRandomBoard''' p = HGen.filterT playableBoard (genRandomBoard'' p)
-
-
-      genRandomBoard'' :: MonadGen m => Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genRandomBoard'' p = do
-        isPlayersTurn <- asks (Set.member IsPlayersTurn)
-        let p' = if isPlayersTurn
-                    then p
-                    else otherPlayer p
-        HGen.filterT (\b -> playersTurn b == p') $ do
-          reachable <- asks (Set.member FromBoardReachable)
-          if reachable
-             then HGen.filterT reachableState $ genRandomBoard' p
-             else HGen.filterT (not . reachableState) $ genRandomBoard' p
-
-      --TODO better names for board gen
-      genRandomBoard' :: MonadGen m => Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genRandomBoard' p = do
-        won <- asks (Set.member GameWonAlready)
-        lost <- asks (Set.member GameLostAlready)
-        case (won,lost) of
-          (True,True) -> HGen.filterT (\b -> winFor p b && winFor (otherPlayer p) b) (genRandomBoardo p)
-          (True,_) -> HGen.filterT (\b -> winFor p b && not (winFor (otherPlayer p) b)) (genRandomBoardo p)
-          (_,True) -> HGen.filterT (\b -> winFor (otherPlayer p) b && not (winFor p b)) (genRandomBoardo p)
-          _ -> HGen.filterT (not .gameWon) (genRandomBoardo p)
-
-      genRandomBoardo :: MonadGen m => Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genRandomBoardo _ = do
-        ssd <- asks (Set.member PlacementLegal)
-        if ssd
-           then genRandomBoard
-           else HGen.filterT bothHavePlayed genRandomBoard
-
-
-      genRandomBoard :: MonadGen m => ReaderT (Set.Set (Property TicTacToe)) m Board
-      genRandomBoard = HGen.filterT (/= initialBoard) $ do
-        is3By3 <- asks (Set.member FromIs3by3)
-        if is3By3
-           then rerollBoard <$> list (singleton 9) genRandomTile
-           else rerollBoard <$> (HGen.filterT (\x -> length x /= 9) (list (linear 6 24) genRandomTile))
-
---      genPlayer :: MonadGen m => Board -> ReaderT (Set.Set (Property TicTacToe)) m Player
---      genPlayer b = do
---        ipt <- asks (Set.member IsPlayersTurn)
---        return $ if ipt
---                   then playersTurn b
---                   else otherPlayer $ playersTurn b
-
-      genPlayer :: MonadGen m => ReaderT (Set.Set (Property TicTacToe)) m Player
-      genPlayer = do
-        isInit <- asks (Set.member GameInInitialState)
-        player' <- if isInit
-                     then return O
-                     else element [X,O]
-        isPlayersTurn <- asks (Set.member IsPlayersTurn)
-        return $ if isPlayersTurn
-                   then player'
-                   else otherPlayer player'
-
-      genModifyBoardShape :: MonadGen m => Board -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genModifyBoardShape b = do
-        f <- asks (Set.member FromIs3by3)
-        t <- asks (Set.member ToIs3by3)
-        case (f,t) of
-          (False,True) -> return $ padBoard $ trimBoard b
-          (_,False) -> return $ rerollBoard $ unrollBoard b ++ [Nothing] --TODO
-          _ -> return b
-
-      genPlacement :: MonadGen m => Board -> Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genPlacement bo p = do
-        let b = trimBoard $ padBoard bo
-        ssf <- asks (Set.member SingleTileDiff)
-        if ssf
-           then genSingleTileDiff b p
-           else do
-             ppop <- asks (Set.member PlayerPlacesOwnPiece)
-             pleg <- asks (Set.member PlacementLegal)
-             case (ppop,pleg) of
-                (True,True) -> genLegalPlacement b (otherPlayer p) >>= \b' -> genLegalPlacement b' p
-                (True,False) -> genIllegalPlacement b (otherPlayer p) >>= \b' -> genLegalPlacement b' p
-                (False,False) -> genIllegalPlacement b (otherPlayer p) >>= \b' -> genLegalPlacement b' (otherPlayer p)
-                (False,True) -> genLegalPlacement b (otherPlayer p) >>= \b' -> genLegalPlacement b' (otherPlayer p)
-
-      genSingleTileDiff :: MonadGen m => Board -> Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genSingleTileDiff b p = do
-        ppop <- asks (Set.member PlayerPlacesOwnPiece)
-        pleg <- asks (Set.member PlacementLegal)
-        let p' = if ppop
-                   then p
-                   else otherPlayer p
-        if pleg
-           then genLegalPlacement b p'
-           else genIllegalPlacement b p'
-
-      genIllegalPlacement :: MonadGen m => Board -> Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genIllegalPlacement b p = do
-        let b' = unrollBoard b
-            e  = filter (<9) $ playerIndices b' (otherPlayer p)
-        case e of
-          [] -> return b
-          _ -> do
-            i <- element e
-            return $ rerollBoard $ replaceIndex b' i (Just p)
-
-      genLegalPlacement :: MonadGen m => Board -> Player -> ReaderT (Set.Set (Property TicTacToe)) m Board
-      genLegalPlacement b p = do
-        let b' = unrollBoard b
-            e  = filter (<9) $ emptyIndices b'
-        case e of
-          [] -> return b
-          _ -> do
-            i <- element e
-            return $ rerollBoard $ replaceIndex b' i (Just p)
-
-genDeclaration :: MonadGen m => Board -> ReaderT (Set.Set (Property TicTacToe)) m Bool
-genDeclaration _ = do
-  win <- asks (Set.member WinDeclared)
-  return win
-
-genRandomTile :: MonadGen m => ReaderT (Set.Set (Property TicTacToe)) m (Maybe Player)
-genRandomTile = element [Nothing, Just X, Just O]
+  genModelBase = do
+    player' <- element [X,O]
+    currentState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
+    nextState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
+    win <- Gen.bool
+    return $ MoveProposal currentState nextState player' win
 

@@ -4,6 +4,7 @@ module Proper.Script (
   Proper (..),
   Proposition,
   Formula (..),
+  Transformation (..),
 ) where
 
 import Data.Functor.Identity (Identity)

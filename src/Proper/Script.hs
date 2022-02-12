@@ -66,7 +66,12 @@ import Prelude (
   fmap,
   fst,
   snd,
+  elem,
+  foldr,
   zip,
+  not,
+  pure,
+  length,
   ($),
   (&&),
   (.),
@@ -76,7 +81,9 @@ import Prelude (
   (<>),
   (==),
   (>>),
+  (>),
  )
+import Control.Monad (join, (>=>))
 
 --------------------------------------------------------------------------------
 -- Propositional logic is used to define two aspects of a model.
@@ -85,6 +92,17 @@ import Prelude (
 --------------------------------------------------------------------------------
 
 type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
+
+
+satisfiesFormula :: forall p . Proposition p => Formula p -> Set p -> Bool
+satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
+  where
+    set :: [p]
+    set = Set.toList s
+    unset :: [p]
+    unset = filter (`notElem` s) ([minBound .. maxBound] :: [p])
+
+
 
 -- Proper is a type family over a Model and its Properties
 -- It encapsulates the model checking pattern shown in this diagram
@@ -108,17 +126,47 @@ type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 -- 'B' (which can be written after 'A' is complete) tests the compiled script.
 
 class Proper model where
+
   -- a model encodes the data relevant to a specification
+  -- this can be an arbitrary type
   data Model model :: Type
 
   -- properties are things that may be true of a model
+  -- properties are Propositions
   data Property model :: Type
+
+  -- transformations are random functions from models that match a formula
+  -- to models that satisfy a set of properties
+  -- GenTransforms are Propositions
+  data GenTransform model :: Type
 
   -- check whether a property is satisfied
   satisfiesProperty :: Model model -> Property model -> Bool
 
+  -- here we define the random functions named by the GenTransforms
+  transformations :: MonadGen m => GenTransform model -> Model model -> m (Model model)
+
+  -- The base generator.
+  -- This will form the default inefficient rejection sampler defined in GenModel.
+  -- Adding GenTransform definitions will enhance the model and make the generator more efficient.
+  genModelBase :: MonadGen m => m (Model model)
+
   -- generates a model that satisfies a set of properties
-  genModel :: MonadGen m => Set (Property model) -> m (Model model)
+  genModel :: Proposition (GenTransform model)
+           => Proposition (Property model)
+           => Transformation (GenTransform model) (Property model)
+           => MonadGen m
+           => Set (Property model) -> m (Model model)
+  genModel targetProperties = do
+    baseModel <- genModelBase
+    let paths = enumerateTransformPaths [minBound..maxBound] (properties baseModel) targetProperties
+    if properties baseModel == targetProperties
+       then pure baseModel
+       else if length paths > 0
+               then do
+                 path <- Gen.element paths
+                 (foldr (>=>) pure (transformations <$> path)) baseModel
+               else Gen.filterT (\candidateModel -> targetProperties == properties candidateModel) genModelBase
 
   -- propositional logic over model properties defines sets of properties valid in conjunction
   logic :: Formula (Property model)
@@ -127,14 +175,6 @@ class Proper model where
   -- given a set of properties we expect a script to pass or fail
   expect :: Formula (Property model)
   expect = Yes
-
-  satisfiesFormula :: Proposition (Property model) => Formula (Property model) -> Set (Property model) -> Bool
-  satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
-    where
-      set :: [Property model]
-      set = Set.toList s
-      unset :: [Property model]
-      unset = filter (`notElem` s) ([minBound .. maxBound] :: [Property model])
 
   enumerateScenariosWhere :: Proposition (Property model) => Formula (Property model) -> [Set (Property model)]
   enumerateScenariosWhere condition = enumerateSolutions $ logic :&&: condition :&&: allPresentInFormula
@@ -258,6 +298,8 @@ class Proper model where
   -- HedgeHog properties and property groups
 
   modelTestGivenProperties ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
@@ -268,6 +310,8 @@ class Proper model where
       properties model === properties'
 
   plutusTestGivenProperties ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
@@ -278,6 +322,8 @@ class Proper model where
       runScriptTest model
 
   combinedTestGivenProperties ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
@@ -289,6 +335,8 @@ class Proper model where
       runScriptTest model
 
   quickCheckModelTest ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     model ->
@@ -300,6 +348,8 @@ class Proper model where
       properties model === properties'
 
   quickCheckScriptTest ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     model ->
@@ -311,6 +361,8 @@ class Proper model where
       runScriptTest model
 
   testEnumeratedScenarios ::
+    Transformation (GenTransform model) (Property model) =>
+    Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Show model =>
@@ -324,3 +376,27 @@ class Proper model where
       [ (fromString $ show $ Set.toList p, test p)
       | p <- enumerateScenariosWhere cond
       ]
+
+class Transformation t p where
+  match :: t -> Formula p
+  result :: t -> Set p
+
+enumerateTransformPaths :: forall t p.
+                           (Eq t, Proposition p, Transformation t p)
+                        => [t]
+                        -> Set p
+                        -> Set p
+                        -> [[t]]
+enumerateTransformPaths = go []
+  where
+    go breadcrumbs transforms from to =
+      let pathsAhead = filter (\t -> satisfiesFormula (match t) from) transforms
+          untroddenPathsAhead = filter (\path -> not (path `elem` breadcrumbs)) pathsAhead
+          pathAheadReachesDestination t = result t == to
+          pathCompletions = filter pathAheadReachesDestination untroddenPathsAhead
+          completePaths = ((breadcrumbs <>) . pure) <$> pathCompletions
+          pathContinuations = filter (not . pathAheadReachesDestination) untroddenPathsAhead
+          continuePath t = go (t:breadcrumbs) transforms (result t) to
+          furtherPaths = join (continuePath <$> pathContinuations)
+       in completePaths <> furtherPaths
+

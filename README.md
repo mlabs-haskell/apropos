@@ -109,7 +109,7 @@ To do this we can define the transformations in terms of logical expressions.
 class Proper model =
   data Transformation model m =
     Transformation {
-      match :: Formula
+      match :: Formula (Property model)
     , result :: Set (Property model)
     , genTransform :: Model model -> m (Model model)
     }

@@ -25,7 +25,7 @@ import Hedgehog (
   forAll,
   property,
   success,
-  (===),
+--  (===),
  )
 import Hedgehog qualified
 import Hedgehog.Gen qualified as Gen
@@ -56,13 +56,14 @@ import Prelude (
   Bool (..),
   Bounded (..),
   Either (..),
-  Enum,
+  Enum(..),
   Eq,
   Int,
   Maybe (..),
   Ord,
   Show (..),
   String,
+  id,
   filter,
   fmap,
   fst,
@@ -83,6 +84,7 @@ import Prelude (
   (==),
   (>>),
   (>),
+  (+),
  )
 import Control.Monad (join, (>=>))
 
@@ -150,24 +152,26 @@ class Proper model where
   -- The base generator.
   -- This will form the default inefficient rejection sampler defined in GenModel.
   -- Adding GenTransform definitions will enhance the model and make the generator more efficient.
-  genModelBase :: MonadGen m => m (Model model)
+  genBaseModel :: MonadGen m => m (Model model)
 
   -- generates a model that satisfies a set of properties
   genModel :: Proposition (GenTransform model)
            => Proposition (Property model)
            => Transformation (GenTransform model) (Property model)
            => MonadGen m
-           => Set (Property model) -> m (Model model)
-  genModel targetProperties = do
-    baseModel <- genModelBase
-    let paths = enumerateTransformPaths [minBound..maxBound] (properties baseModel) targetProperties
+           => Int
+           -> Set (Property model)
+           -> m (Model model, (Set (Property model), Either Text [GenTransform model]))
+  genModel search_depth targetProperties = do
+    baseModel <- genBaseModel
+    let paths = enumerateTransformPaths search_depth [minBound..maxBound] (properties baseModel) targetProperties
     if properties baseModel == targetProperties
-       then pure baseModel
+       then pure (baseModel, (properties baseModel, Left "Direct Hit"))
        else if length paths > 0
                then do
                  path <- Gen.element paths
-                 (foldr (>=>) pure (transformations <$> path)) baseModel
-               else Gen.filterT (\candidateModel -> targetProperties == properties candidateModel) genModelBase
+                 (, (properties baseModel, Right path)) <$> (foldr (>=>) pure (transformations <$> path)) baseModel
+               else (,(properties baseModel, Left "Rejection Sampling")) <$> Gen.filterT (\candidateModel -> targetProperties == properties candidateModel) genBaseModel
 
   -- propositional logic over model properties defines sets of properties valid in conjunction
   logic :: Formula (Property model)
@@ -261,8 +265,6 @@ class Proper model where
           else failWithFootnote $ budgetCheckFailure cost
             where inInterval :: Ord a => a -> (a,a) -> Bool
                   inInterval a (l,u) = a >= l && a <= u
-      failWithFootnote :: MonadTest m => String -> m ()
-      failWithFootnote s = footnote s >> failure
       budgetCheckFailure :: ExBudget -> String
       budgetCheckFailure cost =
         renderStyle ourStyle $
@@ -293,8 +295,8 @@ class Proper model where
       dumpLogs logs = vcat . fmap go . zip [1 ..] $ logs
       go :: (Int, Text) -> Doc
       go (ix, line) = (int ix <> colon) <+> (text . show $ line)
-      ourStyle :: Style
-      ourStyle = style {lineLength = 80}
+
+
 
   -- HedgeHog properties and property groups
 
@@ -303,62 +305,37 @@ class Proper model where
     Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
+    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  modelTestGivenProperties properties' =
+  modelTestGivenProperties search_depth properties' =
     property $ do
-      model <- forAll $ genModel properties'
-      properties model === properties'
+      (model,g) <- forAll $ genModel search_depth properties'
+      if properties model == properties'
+         then pure ()
+         else failWithFootnote $ renderStyle ourStyle $
+                                    "Model Consistency Failure."
+                                      $+$ hang "Generator method:" 4 (ppGen g)
+                                      $+$ hang  "Model:" 4 (ppDoc model)
+                                      $+$ hang  "Expected:" 4 (ppDoc properties')
+                                      $+$ hang  "Observed:" 4 (ppDoc (properties model))
+    where ppGen (props,(Left g))  = hang "Props:" 4 (ppDoc props)
+                                $+$ hang "Generator:" 4 (ppDoc g)
+          ppGen (props,(Right p)) = hang "Props:" 4 (ppDoc props)
+                                $+$ hang "Transformation" 4 (ppDoc p)
+
 
   plutusTestGivenProperties ::
     Transformation (GenTransform model) (Property model) =>
     Proposition (GenTransform model) =>
     Proposition (Property model) =>
     Show (Model model) =>
+    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  plutusTestGivenProperties properties' =
+  plutusTestGivenProperties search_depth properties' =
     property $ do
-      model <- forAll $ genModel properties'
-      runScriptTest model
-
-  combinedTestGivenProperties ::
-    Transformation (GenTransform model) (Property model) =>
-    Proposition (GenTransform model) =>
-    Proposition (Property model) =>
-    Show (Model model) =>
-    Set (Property model) ->
-    Hedgehog.Property
-  combinedTestGivenProperties properties' =
-    property $ do
-      model <- forAll $ genModel properties'
-      properties model === properties'
-      runScriptTest model
-
-  quickCheckModelTest ::
-    Transformation (GenTransform model) (Property model) =>
-    Proposition (GenTransform model) =>
-    Proposition (Property model) =>
-    Show (Model model) =>
-    model ->
-    Hedgehog.Property
-  quickCheckModelTest m =
-    property $ do
-      properties' <- forAll $ genProperties m
-      model <- forAll $ genModel properties'
-      properties model === properties'
-
-  quickCheckScriptTest ::
-    Transformation (GenTransform model) (Property model) =>
-    Proposition (GenTransform model) =>
-    Proposition (Property model) =>
-    Show (Model model) =>
-    model ->
-    Hedgehog.Property
-  quickCheckScriptTest m =
-    property $ do
-      properties' <- forAll $ genProperties m
-      model <- forAll $ genModel properties'
+      (model,_) <- forAll $ genModel search_depth properties'
       runScriptTest model
 
   testEnumeratedScenarios ::
@@ -379,25 +356,31 @@ class Proper model where
       ]
 
 class Transformation t p where
-  match :: t -> Formula p
-  result :: t -> Set p
+  transformation :: t -> (Set p -> Set p)
 
 enumerateTransformPaths :: forall t p.
                            (Eq t, Proposition p, Transformation t p)
-                        => [t]
+                        => Int
+                        -> [t]
                         -> Set p
                         -> Set p
                         -> [[t]]
-enumerateTransformPaths = go []
+enumerateTransformPaths depth_limit transforms from to = go [] id 0
   where
-    go breadcrumbs transforms from to =
-      let pathsAhead = filter (\t -> satisfiesFormula (match t) from) transforms
-          untroddenPathsAhead = filter (\path -> not (path `elem` breadcrumbs)) pathsAhead
-          pathAheadReachesDestination t = result t == to
-          pathCompletions = filter pathAheadReachesDestination untroddenPathsAhead
+    go breadcrumbs arrow depth =
+      let isCompletion t = (arrow . transformation t) from == to
+          pathCompletions = filter isCompletion transforms
           completePaths = ((breadcrumbs <>) . pure) <$> pathCompletions
-          pathContinuations = filter (not . pathAheadReachesDestination) untroddenPathsAhead
-          continuePath t = go (t:breadcrumbs) transforms (result t) to
-          furtherPaths = join (continuePath <$> pathContinuations)
-       in completePaths <> furtherPaths
+          pathContinuations = filter (not . (`elem` breadcrumbs)) (filter (not . isCompletion) transforms)
+          continuePath t = if depth + 1 > depth_limit
+                              then []
+                              else go (t:breadcrumbs) (arrow . transformation t) (depth+1)
+          furtherCompletePaths = join (continuePath <$> pathContinuations)
+       in completePaths <> furtherCompletePaths
+
+failWithFootnote :: MonadTest m => String -> m ()
+failWithFootnote s = footnote s >> failure
+
+ourStyle :: Style
+ourStyle = style {lineLength = 80}
 

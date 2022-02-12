@@ -17,7 +17,7 @@ ticTacToeTests =
   testGroup
     "TicTacToe"
     $ fromGroup <$>
-      [ testEnumeratedScenarios Model "Model Consistency" modelTestGivenProperties Yes
+      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 10) (Var ToIs3by3)
       ]
 
 
@@ -137,11 +137,6 @@ otherPlayer O = X
 
 data TicTacToe = Model deriving stock (Show)
 
-instance Transformation (GenTransform TicTacToe) (Property TicTacToe) where
-  match _ = No
-  result _ = Set.empty
-
-
 instance Proper TicTacToe where
 
   data Model TicTacToe =
@@ -169,11 +164,6 @@ instance Proper TicTacToe where
       | WinAchieved
       | WinDeclared
     deriving stock (Bounded, Eq, Enum, Ord, Show)
-
-  data GenTransform TicTacToe = NoTransform
-    deriving stock (Bounded, Eq, Enum, Ord, Show)
-
-  transformations NoTransform = error "not a transformation"
 
   satisfiesProperty (MoveProposal f _ _ _) GameInInitialState = f == initialBoard
   satisfiesProperty (MoveProposal f _ p _) IsPlayersTurn = playersTurn f == p
@@ -211,10 +201,26 @@ instance Proper TicTacToe where
                          , FromBoardReachable
                          ]
 
-  genModelBase = do
+  genBaseModel = do
     player' <- element [X,O]
     currentState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
     nextState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
     win <- Gen.bool
     return $ MoveProposal currentState nextState player' win
+
+  data GenTransform TicTacToe =
+      SetWinDeclared
+    | UnSetWinDeclared
+    | SetToIs3By3
+    deriving stock (Bounded, Eq, Enum, Ord, Show)
+
+  transformations SetWinDeclared m = return $ m { declare = True }
+  transformations UnSetWinDeclared m = return $ m { declare = False }
+  transformations SetToIs3By3 m = return $ m { to = trimBoard $ padBoard $ to m }
+
+instance Transformation (GenTransform TicTacToe) (Property TicTacToe) where
+  transformation SetWinDeclared = Set.insert WinDeclared
+  transformation UnSetWinDeclared = Set.delete WinDeclared
+  transformation SetToIs3By3 = Set.insert ToIs3by3
+
 

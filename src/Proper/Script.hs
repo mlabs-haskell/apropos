@@ -209,23 +209,32 @@ class Proper model where
             continuePath t = go (t:breadcrumbs) (toggle t s)
         in ((\t -> reverse (t:breadcrumbs)) <$> thatReachDestination) <> (join (continuePath <$> incomplete))
 
-
   transformationWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
                                => (t (), Model model) -> Toggle (Property model) -> m (t (), Model model)
   transformationWithCheck (check, om) t = do
-    nm <- transformation t om
-    if properties nm == toggle t (properties om)
-      then pure (check, nm)
-      else pure (check >> genFailure om nm, nm)
+    if transformationIsSound
+       then do
+         nm <- transformation t om
+         if properties nm == toggle t (properties om)
+           then pure (check, nm)
+           else pure (check >> genFailure nm, nm)
+       else pure (check >> transformationLogicInconsistency, om)
     where
-      genFailure om' nm' =
+      transformationIsSound = satisfiesFormula logic (toggle t (properties om))
+      transformationLogicInconsistency =
         failWithFootnote $ renderStyle ourStyle $
-           "Generator Transformation Invariant Failure."
+           "Transformation Logic Inconsistency."
               $+$ hang "Transformation:" 4 (ppDoc t)
-              $+$ hang "FromModel:" 4 (ppDoc om')
-              $+$ hang "FromProperties:" 4 (ppDoc (properties om'))
-              $+$ hang "ToModel:" 4 (ppDoc nm')
-              $+$ hang "ToProperties:" 4 (ppDoc (properties nm'))
+              $+$ hang "FromModel:" 4 (ppDoc om)
+              $+$ hang "FromProperties:" 4 (ppDoc (properties om))
+      genFailure nm =
+        failWithFootnote $ renderStyle ourStyle $
+           "Transformation Invariant Failure."
+              $+$ hang "Transformation:" 4 (ppDoc t)
+              $+$ hang "FromModel:" 4 (ppDoc om)
+              $+$ hang "FromProperties:" 4 (ppDoc (properties om))
+              $+$ hang "ToModel:" 4 (ppDoc nm)
+              $+$ hang "ToProperties:" 4 (ppDoc (properties nm))
 
   enumerateScenariosWhere :: Proposition (Property model) => Formula (Property model) -> [Set (Property model)]
   enumerateScenariosWhere condition = enumerateSolutions $ logic :&&: condition :&&: allPresentInFormula

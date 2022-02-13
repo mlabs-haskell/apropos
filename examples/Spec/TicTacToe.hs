@@ -4,7 +4,7 @@ import Proper.Script
 --import Hedgehog (MonadGen)
 import Hedgehog.Gen (element,list)
 import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
+import Hedgehog.Range (singleton, linear)
 import Control.Monad.Reader
 import qualified Data.Set as Set
 import Test.Tasty (TestTree, testGroup)
@@ -184,13 +184,6 @@ instance Proper TicTacToe where
               , (Var WinAchieved :&&: Not (Var GameWonAlready)) :->: Var PlayerPlacesOwnPiece
               , Var FromBoardReachable :->: Var FromIs3by3
 
-              -- these are added since my generator is horribly slow due to filterT
-              -- they could be removed with improvements probably
-              , Var GameWonAlready :->: Not (Var PlacementLegal)
-              , Var GameLostAlready :->: Not (Var PlacementLegal)
-              , Var GameLostAlready :->: Not (Var WinAchieved)
-              , Var GameWonAlready :->: Not (Var PlayerPlacesOwnPiece)
-              , Var GameWonAlready :->: Not (Var WinAchieved)
               , Not (All $ Var <$> [GameWonAlready, GameLostAlready])
               ]
 
@@ -201,7 +194,7 @@ instance Proper TicTacToe where
                          , FromBoardReachable
                          ]
 
-  genBaseModel _ = do
+  genBaseModel = do
     player' <- element [X,O]
     currentState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
     nextState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
@@ -212,14 +205,25 @@ instance Proper TicTacToe where
       SetWinDeclared
     | UnSetWinDeclared
     | SetToIs3By3
+    | SetFromIs3By3
+    | SetGameInInitialState
     deriving stock (Bounded, Eq, Enum, Ord, Show)
 
   modelTransformation SetWinDeclared m = return $ m { declare = True }
   modelTransformation UnSetWinDeclared m = return $ m { declare = False }
-  modelTransformation SetToIs3By3 m = return $ m { to = trimBoard $ padBoard $ to m }
+  modelTransformation SetToIs3By3 m = do
+    t33 <- rerollBoard <$> list (singleton 9) (element [Nothing,Just X,Just O])
+    return $ m { to = t33 }
+  modelTransformation SetFromIs3By3 m = do
+    f33 <- rerollBoard <$> list (singleton 9) (element [Nothing,Just X,Just O])
+    return $ m { from = f33 }
+  modelTransformation SetGameInInitialState m = pure $ m { from = initialBoard }
+
 
   propertyTransformation SetWinDeclared = (Yes, Set.insert WinDeclared)
   propertyTransformation UnSetWinDeclared = (Yes, Set.delete WinDeclared)
-  propertyTransformation SetToIs3By3 = (No, Set.insert ToIs3by3)
+  propertyTransformation SetToIs3By3 = (Not (Var ToIs3by3), Set.insert ToIs3by3)
+  propertyTransformation SetFromIs3By3 = (Not (Var FromIs3by3), Set.insert FromIs3by3)
+  propertyTransformation SetGameInInitialState = (Not (Var GameInInitialState), Set.insert GameInInitialState)
 
 

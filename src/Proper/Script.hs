@@ -5,7 +5,7 @@ module Proper.Script (
   Proposition,
   Formula (..),
 ) where
-
+import Control.Monad.Reader (runReaderT, ReaderT)
 import Data.Functor.Identity (Identity)
 import Data.List (notElem)
 import Data.Map.Lazy qualified as M
@@ -157,7 +157,7 @@ class Proper model where
 
   propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
 
-  genBaseModel :: MonadGen m => Set (Property model) -> m (Model model)
+  genBaseModel :: MonadGen m => ReaderT (Set (Property model)) m (Model model)
 
   -- generates a model that satisfies a set of properties
   genModel :: Proposition (Transformation model)
@@ -167,7 +167,7 @@ class Proper model where
            => Set (Property model)
            -> m (Model model,[Transformation model])
   genModel targetProperties = do
-    baseModel <- genBaseModel targetProperties
+    baseModel <- runReaderT genBaseModel targetProperties
     let transforms = enumeratePaths (properties baseModel) targetProperties
     case transforms of
       [] -> pure (baseModel,[])

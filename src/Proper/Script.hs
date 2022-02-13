@@ -368,6 +368,7 @@ class Proper model where
          else failWithFootnote $ renderStyle ourStyle $
                                     "Model Consistency Failure."
                                       $+$ hang  "Model:" 4 (ppDoc model)
+                                      $+$ hang  "Transformation:" 4 (ppDoc transforms)
                                       $+$ hang  "Expected:" 4 (ppDoc properties')
                                       $+$ hang  "Observed:" 4 (ppDoc (properties model))
 

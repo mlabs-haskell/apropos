@@ -17,7 +17,7 @@ ticTacToeTests =
   testGroup
     "TicTacToe"
     $ fromGroup <$>
-      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 10) (Var ToIs3by3)
+      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 10) Yes
       ]
 
 
@@ -201,26 +201,25 @@ instance Proper TicTacToe where
                          , FromBoardReachable
                          ]
 
-  genBaseModel = do
+  genBaseModel _ = do
     player' <- element [X,O]
     currentState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
     nextState <- rerollBoard <$> list (linear 6 24) (element [Nothing,Just X,Just O])
     win <- Gen.bool
     return $ MoveProposal currentState nextState player' win
 
-  data GenTransform TicTacToe =
+  data Transformation TicTacToe =
       SetWinDeclared
     | UnSetWinDeclared
     | SetToIs3By3
     deriving stock (Bounded, Eq, Enum, Ord, Show)
 
-  transformations SetWinDeclared m = return $ m { declare = True }
-  transformations UnSetWinDeclared m = return $ m { declare = False }
-  transformations SetToIs3By3 m = return $ m { to = trimBoard $ padBoard $ to m }
+  modelTransformation SetWinDeclared m = return $ m { declare = True }
+  modelTransformation UnSetWinDeclared m = return $ m { declare = False }
+  modelTransformation SetToIs3By3 m = return $ m { to = trimBoard $ padBoard $ to m }
 
-instance Transformation (GenTransform TicTacToe) (Property TicTacToe) where
-  transformation SetWinDeclared = Set.insert WinDeclared
-  transformation UnSetWinDeclared = Set.delete WinDeclared
-  transformation SetToIs3By3 = Set.insert ToIs3by3
+  propertyTransformation SetWinDeclared = (Set.empty, Set.singleton WinDeclared)
+  propertyTransformation UnSetWinDeclared = (Set.singleton WinDeclared, Set.empty)
+  propertyTransformation SetToIs3By3 = (Set.empty, Set.singleton ToIs3by3)
 
 

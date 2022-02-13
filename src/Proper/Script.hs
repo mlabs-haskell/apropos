@@ -4,6 +4,7 @@ module Proper.Script (
   Proper (..),
   Proposition,
   Formula (..),
+  Toggle (..),
 ) where
 import Control.Monad.Reader (runReaderT, ReaderT)
 import Data.Functor.Identity (Identity)
@@ -63,7 +64,6 @@ import Prelude (
   Ord,
   Show (..),
   String,
-  id,
   filter,
   fmap,
   fst,
@@ -72,7 +72,6 @@ import Prelude (
   zip,
   not,
   pure,
-  length,
   reverse,
   ($),
   (&&),
@@ -83,8 +82,6 @@ import Prelude (
   (<>),
   (==),
   (>>),
-  (>),
-  (||),
  )
 import Control.Monad (join,foldM)
 
@@ -96,6 +93,11 @@ import Control.Monad (join,foldM)
 
 type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 
+data Toggle a = On a | Off a deriving stock (Eq,Ord,Show)
+
+toggle :: Ord a => Toggle a -> Set a -> Set a
+toggle (On a) = Set.insert a
+toggle (Off a) = Set.delete a
 
 satisfiesFormula :: forall p . Proposition p => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
@@ -138,9 +140,6 @@ class Proper model where
   -- properties are Propositions
   data Property model :: Type
 
-  -- transformations are random functions from models to models
-  data Transformation model :: Type
-
   -- check whether a property is satisfied
   satisfiesProperty :: Model model -> Property model -> Bool
 
@@ -152,20 +151,20 @@ class Proper model where
   expect :: Formula (Property model)
   expect = Yes
 
-  -- here we define the random functions named by the Transformations
-  modelTransformation :: MonadGen m => Transformation model -> Model model -> m (Model model)
+  transformation :: MonadGen m => Toggle (Property model) -> Model model -> m (Model model)
+  transformation _ m = pure m
 
-  propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
+  transformationPossible :: Proposition (Property model) => Toggle (Property model) -> Formula (Property model)
+  transformationPossible _ = No
 
   genBaseModel :: MonadGen m => ReaderT (Set (Property model)) m (Model model)
 
   -- generates a model that satisfies a set of properties
-  genModel :: Proposition (Transformation model)
-           => Proposition (Property model)
+  genModel :: Proposition (Property model)
            => Show (Model model)
            => MonadGen m
            => Set (Property model)
-           -> m (Model model,[Transformation model])
+           -> m (Model model,[Toggle (Property model)])
   genModel targetProperties = do
     baseModel <- runReaderT genBaseModel targetProperties
     let transforms = enumeratePaths (properties baseModel) targetProperties
@@ -175,49 +174,47 @@ class Proper model where
         transform <- Gen.element transforms
         pure (baseModel,transform)
 
-  enumeratePaths :: Proposition (Transformation model)
-                     => Proposition (Property model)
-                     => Show (Model model)
-                     => Set (Property model)
-                     -> Set (Property model)
-                     -> [[Transformation model]]
+  enumeratePaths :: Proposition (Property model)
+                 => Show (Model model)
+                 => Set (Property model)
+                 -> Set (Property model)
+                 -> [[Toggle (Property model)]]
   enumeratePaths from to =
     if from == to
        then []
        else go [] from
     where
-      allTransformations :: [Transformation model]
-      allTransformations = [minBound..maxBound]
-      applicableTransformations s = filter (\t -> satisfiesFormula (fst (propertyTransformation t)) s) allTransformations
-      numConflicts :: (Bounded x, Eq x, Enum x) => Set x -> Set x -> Int
-      numConflicts a b = length $ filter id [ ((i `elem` a) && (not (i `elem` b))) || ((not (i `elem` a)) && (i `elem` b))
-                                            | i <- [minBound..maxBound]
-                                            ]
-      reducesConflicts :: Set (Property model) -> Transformation model -> Bool
-      reducesConflicts s t = numConflicts s to > numConflicts ((snd (propertyTransformation t)) s) to
-      go :: [Transformation model] -> Set (Property model) -> [[Transformation model]]
+      allTransformations :: [Toggle (Property model)]
+      allTransformations = (On <$> [minBound..maxBound]) <> (Off <$> [minBound..maxBound])
+      applicableTransformations :: Set (Property model) -> [Toggle (Property model)]
+      applicableTransformations s = filter (\t -> satisfiesFormula (transformationPossible t) s) allTransformations
+      go :: [Toggle (Property model)] -> Set (Property model) -> [[Toggle (Property model)]]
       go breadcrumbs s =
-        let candidatePaths :: [Transformation model]
+        let candidatePaths :: [Toggle (Property model)]
             candidatePaths = applicableTransformations s
-            conflictReducingPaths :: [Transformation model]
-            conflictReducingPaths = filter (reducesConflicts s) candidatePaths
-            thatDon'tDoubleBack :: [Transformation model]
+            reducesConflicts :: Toggle (Property model) -> Bool
+            reducesConflicts (On t) = (t `elem` to) && (not (t `elem` s))
+            reducesConflicts (Off t) = (not (t `elem` to)) && (t `elem` s)
+            conflictReducingPaths :: [Toggle (Property model)]
+            conflictReducingPaths = filter reducesConflicts candidatePaths
+            thatDon'tDoubleBack :: [Toggle (Property model)]
             thatDon'tDoubleBack = filter (\t -> not (t `elem` breadcrumbs)) conflictReducingPaths
-            thatReachDestination :: [Transformation model]
-            thatReachDestination = filter (\t -> (snd (propertyTransformation t)) s == to) thatDon'tDoubleBack
-            incomplete :: [Transformation model]
+            completesPath :: Toggle (Property model) -> Bool
+            completesPath t = to == toggle t s
+            thatReachDestination :: [Toggle (Property model)]
+            thatReachDestination = filter (\t -> completesPath t) conflictReducingPaths
+            incomplete :: [Toggle (Property model)]
             incomplete = filter (\t -> not (t `elem` thatReachDestination)) thatDon'tDoubleBack
-            continuePath :: Transformation model -> [[Transformation model]]
-            continuePath t = go (t:breadcrumbs) ((snd (propertyTransformation t)) s)
+            continuePath :: Toggle (Property model) -> [[Toggle (Property model)]]
+            continuePath t = go (t:breadcrumbs) (toggle t s)
         in ((\t -> reverse (t:breadcrumbs)) <$> thatReachDestination) <> (join (continuePath <$> incomplete))
 
 
-  modelTransformationWithCheck :: (Show (Transformation model), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
-                               => (t (), Model model) -> Transformation model -> m (t (), Model model)
-  modelTransformationWithCheck (check, om) t = do
-    let (_,i) = propertyTransformation t
-    nm <- modelTransformation t om
-    if properties nm == i (properties om)
+  transformationWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
+                               => (t (), Model model) -> Toggle (Property model) -> m (t (), Model model)
+  transformationWithCheck (check, om) t = do
+    nm <- transformation t om
+    if properties nm == toggle t (properties om)
       then pure (check, nm)
       else pure (check >> genFailure om nm, nm)
     where
@@ -350,7 +347,6 @@ class Proper model where
   -- HedgeHog properties and property groups
 
   modelTestGivenProperties ::
-    Proposition (Transformation model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
@@ -358,9 +354,9 @@ class Proper model where
   modelTestGivenProperties properties' =
     property $ do
       (model',transforms) <- forAll $ genModel properties'
-      (check, model) <- forAllWith (\(_,m) -> show m) $ foldM modelTransformationWithCheck (pure (), model') transforms
+      (check, model) <- forAllWith (\(_,m) -> show m) $ foldM transformationWithCheck (pure (), model') transforms
       check
-      if properties model' == properties'
+      if properties model == properties'
          then pure ()
          else failWithFootnote $ renderStyle ourStyle $
                                     "Model Consistency Failure."
@@ -370,7 +366,6 @@ class Proper model where
                                       $+$ hang  "Observed:" 4 (ppDoc (properties model))
 
   plutusTestGivenProperties ::
-    Proposition (Transformation model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Set (Property model) ->
@@ -378,12 +373,11 @@ class Proper model where
   plutusTestGivenProperties properties' =
     property $ do
       (model',transforms) <- forAll $ genModel properties'
-      (check,model) <- forAllWith (\(_,m) -> show m) $ foldM modelTransformationWithCheck (pure (), model') transforms
+      (check,model) <- forAllWith (\(_,m) -> show m) $ foldM transformationWithCheck (pure (), model') transforms
       check
       runScriptTest model
 
   testEnumeratedScenarios ::
-    Proposition (Transformation model) =>
     Proposition (Property model) =>
     Show (Model model) =>
     Show model =>

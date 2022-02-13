@@ -138,37 +138,42 @@ class Proper model where
   -- properties are Propositions
   data Property model :: Type
 
-  -- modelTransformations are random functions from models that match a formula
-  -- to models that satisfy a set of properties
-  -- Transformations are Propositions
+  -- transformations are random functions from models to models
   data Transformation model :: Type
 
   -- check whether a property is satisfied
   satisfiesProperty :: Model model -> Property model -> Bool
 
+  -- propositional logic over model properties defines sets of properties valid in conjunction
+  logic :: Formula (Property model)
+  logic = Yes
+
+  -- given a set of properties we expect a script to pass or fail
+  expect :: Formula (Property model)
+  expect = Yes
+
   -- here we define the random functions named by the Transformations
   modelTransformation :: MonadGen m => Transformation model -> Model model -> m (Model model)
 
-  --TODO return check as poperty test
-  modelTransformationWithCheck :: (Show (Transformation model), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
-                               => (t (), Model model) -> Transformation model -> m (t (), Model model)
-  modelTransformationWithCheck (check, om) t = do
-    let (_,i) = propertyTransformation t
-    nm <- modelTransformation t om
-    if properties nm == i (properties om)
-      then pure (check, nm)
-      else pure (check >> genFailure om nm, nm)
-    where
-      genFailure om' nm' =
-        failWithFootnote $ renderStyle ourStyle $
-           "Generator Transformation Invariant Failure."
-              $+$ hang "Transformation:" 4 (ppDoc t)
-              $+$ hang "FromModel:" 4 (ppDoc om')
-              $+$ hang "FromProperties:" 4 (ppDoc (properties om'))
-              $+$ hang "ToModel:" 4 (ppDoc nm')
-              $+$ hang "ToProperties:" 4 (ppDoc (properties nm'))
-
   propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
+
+  genBaseModel :: MonadGen m => Set (Property model) -> m (Model model)
+
+  -- generates a model that satisfies a set of properties
+  genModel :: Proposition (Transformation model)
+           => Proposition (Property model)
+           => Show (Model model)
+           => MonadGen m
+           => Set (Property model)
+           -> m (Model model,[Transformation model])
+  genModel targetProperties = do
+    baseModel <- genBaseModel targetProperties
+    let transforms = enumeratePaths (properties baseModel) targetProperties
+    case transforms of
+      [] -> pure (baseModel,[])
+      _ -> do
+        transform <- Gen.element transforms
+        pure (baseModel,transform)
 
   enumeratePaths :: Proposition (Transformation model)
                      => Proposition (Property model)
@@ -207,31 +212,23 @@ class Proper model where
         in ((\t -> reverse (t:breadcrumbs)) <$> thatReachDestination) <> (join (continuePath <$> incomplete))
 
 
-  genBaseModel :: MonadGen m => Set (Property model) -> m (Model model)
-
-  -- generates a model that satisfies a set of properties
-  genModel :: Proposition (Transformation model)
-           => Proposition (Property model)
-           => Show (Model model)
-           => MonadGen m
-           => Set (Property model)
-           -> m (Model model,[Transformation model])
-  genModel targetProperties = do
-    baseModel <- genBaseModel targetProperties
-    let transforms = enumeratePaths (properties baseModel) targetProperties
-    case transforms of
-      [] -> pure (baseModel,[])
-      _ -> do
-        transform <- Gen.element transforms
-        pure (baseModel,transform)
-
-  -- propositional logic over model properties defines sets of properties valid in conjunction
-  logic :: Formula (Property model)
-  logic = Yes
-
-  -- given a set of properties we expect a script to pass or fail
-  expect :: Formula (Property model)
-  expect = Yes
+  modelTransformationWithCheck :: (Show (Transformation model), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
+                               => (t (), Model model) -> Transformation model -> m (t (), Model model)
+  modelTransformationWithCheck (check, om) t = do
+    let (_,i) = propertyTransformation t
+    nm <- modelTransformation t om
+    if properties nm == i (properties om)
+      then pure (check, nm)
+      else pure (check >> genFailure om nm, nm)
+    where
+      genFailure om' nm' =
+        failWithFootnote $ renderStyle ourStyle $
+           "Generator Transformation Invariant Failure."
+              $+$ hang "Transformation:" 4 (ppDoc t)
+              $+$ hang "FromModel:" 4 (ppDoc om')
+              $+$ hang "FromProperties:" 4 (ppDoc (properties om'))
+              $+$ hang "ToModel:" 4 (ppDoc nm')
+              $+$ hang "ToProperties:" 4 (ppDoc (properties nm'))
 
   enumerateScenariosWhere :: Proposition (Property model) => Formula (Property model) -> [Set (Property model)]
   enumerateScenariosWhere condition = enumerateSolutions $ logic :&&: condition :&&: allPresentInFormula

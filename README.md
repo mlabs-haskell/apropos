@@ -95,54 +95,49 @@ Instance Model MyModel where
 ```
 
 ### Where do the property tests come from?
-By providing a base generator for the Model we get a Property Set parameterised generator for free.
-
-This default generator is composed from a sequence filters of the form `\model -> HedgeHog.Gen.filterT (satisfiesProperty model property) gen` and may be quite inefficient since it uses rejection sampling.
-
-Fortunately we can reduce the use of the filter by widening it's grasp.
-
-We just need to define transformations that can operate on Models then we can take a Model that is close to what we want and modify it to be exactly what we are looking for.
-
-To do this we can define the transformations in terms of logical expressions.
-
-```Haskell
-class Proper model =
-  data Transformation model m =
-    Transformation {
-      match :: Formula (Property model)
-    , result :: Set (Property model)
-    , genTransform :: Model model -> m (Model model)
-    }
-```
-
-We could then say something like this.
+We have to construct a random generator that is parameterised by a set of properties.
 
 ```Haskell
 instance Proper MyModel where
-  transformations = :: MonadGen m => [Transformation MyModel m]
-  transformations = [Transformation {
-      match = (Var This :->: Var That) :&&: Not (Var WhateverThisIs)
-    , result = All $ Var <$> [This,That,TheOther]
-    , genTransform model = do
-        if satisfiesProperty model This
-          then do
-            a <- genTheOtherThisWay
-            return model { theOther = a}
-          else do
-            a <- genThis
-            b <- genThat a
-            c <- genTheOtherTheOtherWay a b
-            return model { this = a, that = b, theOther = c}
-    }
-    ]
+  genBaseModel :: MonadGen m => Set (Property MyModel) -> m (Model MyModel)
 ```
 
-Now when we construct the filter for our generator we first check if we have a direct hit then check if we can find a path of transformations that can get us there. If either of these are true we accept the generated Model. Since the result field of a transformation is a property set we can compute the Transformation Graph at test suite start up by enumerating the set of allowed Transformations compositions. The algorithm for traversing the transformation graph is a random path algorithm to aid in finding Model consistency errors (the Transformations are really part of the model and the `match` and `result` expressions form a contract that we want genTransform to follow).
+This lets us enumerate the space of property sets and create a property test for each set.
 
-Now to generate a Model that satisfies a Property Set we can filter generated Models based on whether they are connected to the target Property Set via the transformation graph and then randomly traverse the graph toward the target Property Set.
+#### Why genBaseModel and not genModel?
+This generator is not required to be perfect. It can generate models that don't satisfy the provided property set exactly so long as we construct suitable transformations to fix up these deficiencies. We could start with a genBaseModel that ignores the property set argument and construct our parameterised generetor entirely using random transformations.
 
-#### Can I match on Yes?
-Yes you can. Matching on Yes is like saying to take this edge in the transformation graph you don't need to bother doing generate and test at all. If the target Model is connected to a Transformation such as this then we bypass the default generator entirely. This means you can fully replace the inefficient default generator with custom Transformations such that you don't call `HedgeHog.Gen.filterT` at all.
+#### What's a transformation?
+A transformation is a type that we have to define in a similar way to Property.
+
+```Haskell
+instance Proper MyModel where
+  data Transformation model =
+    NullTransformation
+    deriving stock (Eq,Ord,Enum,Bounded,Show)
+```
+
+If we want to start with no transformations in place we could write something like this.
+
+These transformations much like properties have some associated functions that give them meaning.
+
+```Haskell
+instance Proper MyModel where
+  modelTransformation :: MonadGen m => Transformation model -> Model model -> m (Model model)
+  modelTransformation NullTransformation m = pure m
+```
+
+The effect a transformation has on a model is defined like this. It is a random function from a model to another model.
+
+```Haskell
+instance Proper MyModel where
+  propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
+  propertyTransformation NullTransformation = (No, id)
+```
+
+A transformation must obey a contract defined by `propertyTransformation`. This contract is defined in terms of a Propositional Logic expression (Formula) which defines which models the transformation can be performed on AND a function that transforms a set of properties. This contract is checked by the test runner - if a transformation is applied and the transformed model's properties do not conform to the contract this will be reported as a failure.
+
+Transformation paths are enumerated by search on the base generated model and contract specifications. We randomly choose from the set of possible transformation paths.
 
 ### What's a model consistency error?
 This is a very powerful feature of this approach to testing. We are making a complex model so wouldn't it be nice to be able to test that it makes sense?

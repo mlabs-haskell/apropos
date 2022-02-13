@@ -17,7 +17,7 @@ ticTacToeTests =
   testGroup
     "TicTacToe"
     $ fromGroup <$>
-      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 10) Yes
+      [ testEnumeratedScenarios Model "Model Consistency" modelTestGivenProperties Yes
       ]
 
 
@@ -218,8 +218,8 @@ instance Proper TicTacToe where
   modelTransformation UnSetWinDeclared m = return $ m { declare = False }
   modelTransformation SetToIs3By3 m = return $ m { to = trimBoard $ padBoard $ to m }
 
-  propertyTransformation SetWinDeclared = (Set.empty, Set.singleton WinDeclared)
-  propertyTransformation UnSetWinDeclared = (Set.singleton WinDeclared, Set.empty)
-  propertyTransformation SetToIs3By3 = (Set.empty, Set.singleton ToIs3by3)
+  propertyTransformation SetWinDeclared = (Yes, Set.insert WinDeclared)
+  propertyTransformation UnSetWinDeclared = (Yes, Set.delete WinDeclared)
+  propertyTransformation SetToIs3By3 = (No, Set.insert ToIs3by3)
 
 

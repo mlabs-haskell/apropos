@@ -21,6 +21,7 @@ import Hedgehog (
   failure,
   footnote,
   footnoteShow,
+  forAll,
   forAllWith,
   property,
   success,
@@ -62,8 +63,6 @@ import Prelude (
   Ord,
   Show (..),
   String,
-  all,
-  any,
   id,
   filter,
   fmap,
@@ -74,6 +73,7 @@ import Prelude (
   not,
   pure,
   length,
+  reverse,
   ($),
   (&&),
   (.),
@@ -84,11 +84,9 @@ import Prelude (
   (==),
   (>>),
   (>),
-  (<),
-  (+),
   (||),
  )
-import Control.Monad (mapM, msum,MonadPlus)
+import Control.Monad (join,foldM)
 
 --------------------------------------------------------------------------------
 -- Propositional logic is used to define two aspects of a model.
@@ -152,73 +150,63 @@ class Proper model where
   modelTransformation :: MonadGen m => Transformation model -> Model model -> m (Model model)
 
   --TODO return check as poperty test
-  modelTransformationWithCheck :: (Show (Transformation model), Show (Model model), MonadGen m, Proposition (Property model), MonadTest t)
-                               => Transformation model -> Model model -> m (t (), Model model)
-  modelTransformationWithCheck t om = do
-    let (r,i) = propertyTransformation t
+  modelTransformationWithCheck :: (Show (Transformation model), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
+                               => (t (), Model model) -> Transformation model -> m (t (), Model model)
+  modelTransformationWithCheck (check, om) t = do
+    let (_,i) = propertyTransformation t
     nm <- modelTransformation t om
-    let ps = properties nm
-    let prop = if (not (any (`elem` r) ps)) && (all (`elem` ps) i)
-                  then pure ()
-                  else genFailure om nm
-    pure (prop,nm)
+    if properties nm == i (properties om)
+      then pure (check, nm)
+      else pure (check >> genFailure om nm, nm)
     where
       genFailure om' nm' =
         failWithFootnote $ renderStyle ourStyle $
            "Generator Transformation Invariant Failure."
               $+$ hang "Transformation:" 4 (ppDoc t)
-              $+$ hang "Invariant:" 4 (ppDoc (propertyTransformation t))
               $+$ hang "FromModel:" 4 (ppDoc om')
               $+$ hang "FromProperties:" 4 (ppDoc (properties om'))
               $+$ hang "ToModel:" 4 (ppDoc nm')
               $+$ hang "ToProperties:" 4 (ppDoc (properties nm'))
 
+  propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
 
-
-  -- these are contracts that the model transformations must obey
-  -- this is a tuple of (properties that will not hold after transformation, propties that will hold after transformation)
-  -- these are used to find paths and are tested for correctness during path execution
-  -- note that these are incomplete descriptions - the transformation may sometimes set or unset other properties
-  -- for example by enforcing one property we may sometimes as a result toggle on another
-  -- if genTransformation hits the search_depth without finding a satisfying model we revert to rejection sampling
-  propertyTransformation :: Transformation model -> (Set (Property model), Set (Property model))
-
-  --TODO check before search
-  genTransformation :: Proposition (Transformation model)
-                    => Proposition (Property model)
-                    => Show (Model model)
-                    => MonadGen m
-                    => MonadPlus m
-                    => MonadTest t
-                    => Int
-                    -> Model model
-                    -> Set (Property model)
-                    -> m (Maybe (t (), Model model))
-  genTransformation depth_limit from to = go 0 (pure (), from)
+  enumeratePaths :: Proposition (Transformation model)
+                     => Proposition (Property model)
+                     => Show (Model model)
+                     => Set (Property model)
+                     -> Set (Property model)
+                     -> [[Transformation model]]
+  enumeratePaths from to =
+    if from == to
+       then []
+       else go [] from
     where
-      applyPropertyTransformation t ps = let (r,i) = propertyTransformation t in i `Set.union` (ps `Set.difference` r)
+      allTransformations :: [Transformation model]
+      allTransformations = [minBound..maxBound]
+      applicableTransformations s = filter (\t -> satisfiesFormula (fst (propertyTransformation t)) s) allTransformations
+      numConflicts :: (Bounded x, Eq x, Enum x) => Set x -> Set x -> Int
       numConflicts a b = length $ filter id [ ((i `elem` a) && (not (i `elem` b))) || ((not (i `elem` a)) && (i `elem` b))
                                             | i <- [minBound..maxBound]
                                             ]
-      go depth searchState = do
-        let currentProperties = properties $ snd searchState
-            decreasesConflicts t = (numConflicts (applyPropertyTransformation t currentProperties) to)
-                                 < (numConflicts currentProperties to)
-            conflictReducingPaths = filter decreasesConflicts [minBound..maxBound]
-        crpShuffled <- Gen.shuffle conflictReducingPaths
-        newModels <- mapM (\t -> modelTransformationWithCheck t (snd searchState)) crpShuffled
-        let newModels' = (\(t,mo) -> (fst searchState >> t, mo)) <$> newModels
-        case filter (\c -> properties (snd c) == to) newModels' of
-          a:_ -> pure $ Just a
-          [] -> if depth + 1 > depth_limit
-                   then pure Nothing
-                   else msum $ go (depth + 1) <$> newModels
+      reducesConflicts :: Set (Property model) -> Transformation model -> Bool
+      reducesConflicts s t = numConflicts s to > numConflicts ((snd (propertyTransformation t)) s) to
+      go :: [Transformation model] -> Set (Property model) -> [[Transformation model]]
+      go breadcrumbs s =
+        let candidatePaths :: [Transformation model]
+            candidatePaths = applicableTransformations s
+            conflictReducingPaths :: [Transformation model]
+            conflictReducingPaths = filter (reducesConflicts s) candidatePaths
+            thatDon'tDoubleBack :: [Transformation model]
+            thatDon'tDoubleBack = filter (\t -> not (t `elem` breadcrumbs)) conflictReducingPaths
+            thatReachDestination :: [Transformation model]
+            thatReachDestination = filter (\t -> (snd (propertyTransformation t)) s == to) thatDon'tDoubleBack
+            incomplete :: [Transformation model]
+            incomplete = filter (\t -> not (t `elem` thatReachDestination)) thatDon'tDoubleBack
+            continuePath :: Transformation model -> [[Transformation model]]
+            continuePath t = go (t:breadcrumbs) ((snd (propertyTransformation t)) s)
+        in ((\t -> reverse (t:breadcrumbs)) <$> thatReachDestination) <> (join (continuePath <$> incomplete))
 
-  -- The base generator must be provided. It is parameterised by a set of properties.
-  -- Ideally you write a generator that satisfies the contract provided by the set.
-  -- Alternatively this check can be relaxed and transformations can be applied to the imperfect result.
-  -- TODO transformations should form a STRICT contract and always be applied
-  --   we check the transformations do what they say AND the result of genBaseModel >>= applyTransforms satisfies the set
+
   genBaseModel :: MonadGen m => Set (Property model) -> m (Model model)
 
   -- generates a model that satisfies a set of properties
@@ -226,20 +214,16 @@ class Proper model where
            => Proposition (Property model)
            => Show (Model model)
            => MonadGen m
-           => MonadPlus m
-           => MonadTest t
-           => Int
-           -> Set (Property model)
-           -> m (Model model, t (), (Set (Property model), Text))
-  genModel search_depth targetProperties = do
+           => Set (Property model)
+           -> m (Model model,[Transformation model])
+  genModel targetProperties = do
     baseModel <- genBaseModel targetProperties
-    if properties baseModel == targetProperties
-       then pure (baseModel, pure (), (properties baseModel, "Direct Hit"))
-       else do
-         mModel <- genTransformation search_depth baseModel targetProperties
-         case mModel of
-           Just model' -> pure (snd model', fst model', (properties baseModel, "Transformation"))
-           _ -> (,pure (), (properties baseModel, "Rejection Sampling")) <$> Gen.filterT (\candidateModel -> targetProperties == properties candidateModel) (genBaseModel targetProperties)
+    let transforms = enumeratePaths (properties baseModel) targetProperties
+    case transforms of
+      [] -> pure (baseModel,[])
+      _ -> do
+        transform <- Gen.element transforms
+        pure (baseModel,transform)
 
   -- propositional logic over model properties defines sets of properties valid in conjunction
   logic :: Formula (Property model)
@@ -372,35 +356,32 @@ class Proper model where
     Proposition (Transformation model) =>
     Proposition (Property model) =>
     Show (Model model) =>
-    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  modelTestGivenProperties search_depth properties' =
+  modelTestGivenProperties properties' =
     property $ do
-      (model,t,g) <- forAllWith (\(mo,_,g) -> show (mo,g)) $ genModel search_depth properties'
-      t
-      if properties model == properties'
+      (model',transforms) <- forAll $ genModel properties'
+      (check, model) <- forAllWith (\(_,m) -> show m) $ foldM modelTransformationWithCheck (pure (), model') transforms
+      check
+      if properties model' == properties'
          then pure ()
          else failWithFootnote $ renderStyle ourStyle $
                                     "Model Consistency Failure."
-                                      $+$ hang "Generator method:" 4 (ppGen g)
                                       $+$ hang  "Model:" 4 (ppDoc model)
                                       $+$ hang  "Expected:" 4 (ppDoc properties')
                                       $+$ hang  "Observed:" 4 (ppDoc (properties model))
-    where ppGen (props,g)  = hang "Props:" 4 (ppDoc props)
-                          $+$ hang "Generator:" 4 (ppDoc g)
 
   plutusTestGivenProperties ::
     Proposition (Transformation model) =>
     Proposition (Property model) =>
     Show (Model model) =>
-    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  plutusTestGivenProperties search_depth properties' =
+  plutusTestGivenProperties properties' =
     property $ do
-      (model,t,_) <- forAllWith (\(mo,_,g) -> show (mo,g))$ genModel search_depth properties'
-      t
+      (model',transforms) <- forAll $ genModel properties'
+      (check,model) <- forAllWith (\(_,m) -> show m) $ foldM modelTransformationWithCheck (pure (), model') transforms
+      check
       runScriptTest model
 
   testEnumeratedScenarios ::

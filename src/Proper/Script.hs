@@ -5,6 +5,8 @@ module Proper.Script (
   Proposition,
   Formula (..),
   Toggle (..),
+  on,
+  off,
 ) where
 import Control.Monad.Reader (runReaderT, ReaderT)
 import Data.Functor.Identity (Identity)
@@ -65,6 +67,9 @@ import Prelude (
   Show (..),
   String,
   filter,
+  length,
+  mod,
+  foldr,
   fmap,
   fst,
   snd,
@@ -72,7 +77,7 @@ import Prelude (
   zip,
   not,
   pure,
-  reverse,
+  all,
   ($),
   (&&),
   (.),
@@ -82,8 +87,12 @@ import Prelude (
   (<>),
   (==),
   (>>),
+  (+),
+--  (<),
  )
-import Control.Monad (join,foldM)
+import Control.Monad (join)
+import Data.Tree (Tree(..), Forest)
+
 
 --------------------------------------------------------------------------------
 -- Propositional logic is used to define two aspects of a model.
@@ -93,11 +102,40 @@ import Control.Monad (join,foldM)
 
 type Proposition (a :: Type) = (Enum a, Eq a, Ord a, Bounded a, Show a)
 
-data Toggle a = On a | Off a deriving stock (Eq,Ord,Show)
+data Toggle a = On a | Off a
+  deriving stock (Eq,Ord,Show)
+
+instance (Enum a, Bounded a) => Enum (Toggle a) where
+  toEnum i =
+    let sizeA = length ([minBound..maxBound] :: [a])
+     in if i >= sizeA
+          then Off (toEnum (i `mod` sizeA)) 
+          else On (toEnum i)
+  fromEnum (On a) = fromEnum a
+  fromEnum (Off a) =
+    let sizeA = length ([minBound..maxBound] :: [a])
+     in sizeA + fromEnum a
+
+instance Bounded a => Bounded (Toggle a) where
+  minBound = On minBound
+  maxBound = Off maxBound
+
+on :: p -> Formula (Toggle p)
+on = Var . On
+
+off :: p -> Formula (Toggle p)
+off = Var . Off
 
 toggle :: Ord a => Toggle a -> Set a -> Set a
 toggle (On a) = Set.insert a
 toggle (Off a) = Set.delete a
+
+toggleSet :: Ord a => Set (Toggle a) -> Set a -> Set a
+toggleSet toggles s = foldr toggle s toggles
+
+conflictSet :: Ord a => Set a -> Set a -> Set (Toggle a)
+conflictSet a b = (Set.map On (b `Set.difference` a))
+        `Set.union` (Set.map Off (a `Set.difference` b))
 
 satisfiesFormula :: forall p . Proposition p => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
@@ -106,6 +144,15 @@ satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$>
     set = Set.toList s
     unset :: [p]
     unset = filter (`notElem` s) ([minBound .. maxBound] :: [p])
+
+
+enumerateSolutions :: Proposition p => Formula p -> [Set p]
+enumerateSolutions f = fromSolution <$> solve_all f
+  where
+    fromSolution :: Proposition p => M.Map p Bool -> Set p
+    fromSolution m = Set.fromList $ filter isInSet [minBound .. maxBound]
+      where
+        isInSet k = Just True == M.lookup k m
 
 
 
@@ -154,6 +201,12 @@ class Proper model where
   transformation :: MonadGen m => Toggle (Property model) -> Model model -> m (Model model)
   transformation _ m = pure m
 
+  transformationImplications :: Proposition (Property model) => Toggle (Property model) -> Formula (Toggle (Property model))
+  transformationImplications _ = Yes
+
+  transformationInvariant :: Proposition (Property model) => Toggle (Property model) -> Formula (Toggle (Property model))
+  transformationInvariant t = Var t :&&: transformationImplications t
+
   transformationPossible :: Proposition (Property model) => Toggle (Property model) -> Formula (Property model)
   transformationPossible _ = No
 
@@ -164,69 +217,98 @@ class Proper model where
            => Show (Model model)
            => MonadGen m
            => Set (Property model)
-           -> m (Model model,[Toggle (Property model)])
+           -> m (Model model,Forest (Formula (Property model),Toggle (Property model)))
   genModel targetProperties = do
     baseModel <- runReaderT genBaseModel targetProperties
-    let transforms = enumeratePaths (properties baseModel) targetProperties
-    case transforms of
-      [] -> pure (baseModel,[])
-      _ -> do
-        transform <- Gen.element transforms
-        pure (baseModel,transform)
+    let transforms = enumerateTransformTree (properties baseModel) targetProperties
+    pure (baseModel,transforms)
 
-  enumeratePaths :: Proposition (Property model)
+  enumerateTransformTree :: Proposition (Property model)
                  => Show (Model model)
                  => Set (Property model)
                  -> Set (Property model)
-                 -> [[Toggle (Property model)]]
-  enumeratePaths from to =
+                 -> Forest (Formula (Property model),Toggle (Property model))
+  enumerateTransformTree from to =
     if from == to
        then []
-       else go [] from
+       else go [] from Yes
     where
       allTransformations :: [Toggle (Property model)]
       allTransformations = (On <$> [minBound..maxBound]) <> (Off <$> [minBound..maxBound])
       applicableTransformations :: Set (Property model) -> [Toggle (Property model)]
       applicableTransformations s = filter (\t -> satisfiesFormula (transformationPossible t) s) allTransformations
-      go :: [Toggle (Property model)] -> Set (Property model) -> [[Toggle (Property model)]]
-      go breadcrumbs s =
+      go :: [Toggle (Property model)]
+         -> Set (Property model)
+         -> Formula (Property model)
+         -> [Tree (Formula (Property model),Toggle (Property model))]
+      go breadcrumbs s constraint =
         let candidatePaths :: [Toggle (Property model)]
             candidatePaths = applicableTransformations s
-            reducesConflicts :: Toggle (Property model) -> Bool
-            reducesConflicts (On t) = (t `elem` to) && (not (t `elem` s))
-            reducesConflicts (Off t) = (not (t `elem` to)) && (t `elem` s)
+            possibleOutcomes :: Toggle (Property model) -> [Set (Toggle (Property model))]
+            possibleOutcomes = enumerateSolutions . transformationInvariant
+            asConstraint :: Toggle p -> Formula p
+            asConstraint (On o) = Var o
+            asConstraint (Off o) = Not (Var o)
+            asConstraints :: (Set (Toggle p)) -> Formula p
+            asConstraints s' = All $ asConstraint <$> Set.toList s'
+            reducesConflict :: Toggle (Property model) -> Bool
+--            reducesConflict t = countConflicts (applyToggle t) to < countConflicts s to
+            reducesConflict (On t) = (t `elem` to) && (not (t `elem` s))
+            reducesConflict (Off t) = (not (t `elem` to)) && (t `elem` s)
             conflictReducingPaths :: [Toggle (Property model)]
-            conflictReducingPaths = filter reducesConflicts candidatePaths
+            conflictReducingPaths = filter reducesConflict candidatePaths
             thatDon'tDoubleBack :: [Toggle (Property model)]
             thatDon'tDoubleBack = filter (\t -> not (t `elem` breadcrumbs)) conflictReducingPaths
-            completesPath :: Toggle (Property model) -> Bool
-            completesPath t = to == toggle t s
+            completesPath :: Set (Toggle (Property model)) -> Bool
+            completesPath ts = to == toggleSet ts s
             thatReachDestination :: [Toggle (Property model)]
-            thatReachDestination = filter (\t -> completesPath t) conflictReducingPaths
+            thatReachDestination = filter (\t -> all completesPath (possibleOutcomes t)) conflictReducingPaths
+            thatReachDestination' :: [Tree (Formula (Property model),Toggle (Property model))]
+            thatReachDestination' = (\t -> Node (constraint,t) []) <$> thatReachDestination
             incomplete :: [Toggle (Property model)]
             incomplete = filter (\t -> not (t `elem` thatReachDestination)) thatDon'tDoubleBack
-            continuePath :: Toggle (Property model) -> [[Toggle (Property model)]]
-            continuePath t = go (t:breadcrumbs) (toggle t s)
-        in ((\t -> reverse (t:breadcrumbs)) <$> thatReachDestination) <> (join (continuePath <$> incomplete))
+            continuePath :: Toggle (Property model)
+                         -> Tree (Formula (Property model),Toggle (Property model))
+            continuePath t =
+              let poc = (\p -> (p, asConstraints p)) <$> possibleOutcomes t
+               in Node (constraint,t) (join $ (\(ts,cs) -> go (t:breadcrumbs) (toggleSet ts s) cs) <$> poc)
+        in thatReachDestination' <> (continuePath <$> incomplete)
+
+  transformationsWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
+                           => (t (), Model model) -> Forest (Formula (Property model),Toggle (Property model)) -> m (t (), [Toggle (Property model)], Model model)
+  transformationsWithCheck = go []
+    where
+      go path (check, om) f = do
+        let ps = properties om
+            ts = filter (\(Node (c,_) _) -> satisfiesFormula c ps) f
+        case ts of
+          [] -> pure (check,path,om)
+          _ -> do
+            Node (_,t) fnext <- Gen.element ts
+            next <- transformationWithCheck (check,om) t
+            go (path <> [t]) next fnext
 
   transformationWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
                                => (t (), Model model) -> Toggle (Property model) -> m (t (), Model model)
   transformationWithCheck (check, om) t = do
-    if transformationIsSound
-       then do
-         nm <- transformation t om
-         if properties nm == toggle t (properties om)
-           then pure (check, nm)
-           else pure (check >> genFailure nm, nm)
-       else pure (check >> transformationLogicInconsistency, om)
+    nm <- transformation t om
+    let cs = conflictSet (properties om) (properties nm)
+    if satisfiesFormula (transformationInvariant t) cs
+      then if transformationIsSound cs
+             then pure (check, nm)
+             else pure (check >> transformationLogicInconsistency nm, om)
+      else pure (check >> genFailure nm, nm)
     where
-      transformationIsSound = satisfiesFormula logic (toggle t (properties om))
-      transformationLogicInconsistency =
+      transformationIsSound cs = satisfiesFormula logic (toggleSet cs (properties om))
+      transformationLogicInconsistency nm =
         failWithFootnote $ renderStyle ourStyle $
            "Transformation Logic Inconsistency."
               $+$ hang "Transformation:" 4 (ppDoc t)
               $+$ hang "FromModel:" 4 (ppDoc om)
               $+$ hang "FromProperties:" 4 (ppDoc (properties om))
+              $+$ hang "ToModel:" 4 (ppDoc nm)
+              $+$ hang "ToProperties:" 4 (ppDoc (properties nm))
+
       genFailure nm =
         failWithFootnote $ renderStyle ourStyle $
            "Transformation Invariant Failure."
@@ -243,12 +325,6 @@ class Proper model where
       allPresentInFormula = All (mention <$> ([minBound .. maxBound] :: [Property model]))
       mention :: Property model -> Formula (Property model)
       mention p = Var p :||: Not (Var p)
-      fromSolution :: Proposition p => M.Map p Bool -> Set p
-      fromSolution m = Set.fromList $ filter isInSet [minBound .. maxBound]
-        where
-          isInSet k = Just True == M.lookup k m
-      enumerateSolutions :: Proposition p => Formula p -> [Set p]
-      enumerateSolutions f = fromSolution <$> solve_all f
 
   genGivenFormula :: (Proposition (Property model), MonadGen m, GenBase m ~ Identity) => Formula (Property model) -> m (Set (Property model))
   genGivenFormula f =
@@ -363,7 +439,7 @@ class Proper model where
   modelTestGivenProperties properties' =
     property $ do
       (model',transforms) <- forAll $ genModel properties'
-      (check, model) <- forAllWith (\(_,m) -> show m) $ foldM transformationWithCheck (pure (), model') transforms
+      (check, path, model) <- forAllWith (\(_,_,m) -> show m) $ transformationsWithCheck (pure (), model') transforms
       check
       if properties model == properties'
          then pure ()
@@ -371,6 +447,7 @@ class Proper model where
                                     "Model Consistency Failure."
                                       $+$ hang  "Model:" 4 (ppDoc model)
                                       $+$ hang  "Transformation:" 4 (ppDoc transforms)
+                                      $+$ hang  "Path:" 4 (ppDoc path)
                                       $+$ hang  "Expected:" 4 (ppDoc properties')
                                       $+$ hang  "Observed:" 4 (ppDoc (properties model))
 
@@ -382,7 +459,7 @@ class Proper model where
   plutusTestGivenProperties properties' =
     property $ do
       (model',transforms) <- forAll $ genModel properties'
-      (check,model) <- forAllWith (\(_,m) -> show m) $ foldM transformationWithCheck (pure (), model') transforms
+      (check,_,model) <- forAllWith (\(_,_,m) -> show m) $ transformationsWithCheck (pure (), model') transforms
       check
       runScriptTest model
 

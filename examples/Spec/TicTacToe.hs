@@ -45,10 +45,13 @@ instance Proper TicTacToe where
         FromEmptyBoard
       | ToEmptyBoard
       | FromHasTooManyCells
+      | FromHasCorrectNumberOfCells
       | FromHasTooFewCells
       | ToHasTooManyCells
+      | ToHasCorrectNumberOfCells
       | ToHasTooFewCells
       | BoardShapeChanged
+ --     | BoardStateChanged
       | WinDeclared
     deriving stock (Bounded, Eq, Enum, Ord, Show)
 
@@ -56,14 +59,23 @@ instance Proper TicTacToe where
   satisfiesProperty (MoveProposal _ t _ _) ToEmptyBoard = all isNothing (board t)
   satisfiesProperty (MoveProposal f _ _ _) FromHasTooManyCells = length (board f) > (rows f * cols f)
   satisfiesProperty (MoveProposal f _ _ _) FromHasTooFewCells  = length (board f) < (rows f * cols f)
+  satisfiesProperty (MoveProposal f _ _ _) FromHasCorrectNumberOfCells  = length (board f) == (rows f * cols f)
   satisfiesProperty (MoveProposal _ t _ _) ToHasTooManyCells = length (board t) > (rows t * cols t)
+  satisfiesProperty (MoveProposal _ t _ _) ToHasCorrectNumberOfCells  = length (board t) == (rows t * cols t)
   satisfiesProperty (MoveProposal _ t _ _) ToHasTooFewCells  = length (board t) < (rows t * cols t)
   satisfiesProperty (MoveProposal f t _ _) BoardShapeChanged = rows t /= rows f || cols f /= cols t
-
   satisfiesProperty (MoveProposal _ _ _ w) WinDeclared = w
+--  satisfiesProperty (MoveProposal f t _ _) BoardStateChanged = f /= t
 
-  logic = All [ AtMostOne $ Var <$> [FromHasTooFewCells,FromHasTooManyCells]
-              , AtMostOne $ Var <$> [ToHasTooFewCells,ToHasTooManyCells]
+  logic = All [ ExactlyOne $ Var <$> [FromHasTooFewCells,FromHasCorrectNumberOfCells,FromHasTooManyCells]
+              , Var FromHasCorrectNumberOfCells :<->: (All $ Not . Var <$> [FromHasTooFewCells,FromHasTooManyCells])
+
+              , ExactlyOne $ Var <$> [ToHasTooFewCells,ToHasCorrectNumberOfCells,ToHasTooManyCells]
+              , Var ToHasCorrectNumberOfCells :<->: (All $ Not . Var <$> [ToHasTooFewCells,ToHasTooManyCells])
+
+--              , Not BoardStateChanged :->: (All [ FromHasTooManyCells :<->: ToHasTooManyCells
+
+--                                                  ])
               ]
 
   expect = Yes
@@ -77,7 +89,12 @@ instance Proper TicTacToe where
     (r'',c'') <- if shapeChanged
                     then Gen.filterT (/= (r,c)) $ (,) <$> int (linear 2 10) <*> int (linear 3 10)
                     else pure (r,c)
-    nextState <- list (linear 1 200) (element [Nothing,Just X,Just O])
+--    stateChanged <- asks (Set.member BoardStateChanged)
+    stateChanged <- Gen.bool
+    nextState <- if stateChanged
+                    then let gl = list (linear 1 200) (element [Nothing,Just X,Just O])
+                           in Gen.filterT (/= currentState) gl
+                    else pure currentState
     win <- Gen.bool
     return $ MoveProposal (Board r c 3 currentState) (Board r'' c'' 3 nextState) player' win
 
@@ -102,6 +119,14 @@ instance Proper TicTacToe where
     b <- switchOffHasTooManyCells (satisfiesProperty m FromEmptyBoard) f
     pure $ m { from = f { board = board b } }
 
+  transformation (On FromHasCorrectNumberOfCells) m =
+    transformation (Off FromHasTooManyCells) m >>= transformation (Off FromHasTooFewCells)
+  transformation (Off FromHasCorrectNumberOfCells) m = do
+    b <- Gen.bool
+    if b
+       then transformation (On FromHasTooManyCells) m
+       else transformation (On FromHasTooFewCells) m
+
   transformation (On FromHasTooFewCells) m@(MoveProposal f _ _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m FromEmptyBoard) f
     pure $ m { from = f { board = board b } }
@@ -116,6 +141,14 @@ instance Proper TicTacToe where
     b <- switchOffHasTooManyCells (satisfiesProperty m ToEmptyBoard) t
     pure $ m { to = t { board = board b } }
 
+  transformation (On ToHasCorrectNumberOfCells) m =
+    transformation (Off ToHasTooManyCells) m >>= transformation (Off ToHasTooFewCells)
+  transformation (Off ToHasCorrectNumberOfCells) m = do
+    b <- Gen.bool
+    if b
+       then transformation (On ToHasTooManyCells) m
+       else transformation (On ToHasTooFewCells) m
+
   transformation (On ToHasTooFewCells) m@(MoveProposal _ t _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m ToEmptyBoard) t
     pure $ m { to = t { board = board b } }
@@ -123,17 +156,43 @@ instance Proper TicTacToe where
     b <- switchOffHasTooFewCells (satisfiesProperty m ToEmptyBoard) t
     pure $ m { to = t { board = board b } }
 
-  transformation (On BoardShapeChanged) m = pure m
-  transformation (Off BoardShapeChanged) m@(MoveProposal f _ _ _) = pure $ m { to = f }
-
   transformation (On WinDeclared) m = return $ m { declare = True }
   transformation (Off WinDeclared) m = return $ m { declare = False }
+
+  transformation (On BoardShapeChanged) m = pure m --TODO?
+  transformation (Off BoardShapeChanged) m@(MoveProposal f _ _ _) = pure $ m { to = f }
+
+--  transformation (On BoardStateChanged) m = pure m --TODO?
+--  transformation (Off BoardStateChanged)  m@(MoveProposal f _ _ _) = pure $ m { to = f }
+
+
+
+  transformationImplications (Off FromHasTooManyCells) = on FromHasCorrectNumberOfCells
+  transformationImplications (Off FromHasCorrectNumberOfCells) =
+    ExactlyOne $ on <$> [FromHasTooFewCells,FromHasTooManyCells]
+  transformationImplications (Off FromHasTooFewCells)  = on FromHasCorrectNumberOfCells
+  transformationImplications (Off ToHasTooManyCells)   = on ToHasCorrectNumberOfCells
+  transformationImplications (Off ToHasCorrectNumberOfCells) =
+    ExactlyOne $ on <$> [ToHasTooFewCells,ToHasTooManyCells]
+  transformationImplications (Off ToHasTooFewCells)    = on ToHasCorrectNumberOfCells
+  transformationImplications (On FromHasTooManyCells)  = off FromHasCorrectNumberOfCells
+  transformationImplications (On FromHasCorrectNumberOfCells) =
+    All $ off <$> [FromHasTooFewCells,FromHasTooManyCells]
+  transformationImplications (On FromHasTooFewCells)   = off FromHasCorrectNumberOfCells
+  transformationImplications (On ToHasTooManyCells)    = off ToHasCorrectNumberOfCells
+  transformationImplications (On ToHasCorrectNumberOfCells) =
+    All $ off <$> [ToHasTooFewCells,ToHasTooManyCells]
+  transformationImplications (On ToHasTooFewCells)     = off ToHasCorrectNumberOfCells
+
+  transformationImplications _ = Yes
+
 
   transformationPossible (On FromHasTooManyCells) = Not $ Var FromHasTooFewCells
   transformationPossible (On FromHasTooFewCells) = Not $ Var FromHasTooManyCells
   transformationPossible (On ToHasTooManyCells) = Not $ Var ToHasTooFewCells
   transformationPossible (On ToHasTooFewCells) = Not $ Var ToHasTooManyCells
   transformationPossible (On BoardShapeChanged) = No
+--  transformationPossible (On BoardStateChanged) = No
   transformationPossible _ = Yes
 
 

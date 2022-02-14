@@ -2,11 +2,11 @@
 module Spec.TicTacToe ( ticTacToeTests ) where
 import Proper.Script
 import Hedgehog (MonadGen)
-import Hedgehog.Gen (element,list)
+import Hedgehog.Gen (element,list,int)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (singleton,linear)
---import Control.Monad.Reader
---import qualified Data.Set as Set
+import Control.Monad.Reader
+import qualified Data.Set as Set
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Data.Maybe (isNothing)
@@ -48,6 +48,7 @@ instance Proper TicTacToe where
       | FromHasTooFewCells
       | ToHasTooManyCells
       | ToHasTooFewCells
+      | BoardShapeChanged
       | WinDeclared
     deriving stock (Bounded, Eq, Enum, Ord, Show)
 
@@ -57,6 +58,7 @@ instance Proper TicTacToe where
   satisfiesProperty (MoveProposal f _ _ _) FromHasTooFewCells  = length (board f) < (rows f * cols f)
   satisfiesProperty (MoveProposal _ t _ _) ToHasTooManyCells = length (board t) > (rows t * cols t)
   satisfiesProperty (MoveProposal _ t _ _) ToHasTooFewCells  = length (board t) < (rows t * cols t)
+  satisfiesProperty (MoveProposal f t _ _) BoardShapeChanged = rows t /= rows f || cols f /= cols t
 
   satisfiesProperty (MoveProposal _ _ _ w) WinDeclared = w
 
@@ -68,10 +70,16 @@ instance Proper TicTacToe where
 
   genBaseModel = do
     player' <- element [X,O]
-    currentState <- list (linear 6 12) (element [Nothing])
-    nextState <- list (linear 6 24) (element [Nothing,Just X,Just O])
+    r <- int (linear 2 10)
+    c <- int (linear 2 10)
+    currentState <- list (linear 1 200) (element [Nothing,Just X,Just O])
+    shapeChanged <- asks (Set.member BoardShapeChanged)
+    (r'',c'') <- if shapeChanged
+                    then Gen.filterT (/= (r,c)) $ (,) <$> int (linear 2 10) <*> int (linear 3 10)
+                    else pure (r,c)
+    nextState <- list (linear 1 200) (element [Nothing,Just X,Just O])
     win <- Gen.bool
-    return $ MoveProposal (Board 3 3 3 currentState) (Board 3 3 3 nextState) player' win
+    return $ MoveProposal (Board r c 3 currentState) (Board r'' c'' 3 nextState) player' win
 
   transformation (On FromEmptyBoard) m@(MoveProposal f _ _ _) = return $ m { from = f { board = replicate (length (board f)) Nothing } }
   transformation (Off FromEmptyBoard) m@(MoveProposal f _ _ _) = do
@@ -90,8 +98,9 @@ instance Proper TicTacToe where
   transformation (On FromHasTooManyCells) m@(MoveProposal f _ _ _) = do
     b <- switchOnHasTooManyCells (satisfiesProperty m FromEmptyBoard) f
     pure $ m { from = f { board = board b } }
-  transformation (Off FromHasTooManyCells) m@(MoveProposal f _ _ _) =
-    pure $ m { from = f { board = board $ switchOffHasTooManyCells f } }
+  transformation (Off FromHasTooManyCells) m@(MoveProposal f _ _ _) = do 
+    b <- switchOffHasTooManyCells (satisfiesProperty m FromEmptyBoard) f
+    pure $ m { from = f { board = board b } }
 
   transformation (On FromHasTooFewCells) m@(MoveProposal f _ _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m FromEmptyBoard) f
@@ -104,7 +113,8 @@ instance Proper TicTacToe where
     b <- switchOnHasTooManyCells (satisfiesProperty m ToEmptyBoard) t
     pure $ m { to = t { board =  board b } }
   transformation (Off ToHasTooManyCells) m@(MoveProposal _ t _ _) = do
-    pure $ m { to = t { board = board $ switchOffHasTooManyCells t } }
+    b <- switchOffHasTooManyCells (satisfiesProperty m ToEmptyBoard) t
+    pure $ m { to = t { board = board b } }
 
   transformation (On ToHasTooFewCells) m@(MoveProposal _ t _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m ToEmptyBoard) t
@@ -113,6 +123,8 @@ instance Proper TicTacToe where
     b <- switchOffHasTooFewCells (satisfiesProperty m ToEmptyBoard) t
     pure $ m { to = t { board = board b } }
 
+  transformation (On BoardShapeChanged) m = pure m
+  transformation (Off BoardShapeChanged) m@(MoveProposal f _ _ _) = pure $ m { to = f }
 
   transformation (On WinDeclared) m = return $ m { declare = True }
   transformation (Off WinDeclared) m = return $ m { declare = False }
@@ -121,7 +133,7 @@ instance Proper TicTacToe where
   transformationPossible (On FromHasTooFewCells) = Not $ Var FromHasTooManyCells
   transformationPossible (On ToHasTooManyCells) = Not $ Var ToHasTooFewCells
   transformationPossible (On ToHasTooFewCells) = Not $ Var ToHasTooManyCells
-
+  transformationPossible (On BoardShapeChanged) = No
   transformationPossible _ = Yes
 
 
@@ -136,10 +148,16 @@ switchOnHasTooManyCells emptyBoard b = do
   b' <- list (linear lb (lb + 4)) (element els)
   pure $ b { board = (board b) <> b' }
 
-switchOffHasTooManyCells :: Board -> Board
-switchOffHasTooManyCells b =
+switchOffHasTooManyCells :: MonadGen m => Bool -> Board -> m Board
+switchOffHasTooManyCells emptyBoard b = do
   let tiles = rows b * cols b
-    in b { board = take tiles $ board b }
+      els = [Nothing,Just X, Just O]
+  if emptyBoard || (not $ all isNothing $ take tiles $ board b)
+     then pure b { board = take tiles $ board b }
+     else do
+       let gl = list (singleton tiles) (element els)
+       b' <- Gen.filterT (\c -> not (all isNothing c)) gl
+       pure $ b { board = b' }
 
 switchOnHasTooFewCells :: MonadGen m => Bool -> Board -> m Board
 switchOnHasTooFewCells emptyBoard b = do

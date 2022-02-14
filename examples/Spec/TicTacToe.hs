@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
-module Spec.TicTacToe ( ticTacToeTests ) where
+module Spec.TicTacToe ( ticTacToeTests, doCheck ) where
 import Proper.Script
 import Hedgehog (MonadGen)
 import Hedgehog.Gen (element,list,int)
@@ -11,9 +11,31 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Data.Maybe (isNothing)
 --import Data.List (transpose)
+import Data.Set (Set)
+import Data.Map (Map)
+--import Data.Map qualified as Map
+import Data.Graph (Graph,scc)
+
+doCheck :: IO ()
+doCheck = do
+--  let lut t l = case Map.lookup l t of
+--                  Nothing -> error "this should never happen"
+--                  Just so -> so
+--
+  let ((_,_,g) :: (Map (Set (Property TicTacToe)) Int,Map Int (Set (Property TicTacToe))
+
+            ,Graph
+            )) = buildTransformGraph
+
+  if (length $ scc g) == 1
+     then putStrLn "strongly connected"
+     else putStrLn "not strongly connected"
+
+  (_ :: [Formula (Toggle (Property TicTacToe))]) <- checkTransformations
+  error "done"
 
 ticTacToeTests :: TestTree
-ticTacToeTests =
+ticTacToeTests = do
   testGroup
     "TicTacToe"
     $ fromGroup <$>
@@ -68,15 +90,15 @@ instance Proper TicTacToe where
 --  satisfiesProperty (MoveProposal f t _ _) BoardStateChanged = f /= t
 
   logic = All [ ExactlyOne $ Var <$> [FromHasTooFewCells,FromHasCorrectNumberOfCells,FromHasTooManyCells]
-              , Var FromHasCorrectNumberOfCells :<->: (All $ Not . Var <$> [FromHasTooFewCells,FromHasTooManyCells])
 
-              , ExactlyOne $ Var <$> [ToHasTooFewCells,ToHasCorrectNumberOfCells,ToHasTooManyCells]
-              , Var ToHasCorrectNumberOfCells :<->: (All $ Not . Var <$> [ToHasTooFewCells,ToHasTooManyCells])
 
---              , Not BoardStateChanged :->: (All [ FromHasTooManyCells :<->: ToHasTooManyCells
+          , ExactlyOne $ Var <$> [ToHasTooFewCells,ToHasCorrectNumberOfCells,ToHasTooManyCells]
 
---                                                  ])
-              ]
+
+--          , Not BoardStateChanged :->: (All [ FromHasTooManyCells :<->: ToHasTooManyCells
+
+--                                              ])
+          ]
 
   expect = Yes
 
@@ -161,27 +183,27 @@ instance Proper TicTacToe where
 
 
 
-  transformationImplications (Off FromHasTooManyCells) = on FromHasCorrectNumberOfCells
+  transformationImplications (Off FromHasTooManyCells) = on FromHasTooFewCells
   transformationImplications (Off FromHasCorrectNumberOfCells) =
-    ExactlyOne $ on <$> [FromHasTooFewCells]
+    ExactlyOne $ on <$> [FromHasTooManyCells]
   transformationImplications (Off FromHasTooFewCells)  = on FromHasCorrectNumberOfCells
-  transformationImplications (Off ToHasTooManyCells)   = on ToHasCorrectNumberOfCells
+  transformationImplications (Off ToHasTooManyCells)   = on ToHasTooManyCells
   transformationImplications (Off ToHasCorrectNumberOfCells) =
-    ExactlyOne $ on <$> [ToHasTooFewCells]
+    ExactlyOne $ on <$> [ToHasTooManyCells]
   transformationImplications (Off ToHasTooFewCells)    = on ToHasCorrectNumberOfCells
   transformationImplications (On FromHasTooManyCells)  = off FromHasCorrectNumberOfCells
   transformationImplications (On FromHasCorrectNumberOfCells) =
-    ExactlyOne $ off <$> [FromHasTooFewCells,FromHasTooManyCells]
-  transformationImplications (On FromHasTooFewCells)   = off FromHasCorrectNumberOfCells
+    ExactlyOne $ off <$> [FromHasTooFewCells]
+  transformationImplications (On FromHasTooFewCells)   = off FromHasTooManyCells
   transformationImplications (On ToHasTooManyCells)    = off ToHasCorrectNumberOfCells
   transformationImplications (On ToHasCorrectNumberOfCells) =
-    ExactlyOne $ off <$> [ToHasTooFewCells,ToHasTooManyCells]
-  transformationImplications (On ToHasTooFewCells)     = off ToHasCorrectNumberOfCells
+    ExactlyOne $ off <$> [ToHasTooManyCells]
+  transformationImplications (On ToHasTooFewCells)     = off ToHasTooManyCells
 
   transformationImplications _ = Yes
 
 
-  transformationPossible (On BoardShapeChanged) = No
+--  transformationPossible (On BoardShapeChanged) = No
   transformationPossible _ = Yes
 
 

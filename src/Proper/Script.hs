@@ -15,6 +15,8 @@ import Data.List (notElem)
 import Data.Map.Lazy qualified as M
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.String (fromString)
 import Data.Text (Text)
 import Hedgehog (
@@ -57,6 +59,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 import Prelude (
+  IO,
   Bool (..),
   Bounded (..),
   Either (..),
@@ -93,10 +96,12 @@ import Prelude (
   (>>),
   (+),
   (>),
+  (-),
+  error,
  )
-import Control.Monad (join)
+import Control.Monad (join,mapM)
 import Data.Tree (Tree(..), Forest)
-
+import Data.Graph (Graph, buildG)
 
 --------------------------------------------------------------------------------
 -- Propositional logic is used to define two aspects of a model.
@@ -113,7 +118,7 @@ instance (Enum a, Bounded a) => Enum (Toggle a) where
   toEnum i =
     let sizeA = length ([minBound..maxBound] :: [a])
      in if i >= sizeA
-          then Off (toEnum (i `mod` sizeA)) 
+          then Off (toEnum (i `mod` sizeA))
           else On (toEnum i)
   fromEnum (On a) = fromEnum a
   fromEnum (Off a) =
@@ -209,7 +214,9 @@ class Proper model where
   transformationImplications _ = Yes
 
   transformationInvariant :: Proposition (Property model) => Toggle (Property model) -> Formula (Toggle (Property model))
-  transformationInvariant t = Var t :&&: transformationImplications t
+  transformationInvariant t = Var t:&&: transformationImplications t
+
+
 
   transformationPossible :: Proposition (Property model) => Toggle (Property model) -> Formula (Property model)
   transformationPossible _ = No
@@ -219,6 +226,60 @@ class Proper model where
   transformationPossible' t@(Off o) = Var o :&&: transformationPossible t
 
 
+  buildTransformGraph :: Proposition (Property model)
+                      => (Map (Set (Property model)) Int
+                         ,Map Int (Set (Property model))
+                         ,Graph
+                         )
+  buildTransformGraph =
+    let scenarios = enumerateScenariosWhere logic
+        scenmap = Map.fromList $ zip scenarios [0..]
+        edgemap = Map.fromList
+                $ zip [0..] (transfromationEdgesFrom scenmap scenarios <$> scenarios)
+        intgraph = buildG (0,(length scenarios)-1) $ flattenTransformationEdges edgemap
+
+      in (scenmap
+         ,Map.fromList $ zip [0..] scenarios
+         ,intgraph
+         )
+    where
+      transfromationEdgesFrom :: Map (Set (Property model)) Int
+                              -> [Set (Property model)]
+                              -> Set (Property model)
+                              -> [(Int, (Toggle (Property model)))]
+      transfromationEdgesFrom scenmap scenarios scene =
+        let lut l = case Map.lookup l scenmap of
+                      Nothing -> error "this should never happen"
+                      Just so -> so
+            cases = [(lut scenario,t)
+                    | scenario <- scenarios
+                    , scene /= scenario
+                    , t <- [minBound..maxBound]
+                    , let cs = (conflictSet scene scenario)
+                    , satisfiesFormula (transformationInvariant t) cs
+                    ]
+          in cases
+
+      flattenTransformationEdges :: Map Int [(Int, (Toggle (Property model)))]
+                                 -> [(Int,Int)]
+      flattenTransformationEdges m = join (toEdges <$> Map.toList m)
+        where toEdges (f,es) = (f,) <$> (fst <$> es)
+
+
+  checkTransformation :: Proposition (Property model) => Formula (Toggle (Property model)) -> IO (Formula (Toggle (Property model)))
+  checkTransformation f = do
+    let sols = enumerateSolutions f
+    if length sols > 1
+       then do
+         error $ renderStyle ourStyle $
+                  "Transformation not an arrow."
+                     $+$ hang "Transformation:" 4 (ppDoc f)
+                     $+$ hang "Edges:" 4 (ppDoc sols)
+         else pure f
+
+  checkTransformations ::  Proposition (Property model) => IO [Formula (Toggle (Property model))]
+  checkTransformations = do
+    mapM checkTransformation (transformationInvariant <$> [minBound..maxBound])
 
   genBaseModel :: MonadGen m => ReaderT (Set (Property model)) m (Model model)
 

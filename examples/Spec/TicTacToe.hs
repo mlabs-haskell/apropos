@@ -17,7 +17,7 @@ ticTacToeTests =
   testGroup
     "TicTacToe"
     $ fromGroup <$>
-      [ testEnumeratedScenarios Model "Model Consistency" modelTestGivenProperties Yes
+      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 6) Yes
       ]
 
 data Player = X | O deriving stock (Show,Eq)
@@ -122,10 +122,7 @@ instance Proper TicTacToe where
   transformation (On FromHasCorrectNumberOfCells) m =
     transformation (Off FromHasTooManyCells) m >>= transformation (Off FromHasTooFewCells)
   transformation (Off FromHasCorrectNumberOfCells) m = do
-    b <- Gen.bool
-    if b
-       then transformation (On FromHasTooManyCells) m
-       else transformation (On FromHasTooFewCells) m
+    transformation (On FromHasTooFewCells) m
 
   transformation (On FromHasTooFewCells) m@(MoveProposal f _ _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m FromEmptyBoard) f
@@ -144,10 +141,7 @@ instance Proper TicTacToe where
   transformation (On ToHasCorrectNumberOfCells) m =
     transformation (Off ToHasTooManyCells) m >>= transformation (Off ToHasTooFewCells)
   transformation (Off ToHasCorrectNumberOfCells) m = do
-    b <- Gen.bool
-    if b
-       then transformation (On ToHasTooManyCells) m
-       else transformation (On ToHasTooFewCells) m
+    transformation (On ToHasTooFewCells) m
 
   transformation (On ToHasTooFewCells) m@(MoveProposal _ t _ _) = do
     b <- switchOnHasTooFewCells (satisfiesProperty m ToEmptyBoard) t
@@ -169,30 +163,25 @@ instance Proper TicTacToe where
 
   transformationImplications (Off FromHasTooManyCells) = on FromHasCorrectNumberOfCells
   transformationImplications (Off FromHasCorrectNumberOfCells) =
-    ExactlyOne $ on <$> [FromHasTooFewCells,FromHasTooManyCells]
+    ExactlyOne $ on <$> [FromHasTooFewCells]
   transformationImplications (Off FromHasTooFewCells)  = on FromHasCorrectNumberOfCells
   transformationImplications (Off ToHasTooManyCells)   = on ToHasCorrectNumberOfCells
   transformationImplications (Off ToHasCorrectNumberOfCells) =
-    ExactlyOne $ on <$> [ToHasTooFewCells,ToHasTooManyCells]
+    ExactlyOne $ on <$> [ToHasTooFewCells]
   transformationImplications (Off ToHasTooFewCells)    = on ToHasCorrectNumberOfCells
   transformationImplications (On FromHasTooManyCells)  = off FromHasCorrectNumberOfCells
   transformationImplications (On FromHasCorrectNumberOfCells) =
-    All $ off <$> [FromHasTooFewCells,FromHasTooManyCells]
+    ExactlyOne $ off <$> [FromHasTooFewCells,FromHasTooManyCells]
   transformationImplications (On FromHasTooFewCells)   = off FromHasCorrectNumberOfCells
   transformationImplications (On ToHasTooManyCells)    = off ToHasCorrectNumberOfCells
   transformationImplications (On ToHasCorrectNumberOfCells) =
-    All $ off <$> [ToHasTooFewCells,ToHasTooManyCells]
+    ExactlyOne $ off <$> [ToHasTooFewCells,ToHasTooManyCells]
   transformationImplications (On ToHasTooFewCells)     = off ToHasCorrectNumberOfCells
 
   transformationImplications _ = Yes
 
 
-  transformationPossible (On FromHasTooManyCells) = Not $ Var FromHasTooFewCells
-  transformationPossible (On FromHasTooFewCells) = Not $ Var FromHasTooManyCells
-  transformationPossible (On ToHasTooManyCells) = Not $ Var ToHasTooFewCells
-  transformationPossible (On ToHasTooFewCells) = Not $ Var ToHasTooManyCells
   transformationPossible (On BoardShapeChanged) = No
---  transformationPossible (On BoardStateChanged) = No
   transformationPossible _ = Yes
 
 
@@ -222,8 +211,8 @@ switchOnHasTooFewCells :: MonadGen m => Bool -> Board -> m Board
 switchOnHasTooFewCells emptyBoard b = do
     let blen = length $ board b
         tiles = rows b * cols b
-        lb = max 1 ((blen - tiles) + 1)
-    d <- Gen.int (linear lb blen)
+        lb = (blen - tiles) + 1
+    d <- Gen.int (linear lb (lb + 4))
     let nb = drop d $ board b
     if emptyBoard || not (all isNothing nb)
        then pure $ b { board = nb }

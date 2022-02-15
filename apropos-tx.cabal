@@ -48,6 +48,8 @@ common lang
                     , pretty
                     , pretty-show
                     , safe
+                    , tasty
+                    , tasty-hedgehog
                     , text
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
@@ -59,6 +61,12 @@ library
   exposed-modules: Test
                  , Proper.Minimal
                  , Proper.Script
+                 , Proper.HasProperties
+                 , Proper.HasParameterisedGenerator
+                 , Proper.IsDeviceModel
+                 , Proper.Proposition
+                 , Proper.Data.Int
+                 , Proper.Data.Tuple
   hs-source-dirs:  src
 
 test-suite examples
@@ -67,7 +75,7 @@ test-suite examples
   main-is: Main.hs
   hs-source-dirs: examples
   other-modules:
-    Spec.TicTacToe
+    Spec.Inc
   build-depends:
     base,
     apropos-tx,

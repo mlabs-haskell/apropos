@@ -1,9 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Spec.Int (HasProperties (..), IntProp(..),intGenTests,intDeviceTests) where
+module Spec.Int (HasProperties (..), IntProp(..),intGenTests,intDeviceTests,intPlutarchTests) where
 import Proper.HasProperties
 import Proper.Proposition
 import Proper.HasParameterisedGenerator
+import Proper.IsPlutusModel
 import Proper.IsDeviceModel
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (forAll)
@@ -12,6 +13,9 @@ import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+
+import Plutarch (compile)
+import Plutarch.Prelude
 
 data IntProp =
       IsNegative
@@ -70,6 +74,18 @@ intDeviceTests :: TestTree
 intDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
   fromGroup <$> [
     runDeviceTestsWhere acceptsSmallNegativeInts "AcceptsSmallNegativeInts" Yes
+  ]
+
+instance IsPlutusModel Int IntProp where
+  expect _ _ = Var IsSmall :&&: Var IsNegative
+  script _ i =
+    let ii = (fromIntegral i) :: Integer
+     in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
+
+intPlutarchTests :: TestTree
+intPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
+  fromGroup <$> [
+    runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
   ]
 
 

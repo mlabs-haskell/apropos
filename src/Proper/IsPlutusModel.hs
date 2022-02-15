@@ -1,4 +1,4 @@
-module Proper.Plutus.Runner (IsPlutusModel(..)) where
+module Proper.IsPlutusModel (IsPlutusModel(..)) where
 import Proper.Proposition
 import Proper.HasProperties
 import Proper.HasParameterisedGenerator
@@ -69,8 +69,8 @@ class (HasProperties m p, HasParameterisedGenerator m p) => IsPlutusModel m p wh
   modelCPUBounds :: Proxy p -> m -> (ExCPU, ExCPU)
   modelCPUBounds _ _ = (ExCPU minBound, ExCPU maxBound)
 
-  runScriptTestsWhere :: (Proxy m) -> String -> Formula p -> Group
-  runScriptTestsWhere mprox name condition =
+  runScriptTestsWhere :: (Proxy m) -> (Proxy p) -> String -> Formula p -> Group
+  runScriptTestsWhere mprox _ name condition =
     Group (fromString name) $
       [ (fromString $ show $ Set.toList scenario, runScriptTest mprox (Proxy :: Proxy p) scenario)
       | scenario <- enumerateScenariosWhere condition

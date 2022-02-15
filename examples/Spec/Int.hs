@@ -39,7 +39,7 @@ instance HasProperties Int IntProp where
   satisfiesProperty i IsSmall    = i <= 10 && i >= -10
 
 instance HasParameterisedGenerator Int IntProp where
-  parameterisedGenerator _ s = do
+  parameterisedGenerator s = do
     i <- if IsZero `elem` s
            then pure 0
            else if IsSmall `elem` s

@@ -11,10 +11,10 @@ import Data.Proxy (Proxy)
 import SAT.MiniSat (Formula)
 
 class (HasProperties m p, Show m) => HasParameterisedGenerator m p where
-  parameterisedGenerator :: MonadGen g => Proxy m -> Set p -> g m
+  parameterisedGenerator :: MonadGen g => Set p -> g m
   runGeneratorTest :: Proxy m -> Set p -> Property
-  runGeneratorTest proxy s = property $ do
-    m <- forAll $ parameterisedGenerator proxy s
+  runGeneratorTest _ s = property $ do
+    (m :: m) <- forAll $ parameterisedGenerator s
     properties m === s
   runGeneratorTestsWhere :: Proxy m -> String -> Formula p -> Group
   runGeneratorTestsWhere proxy name condition =

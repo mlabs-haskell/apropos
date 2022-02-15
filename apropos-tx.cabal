@@ -56,10 +56,7 @@ common lang
 
 library
   import:          lang
-  exposed-modules: Test
-                 , Proper.Minimal
-                 , Proper.Script
-                 , Proper.HasProperties
+  exposed-modules: Proper.HasProperties
                  , Proper.HasParameterisedGenerator
                  , Proper.PermutingGenerator
                  , Proper.IsDeviceModel

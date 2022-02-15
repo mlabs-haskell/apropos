@@ -61,6 +61,7 @@ library
                  , Proper.Script
                  , Proper.HasProperties
                  , Proper.HasParameterisedGenerator
+                 , Proper.PermutingGenerator
                  , Proper.IsDeviceModel
                  , Proper.Proposition
   hs-source-dirs:  src

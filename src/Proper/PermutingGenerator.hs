@@ -3,10 +3,11 @@ module Proper.PermutingGenerator (
   PermutationEdge(..),
   isStronglyConnected,
   ) where
+
 import Proper.HasProperties
 import Proper.Proposition
 import Data.Set (Set)
-import Hedgehog (Gen,PropertyT,forAll,(===))
+import Hedgehog (Gen,PropertyT,MonadTest,forAll,failure,footnote)
 import qualified Hedgehog.Gen as Gen
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -16,6 +17,15 @@ import Data.Graph (Graph)
 import Data.Graph (buildG,scc,dfs)
 import Data.Tree (Tree(..))
 import Data.Maybe (isNothing)
+import Text.Show.Pretty (ppDoc)
+import Text.PrettyPrint (
+  Style (lineLength),
+  hang,
+  renderStyle,
+  style,
+  ($+$),
+ )
+
 
 data PermutationEdge m p =
   PermutationEdge {
@@ -39,7 +49,14 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
         isco = isStronglyConnected graph
      in \targetProperties -> do
           m <- forAll g
-          isco === True
+          if length pedges == 0
+             then failWithFootnote "no PermutationEdges defined"
+             else pure ()
+          if isco
+             then pure ()
+             else failWithFootnote $ renderStyle ourStyle $
+                    "PermutationEdges do not form a strongly connected graph."
+                    $+$ hang "Graph:" 4 (ppDoc graph)
           transformModel sn pedges graph m targetProperties
 
   transformModel :: forall t . Monad t
@@ -58,7 +75,15 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
   traversePath (h:r) m = do
     tr <- forAll $ Gen.element h
     nm <- forAll $ (permuteGen tr) m
-    (contract tr) (properties m) === properties nm
+    let expected = (contract tr) (properties m)
+        observed = properties nm
+    if expected == observed
+      then pure ()
+      else failWithFootnote $ renderStyle ourStyle $
+             "PermutationEdge fails its contract."
+               $+$ hang "Edge:" 4 (ppDoc $ name tr)
+               $+$ hang "Expected:" 4 (ppDoc expected)
+               $+$ hang "Observed:" 4 (ppDoc observed)
     traversePath r nm
 
   findPathOptions :: Graph
@@ -89,8 +114,11 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
   findPermutationEdges pm pp =
     let nodemap = snd $ numberNodes pm pp
         nodes = Map.keys nodemap
-     in Map.fromList [ ((a,b), filter (mapsBetween nodemap a b) generators )
-                     | a <- nodes, b <- nodes]
+     in Map.fromList [ ((a,b), options )
+                     | a <- nodes
+                     , b <- nodes
+                     , let options = filter (mapsBetween nodemap a b) generators
+                     , length options > 0 ]
   numberNodes :: Proxy m
               -> Proxy p
               -> (Map (Set p) Int, Map Int (Set p))
@@ -127,4 +155,10 @@ lut :: Ord a => Map a b -> a -> b
 lut m i = case Map.lookup i m of
            Nothing -> error "this should never happen"
            Just so -> so
+
+failWithFootnote :: MonadTest m => String -> m a
+failWithFootnote s = footnote s >> failure
+
+ourStyle :: Style
+ourStyle = style {lineLength = 80}
 

@@ -1,7 +1,7 @@
 module Proper.HasParameterisedGenerator (
     HasParameterisedGenerator(..)
   ) where
-import Hedgehog (MonadGen,Property,Group(..),property,forAll,(===))
+import Hedgehog (PropertyT,Property,Group(..),property,(===))
 import Data.String (fromString)
 import Proper.HasProperties
 import Proper.Proposition
@@ -11,10 +11,10 @@ import Data.Proxy (Proxy)
 import SAT.MiniSat (Formula)
 
 class (HasProperties m p, Show m) => HasParameterisedGenerator m p where
-  parameterisedGenerator :: MonadGen g => Set p -> g m
+  parameterisedGenerator :: forall t . Monad t => Set p -> PropertyT t m
   runGeneratorTest :: Proxy m -> Set p -> Property
   runGeneratorTest _ s = property $ do
-    (m :: m) <- forAll $ parameterisedGenerator s
+    (m :: m) <- parameterisedGenerator s
     properties m === s
   runGeneratorTestsWhere :: Proxy m -> String -> Formula p -> Group
   runGeneratorTestsWhere proxy name condition =

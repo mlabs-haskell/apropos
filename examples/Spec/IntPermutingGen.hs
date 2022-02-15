@@ -1,17 +1,18 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Spec.Int (HasProperties (..), IntProp(..),intGenTests,intDeviceTests) where
+module Spec.IntPermutingGen (intPermutingGenTests,intPermutingGenDeviceTests) where
 import Proper.HasProperties
 import Proper.Proposition
 import Proper.HasParameterisedGenerator
 import Proper.IsDeviceModel
+import Proper.PermutingGenerator
 import SAT.MiniSat ( Formula (..) )
-import Hedgehog (forAll)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import qualified Data.Set as Set
 
 data IntProp =
       IsNegative
@@ -39,23 +40,51 @@ instance HasProperties Int IntProp where
   satisfiesProperty i IsLarge    = i > 10 || i < -10
   satisfiesProperty i IsSmall    = i <= 10 && i >= -10
 
-instance HasParameterisedGenerator Int IntProp where
-  parameterisedGenerator s = forAll $ do
-    i <- if IsZero `elem` s
-           then pure 0
-           else if IsSmall `elem` s
-                  then Gen.int (linear 1 10)
-                  else if IsMaxBound `elem` s
-                         then pure maxBound
-                         else Gen.int (linear 11 (maxBound -1))
-    if IsNegative `elem` s
-       then if IsMinBound `elem` s
-               then pure minBound
-               else pure (-i)
-       else pure i
+instance PermutingGenerator Int IntProp where
+  generators =
+    [ PermutationEdge
+      { name = "Zero"
+      , match = Not $ Var IsZero
+      , contract = \_ -> Set.fromList [IsZero,IsSmall]
+      , permuteGen = \_ -> pure 0
+      }
+    , PermutationEdge
+      { name = "MaxBound"
+      , match = Not $ Var IsMaxBound
+      , contract = \_ -> Set.fromList [IsMaxBound,IsLarge,IsPositive]
+      , permuteGen = \_ -> pure maxBound
+      }
+    , PermutationEdge
+      { name = "MinBound"
+      , match = Not $ Var IsMinBound
+      , contract = \_ -> Set.fromList [IsMinBound,IsLarge,IsNegative]
+      , permuteGen = \_ -> pure minBound
+      }
+    , PermutationEdge
+      { name = "Large"
+      , match = Not $ Var IsLarge
+      , contract = \_ -> Set.fromList [IsLarge, IsPositive]
+      , permuteGen = \_ -> Gen.int (linear 11 (maxBound -1))
+      }
+    , PermutationEdge
+      { name = "Small"
+      , match = Not $ Var IsSmall
+      , contract = \_ -> Set.fromList [IsSmall,IsPositive]
+      , permuteGen = \_ -> Gen.int (linear 1 10)
+      }
+    , PermutationEdge
+      { name = "Negate"
+      , match = Not $ Var IsZero
+      , contract = Set.delete IsPositive . Set.insert IsNegative
+      , permuteGen = \i -> pure (-i)
+      }
+    ]
 
-intGenTests :: TestTree
-intGenTests = testGroup "Spec.Int" $
+instance HasParameterisedGenerator Int IntProp where
+  parameterisedGenerator = buildGen (Gen.int (linear minBound maxBound))
+
+intPermutingGenTests :: TestTree
+intPermutingGenTests = testGroup "Spec.IntPermutingGen" $
     fromGroup <$> [
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
@@ -66,10 +95,9 @@ acceptsSmallNegativeInts = Device (Var IsSmall :&&: Var IsNegative)
 
 instance IsDeviceModel Int IntProp
 
-intDeviceTests :: TestTree
-intDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
+intPermutingGenDeviceTests :: TestTree
+intPermutingGenDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
   fromGroup <$> [
     runDeviceTestsWhere acceptsSmallNegativeInts "AcceptsSmallNegativeInts" Yes
   ]
-
 

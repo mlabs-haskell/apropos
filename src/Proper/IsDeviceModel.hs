@@ -2,7 +2,7 @@ module Proper.IsDeviceModel ( IsDeviceModel(..), Device(..) ) where
 import Proper.HasProperties
 import Proper.HasParameterisedGenerator
 import Proper.Proposition
-import Hedgehog (Property,Group(..),property,forAll,(===))
+import Hedgehog (Property,Group(..),property,(===))
 import SAT.MiniSat ( Formula (..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -17,7 +17,7 @@ data Device m p =
 class (HasProperties m p, HasParameterisedGenerator m p) => IsDeviceModel m p where
   runDeviceTest :: Device m p -> Set p -> Property
   runDeviceTest device s = property $ do
-    (m :: m) <- forAll $ parameterisedGenerator s
+    (m :: m) <- parameterisedGenerator s
     satisfiesFormula (expect device) s === (run device m)
   runDeviceTestsWhere :: Device m p -> String -> Formula p -> Group
   runDeviceTestsWhere device name condition =

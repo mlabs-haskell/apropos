@@ -73,6 +73,7 @@ test-suite examples
   hs-source-dirs: examples
   other-modules:
     Spec.Int
+    Spec.IntPermutingGen
   build-depends:
     base,
     apropos-tx,

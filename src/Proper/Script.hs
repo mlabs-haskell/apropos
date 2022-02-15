@@ -9,7 +9,6 @@ module Proper.Script (
   off,
 ) where
 
-import Control.Monad.Reader (runReaderT, ReaderT)
 import Data.Functor.Identity (Identity)
 import Data.List (notElem)
 import Data.Map.Lazy qualified as M
@@ -31,7 +30,7 @@ import Hedgehog (
   forAllWith,
   property,
   success,
---  (===),
+  (===),
  )
 import Hedgehog qualified
 import Hedgehog.Gen qualified as Gen
@@ -59,7 +58,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 import Prelude (
-  IO,
+  MonadFail,
   Bool (..),
   Bounded (..),
   Either (..),
@@ -77,13 +76,9 @@ import Prelude (
   fmap,
   fst,
   snd,
-  elem,
   zip,
-  not,
   pure,
---  all,
-  any,
-  id,
+  fail,
   ($),
   (&&),
   (.),
@@ -95,13 +90,12 @@ import Prelude (
   (/=),
   (>>),
   (+),
-  (>),
   (-),
+  (>),
   error,
  )
-import Control.Monad (join,mapM)
-import Data.Tree (Tree(..), Forest)
-import Data.Graph (Graph, buildG)
+import Control.Monad (join)
+import Data.Graph (Graph, buildG, scc)
 
 --------------------------------------------------------------------------------
 -- Propositional logic is used to define two aspects of a model.
@@ -227,11 +221,12 @@ class Proper model where
 
 
   buildTransformGraph :: Proposition (Property model)
-                      => (Map (Set (Property model)) Int
+                      => model
+                      -> (Map (Set (Property model)) Int
                          ,Map Int (Set (Property model))
                          ,Graph
                          )
-  buildTransformGraph =
+  buildTransformGraph _ =
     let scenarios = enumerateScenariosWhere logic
         scenmap = Map.fromList $ zip scenarios [0..]
         edgemap = Map.fromList
@@ -254,7 +249,7 @@ class Proper model where
             cases = [(lut scenario,t)
                     | scenario <- scenarios
                     , scene /= scenario
-                    , t <- [minBound..maxBound]
+                    , t <- filter (\t' -> satisfiesFormula (transformationPossible' t') scene) [minBound..maxBound]
                     , let cs = (conflictSet scene scenario)
                     , satisfiesFormula (transformationInvariant t) cs
                     ]
@@ -266,143 +261,40 @@ class Proper model where
         where toEdges (f,es) = (f,) <$> (fst <$> es)
 
 
-  checkTransformation :: Proposition (Property model) => Formula (Toggle (Property model)) -> IO (Formula (Toggle (Property model)))
-  checkTransformation f = do
-    let sols = enumerateSolutions f
-    if length sols > 1
-       then do
-         error $ renderStyle ourStyle $
-                  "Transformation not an arrow."
-                     $+$ hang "Transformation:" 4 (ppDoc f)
-                     $+$ hang "Edges:" 4 (ppDoc sols)
-         else pure f
+  genModel :: MonadGen m => m (Model model)
 
-  checkTransformations ::  Proposition (Property model) => IO [Formula (Toggle (Property model))]
-  checkTransformations = do
-    mapM checkTransformation (transformationInvariant <$> [minBound..maxBound])
-
-  genBaseModel :: MonadGen m => ReaderT (Set (Property model)) m (Model model)
-
-  -- generates a model that satisfies a set of properties
-  genModel :: Proposition (Property model)
-           => Show (Model model)
-           => MonadGen m
-           => Int
-           -> Set (Property model)
-           -> m (Model model,Forest (Formula (Property model),Toggle (Property model)))
-  genModel depth_limit targetProperties = do
-    baseModel <- runReaderT genBaseModel targetProperties
-    let transforms = enumerateTransformTree depth_limit (properties baseModel) targetProperties
-    pure (baseModel,transforms)
-
-  enumerateTransformTree :: Proposition (Property model)
-                 => Show (Model model)
-                 => Int
-                 -> Set (Property model)
-                 -> Set (Property model)
-                 -> Forest (Formula (Property model),Toggle (Property model))
-  enumerateTransformTree depth_limit from to = snd $
-    if from == to
-       then (False, [])
-       else go 0 [] from Yes
+  traverseTransformGraph :: Proposition (Property model)
+                         => Show (Model model)
+                         => MonadGen m
+                         => MonadFail m
+                         => MonadTest t
+                         => Model model
+                         -> Set (Property model)
+                         -> m (t (), Model model,[Toggle (Property model)])
+  traverseTransformGraph baseModel targetProperties = go [] (pure ()) baseModel
     where
-      allTransformations :: [Toggle (Property model)]
-      allTransformations = (On <$> [minBound..maxBound]) <> (Off <$> [minBound..maxBound])
-      applicableTransformations :: Set (Property model) -> [Toggle (Property model)]
-      applicableTransformations s = filter (\t -> satisfiesFormula (transformationPossible' t) s) allTransformations
-      go :: Int
-         -> [Property model]
-         -> Set (Property model)
-         -> Formula (Property model)
-         -> (Bool,[Tree (Formula (Property model),Toggle (Property model))])
-      go depth breadcrumbs s constraint =
-        let candidatePaths :: [Toggle (Property model)]
-            candidatePaths = applicableTransformations s
-            intog (On t) = t
-            intog (Off t) = t
-            possibleOutcomes :: Toggle (Property model) -> [Set (Toggle (Property model))]
-            possibleOutcomes = enumerateSolutions . transformationInvariant
-            asConstraint :: Toggle p -> Formula p
-            asConstraint (On o) = Var o
-            asConstraint (Off o) = Not (Var o)
-            asConstraints :: (Set (Toggle p)) -> Formula p
-            asConstraints s' = All $ asConstraint <$> Set.toList s'
-            reducesConflict :: Toggle (Property model) -> Bool
-            reducesConflict (On t) = (t `elem` to) && (not (t `elem` s))
-            reducesConflict (Off t) = (not (t `elem` to)) && (t `elem` s)
-            conflictReducingPaths :: [Toggle (Property model)]
-            conflictReducingPaths = filter reducesConflict candidatePaths
-            thatDon'tDoubleBack :: [Toggle (Property model)]
-            thatDon'tDoubleBack = filter (\t -> not (intog t `elem` breadcrumbs)) conflictReducingPaths
-            completesPath :: Set (Toggle (Property model)) -> Bool
-            completesPath ts = to == toggleSet ts s
-            thatReachDestination :: [Toggle (Property model)]
-            thatReachDestination = filter (\t -> any completesPath (possibleOutcomes t)) conflictReducingPaths
-            thatReachDestination' :: [Tree (Formula (Property model),Toggle (Property model))]
-            thatReachDestination' = (\t -> Node (constraint,t) []) <$> thatReachDestination
-            incomplete :: [Toggle (Property model)]
-            incomplete = filter (\t -> not (t `elem` thatReachDestination)) thatDon'tDoubleBack
-            continuePath :: Toggle (Property model)
-                         -> Forest (Formula (Property model),Toggle (Property model))
-            continuePath t =
-              if (depth + 1) > depth_limit
-                 then []
-                 else let poc = (\p -> (p, asConstraints p)) <$> possibleOutcomes t
-                          subs = (\(ts,cs) -> go (depth+1) ((intog t):breadcrumbs) (toggleSet ts s) cs) <$> poc
-                          ends = join (snd <$> filter fst subs)
-                       in case ends of
-                            [] -> []
-                            _ -> [Node (constraint,t) ends]
-            result = if length thatReachDestination' > 0
-                        then thatReachDestination'
-                        else (join (continuePath <$> incomplete))
-        in (length result > 0, result)
-
-
-
-  transformationsWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
-                           => (Set (Property model))
-                           -> (t (), Model model)
-                           -> Forest (Formula (Property model),Toggle (Property model)) -> m (t (), [Toggle (Property model)], Model model)
-  transformationsWithCheck targetProperties com forest = go [] com forest
-    where
-      go path (check, om) f = do
-        let ps = properties om
-            ts = filter (\(Node (c,_) _) -> satisfiesFormula c ps) f
-        case ts of
-          [] -> pure (check >> transformationTreeFailure om path f,path,om)
-          _ -> do
-            Node (_,t) fnext <- Gen.element ts
-            case fnext of
-              [] -> do
-                pure (check, path, om)
-              _ -> do
---                next <- transformationWithCheck path (check,om) t
-                next <- Gen.filterT (\mc -> satisfiesSome (properties (snd mc)) fnext) $ transformationWithCheck path (check,om) t
-                go (path <> [t]) next fnext
-      satisfiesSome ps f = any id $ (\(Node (c,_) _) -> satisfiesFormula c ps) <$> f
-      transformationTreeFailure om pa fo =
-        if properties om /= targetProperties
-           then failWithFootnote $ renderStyle ourStyle $
-                  "Transformation Tree Failure."
-                     $+$ hang "Transformation Tree:" 4 (ppDoc fo)
-                     $+$ hang "Path so far:" 4 (ppDoc pa )
-                     $+$ hang "FromModel:" 4 (ppDoc om)
-                     $+$ hang "FromProperties:" 4 (ppDoc (properties om))
-                     $+$ hang "TargetProperties:" 4 (ppDoc targetProperties)
+      go breadcrumbs check mo = do
+        if length breadcrumbs > 100
+           then fail "tried 100 transformations and gave up"
            else pure ()
+        let cs = conflictSet (properties baseModel) targetProperties
+        t <- Gen.element $ Set.toList cs
+        (check',nm) <- transformationWithCheck breadcrumbs t mo
+        if properties nm == targetProperties
+           then pure (check >> check', nm, breadcrumbs <> [t])
+           else go (breadcrumbs <> [t]) (check >> check') nm
 
 
   transformationWithCheck :: (Show (Toggle (Property model)), Show (Model model), Proposition (Property model), MonadTest t, MonadGen m)
-                          =>  [Toggle (Property model)] -> (t (), Model model) -> Toggle (Property model) -> m (t (), Model model)
-  transformationWithCheck pathSoFar (check, om) t = do
+                          => [Toggle (Property model)] -> Toggle (Property model) -> Model model -> m (t (), Model model)
+  transformationWithCheck pathSoFar t om = do
     nm <- transformation t om
     let cs = conflictSet (properties om) (properties nm)
     if satisfiesFormula (transformationInvariant t) cs
       then if transformationIsSound cs
-             then pure (check, nm)
-             else pure (check >> transformationLogicInconsistency nm, om)
-      else pure (check >> genFailure nm, nm)
+             then pure (pure () , nm)
+             else pure (transformationLogicInconsistency nm, om)
+      else pure (genFailure nm, nm)
     where
       transformationIsSound cs = satisfiesFormula logic (toggleSet cs (properties om))
       transformationLogicInconsistency nm =
@@ -533,37 +425,48 @@ class Proper model where
 
   -- HedgeHog properties and property groups
 
+  testTransformations ::
+    Proposition (Property model) =>
+    Show (Model model) =>
+    model ->
+    String ->
+    Hedgehog.Group
+  testTransformations model groupname = Group (fromString groupname) [
+      ("Transformation Graph is fully connected"
+      , property $ do
+          let (_,_,g) = buildTransformGraph model
+          1 === length (scc g)
+      )
+    ]
+
   modelTestGivenProperties ::
     Proposition (Property model) =>
     Show (Model model) =>
-    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  modelTestGivenProperties depth_limit properties' =
+  modelTestGivenProperties targetProperties =
     property $ do
-      (model',transforms) <- forAll $ genModel depth_limit properties'
-      (check, path, model) <- forAllWith (\(_,_,m) -> show m) $ transformationsWithCheck properties' (pure (), model') transforms
+      baseModel <- forAll genModel
+      (check, model, path) <- forAllWith (\(_,m,_) -> show m) $ traverseTransformGraph baseModel targetProperties
       check
-      if properties model == properties'
+      if properties model == targetProperties -- redundant?
          then pure ()
          else failWithFootnote $ renderStyle ourStyle $
                                     "Model Consistency Failure."
-                                      $+$ hang  "Transformation:" 4 (ppDoc transforms)
                                       $+$ hang  "Model:" 4 (ppDoc model)
                                       $+$ hang  "Path:" 4 (ppDoc path)
-                                      $+$ hang  "Expected:" 4 (ppDoc properties')
+                                      $+$ hang  "Expected:" 4 (ppDoc targetProperties)
                                       $+$ hang  "Observed:" 4 (ppDoc (properties model))
 
   plutusTestGivenProperties ::
     Proposition (Property model) =>
     Show (Model model) =>
-    Int ->
     Set (Property model) ->
     Hedgehog.Property
-  plutusTestGivenProperties depth_limit properties' =
+  plutusTestGivenProperties targetProperties =
     property $ do
-      (model',transforms) <- forAll $ genModel depth_limit properties'
-      (check,_,model) <- forAllWith (\(_,_,m) -> show m) $ transformationsWithCheck properties' (pure (), model') transforms
+      baseModel <- forAll genModel
+      (check,model,_) <- forAllWith (\(_,m,_) -> show m) $ traverseTransformGraph baseModel targetProperties
       check
       runScriptTest model
 

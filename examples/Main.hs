@@ -3,7 +3,7 @@ import Test.Tasty
 import Spec.TicTacToe
 
 main :: IO ()
-main = doCheck >> defaultMain tests
+main = defaultMain tests
 
 tests :: TestTree
 tests =

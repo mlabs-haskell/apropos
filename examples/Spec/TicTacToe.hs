@@ -1,45 +1,40 @@
 {-# LANGUAGE TypeFamilies #-}
-module Spec.TicTacToe ( ticTacToeTests, doCheck ) where
+module Spec.TicTacToe ( ticTacToeTests ) where
 import Proper.Script
 import Hedgehog (MonadGen)
 import Hedgehog.Gen (element,list,int)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (singleton,linear)
-import Control.Monad.Reader
-import qualified Data.Set as Set
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Data.Maybe (isNothing)
---import Data.List (transpose)
-import Data.Set (Set)
-import Data.Map (Map)
---import Data.Map qualified as Map
-import Data.Graph (Graph,scc)
 
-doCheck :: IO ()
-doCheck = do
---  let lut t l = case Map.lookup l t of
---                  Nothing -> error "this should never happen"
---                  Just so -> so
+--TODO implement check for strongly connected graph
+--doCheck :: IO ()
+--doCheck = do
+----  let lut t l = case Map.lookup l t of
+----                  Nothing -> error "this should never happen"
+----                  Just so -> so
+----
+--  let ((_,_,g) :: (Map (Set (Property TicTacToe)) Int,Map Int (Set (Property TicTacToe))
 --
-  let ((_,_,g) :: (Map (Set (Property TicTacToe)) Int,Map Int (Set (Property TicTacToe))
-
-            ,Graph
-            )) = buildTransformGraph
-
-  if (length $ scc g) == 1
-     then putStrLn "strongly connected"
-     else putStrLn "not strongly connected"
-
-  (_ :: [Formula (Toggle (Property TicTacToe))]) <- checkTransformations
-  error "done"
+--            ,Graph
+--            )) = buildTransformGraph
+--
+--  if (length $ scc g) == 1
+--     then putStrLn "strongly connected"
+--     else putStrLn "not strongly connected"
+--
+--  (_ :: [Formula (Toggle (Property TicTacToe))]) <- checkTransformations
+--  error "done"
 
 ticTacToeTests :: TestTree
 ticTacToeTests = do
   testGroup
     "TicTacToe"
     $ fromGroup <$>
-      [ testEnumeratedScenarios Model "Model Consistency" (modelTestGivenProperties 6) Yes
+      [ testTransformations Model "Transformation Consistency"
+      , testEnumeratedScenarios Model "Model Consistency" modelTestGivenProperties Yes
       ]
 
 data Player = X | O deriving stock (Show,Eq)
@@ -102,23 +97,16 @@ instance Proper TicTacToe where
 
   expect = Yes
 
-  genBaseModel = do
+  genModel = do
     player' <- element [X,O]
     r <- int (linear 2 10)
     c <- int (linear 2 10)
     currentState <- list (linear 1 200) (element [Nothing,Just X,Just O])
-    shapeChanged <- asks (Set.member BoardShapeChanged)
-    (r'',c'') <- if shapeChanged
-                    then Gen.filterT (/= (r,c)) $ (,) <$> int (linear 2 10) <*> int (linear 3 10)
-                    else pure (r,c)
---    stateChanged <- asks (Set.member BoardStateChanged)
-    stateChanged <- Gen.bool
-    nextState <- if stateChanged
-                    then let gl = list (linear 1 200) (element [Nothing,Just X,Just O])
-                           in Gen.filterT (/= currentState) gl
-                    else pure currentState
+    r' <- int (linear 2 10)
+    c' <- int (linear 2 10)
+    nextState <- list (linear 1 200) (element [Nothing,Just X,Just O])
     win <- Gen.bool
-    return $ MoveProposal (Board r c 3 currentState) (Board r'' c'' 3 nextState) player' win
+    return $ MoveProposal (Board r c 3 currentState) (Board r' c' 3 nextState) player' win
 
   transformation (On FromEmptyBoard) m@(MoveProposal f _ _ _) = return $ m { from = f { board = replicate (length (board f)) Nothing } }
   transformation (Off FromEmptyBoard) m@(MoveProposal f _ _ _) = do

@@ -61,6 +61,7 @@ library
                  , Proper.PermutingGenerator
                  , Proper.IsDeviceModel
                  , Proper.Proposition
+                 , Proper.Plutus.Runner
   hs-source-dirs:  src
 
 test-suite examples

@@ -1,6 +1,6 @@
 module Main ( main ) where
 import Test.Tasty
-import Proper.Data.Int
+import Spec.Int
 
 main :: IO ()
 main = defaultMain tests
@@ -10,4 +10,5 @@ tests =
   testGroup
     "all tests"
     [ intGenTests
+    , intDeviceTests
     ]

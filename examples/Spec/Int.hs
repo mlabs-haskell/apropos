@@ -1,9 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Proper.Data.Int (HasProperties (..), IntProp(..),intGenTests) where
+module Spec.Int (HasProperties (..), IntProp(..),intGenTests,intDeviceTests) where
 import Proper.HasProperties
 import Proper.Proposition
 import Proper.HasParameterisedGenerator
+import Proper.IsDeviceModel
 import SAT.MiniSat ( Formula (..) )
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -53,8 +54,21 @@ instance HasParameterisedGenerator Int IntProp where
        else pure i
 
 intGenTests :: TestTree
-intGenTests = testGroup "Proper.Data.Int" $
+intGenTests = testGroup "Spec.Int" $
     fromGroup <$> [
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
+
+acceptsSmallNegativeInts :: Device Int IntProp
+acceptsSmallNegativeInts = Device (Var IsSmall :&&: Var IsNegative)
+                                  (\i -> i < 0 && i >= -10)
+
+instance IsDeviceModel Int IntProp
+
+intDeviceTests :: TestTree
+intDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
+  fromGroup <$> [
+    runDeviceTestsWhere acceptsSmallNegativeInts "AcceptsSmallNegativeInts" Yes
+  ]
+
 

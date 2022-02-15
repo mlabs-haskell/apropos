@@ -20,21 +20,19 @@ Good question. First you start with a model. Then you describe it's properties.
 It's any datatype of your choosing... For example it could be this thing
 
 ```Haskell
-instance Proper MyModel where
-  data Model MyModel =
-    This | That | TheOther { things :: [Thing] }
+data MyModel =
+  This | That | TheOther { things :: [Thing] }
 ```
 
 ### And the properties?
 They are an enum like this.
 
 ```Haskell
-instance Proper MyModel where
-  data Property MyModel =
-      DoesThis
-    | DoesThat
-    | DoesTheNextThing
-    deriving (Bounded,Eq,Ord,Enum,Show)
+data MyProperty =
+    DoesThis
+  | DoesThat
+  | DoesTheNextThing
+  deriving (Bounded,Eq,Ord,Enum,Show)
 
 ```
 
@@ -59,7 +57,7 @@ Neat! Terms like these are used to encode Three aspects of our model.
 This is a term you define to constrain which properties of the model can be true at the same time.
 
 ```Haskell
-instance Proper MyModel where
+instance Proposition MyProperty where
   logic = Var This :->: Var That
 ```
 
@@ -69,7 +67,7 @@ For example if This implies That then whenever This is true That must also be tr
 This tells the test runner when to expect Passing/Failing of the device.
 
 ```Haskell
-instance Proper MyModel where
+instance IsPlutusModel MyModel MyProperty where
   expect = Var VALIDATES
 
 ```
@@ -79,7 +77,7 @@ You could use the idiom of including PASS/FAIL or VALIDATE/ERROR in the Properti
 This lets you fold the logic into the one expression. Or you could write a logical expression here and keep the logic separate.
 
 ```Haskell
-instance Proper MyModel where
+instace IsPlutusModel Model MyProperty where
   expect =  All $ Var <$> [ This
                           , That
                           , TheOther
@@ -90,7 +88,7 @@ instance Proper MyModel where
 Through the satisfiesProperty function we can define any meaning we like.
 
 ```Haskell
-Instance Model MyModel where
+instance HasProperties MyModel MyProperty where
   satisfiesProperty :: Model MyModel -> Property MyModel -> Bool
 ```
 
@@ -98,56 +96,53 @@ Instance Model MyModel where
 We have to construct a random generator that is parameterised by a set of properties.
 
 ```Haskell
-instance Proper MyModel where
-  genBaseModel :: MonadGen m => Set (Property MyModel) -> m (Model MyModel)
+instance HasParameterisedGenerator MyModel MyProperty where
+  parameterisedGenerator :: Set MyProperty -> Gen MyModel
 ```
 
 This lets us enumerate the space of property sets and create a property test for each set.
 
-#### Why genBaseModel and not genModel?
-This generator is not required to be perfect. It can generate models that don't satisfy the provided property set exactly so long as we construct suitable transformations to fix up these deficiencies. We could start with a genBaseModel that ignores the property set argument and construct our parameterised generetor entirely using random transformations.
+### We can write this in a different way
+By defining a collection of random generators that can transform a model satisfying some properties to a model satisfying a different set of properties.
 
-#### What's a transformation?
-A transformation is a type that we have to define in a similar way to Property.
-
-```Haskell
-instance Proper MyModel where
-  data Transformation model =
-    NullTransformation
-    deriving stock (Eq,Ord,Enum,Bounded,Show)
-```
-
-If we want to start with no transformations in place we could write something like this.
-
-These transformations much like properties have some associated functions that give them meaning.
+These generators must obey a contract such that the effect they have on the properties of a model is deterministic. If this is true we can precompute a graph of edges between models. If this graph is strongly connected then we can get to any model from any model along a path that connects them in the graph.
 
 ```Haskell
-instance Proper MyModel where
-  modelTransformation :: MonadGen m => Transformation model -> Model model -> m (Model model)
-  modelTransformation NullTransformation m = pure m
+data PermutationEdge m p =
+  PermutationEdge {
+    name :: String
+  , match :: Formula p
+  , contract :: Set p -> Set p
+  , permuteGen :: m -> Gen m
+  }
 ```
 
-The effect a transformation has on a model is defined like this. It is a random function from a model to another model.
+These edges have a name, match on a set of properties with a Formula, obey a property set transformation contract, and perform a random permutation of the model.
+
+
+If you can provide a set of these that form a strongly connected graph then you'll have something you can plug into HasParameterisedGenerator. All the graph building, path traversal, and contract checking is done for you.
 
 ```Haskell
-instance Proper MyModel where
-  propertyTransformation :: Transformation model -> (Formula (Property model), Set (Property model) -> Set (Property model))
-  propertyTransformation NullTransformation = (No, id)
+class (HasProperties m p, Show m) => PermutingGenerator m p where
+  generators :: [PermutationEdge m p]
+  buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
+  buildGen g = ... -- you get the rest for free!
 ```
-
-A transformation must obey a contract defined by `propertyTransformation`. This contract is defined in terms of a Propositional Logic expression (Formula) which defines which models the transformation can be performed on AND a function that transforms a set of properties. This contract is checked by the test runner - if a transformation is applied and the transformed model's properties do not conform to the contract this will be reported as a failure.
-
-Transformation paths are enumerated by search on the base generated model and contract specifications. We randomly choose from the set of possible transformation paths.
 
 ### What's a model consistency error?
-This is a very powerful feature of this approach to testing. We are making a complex model so wouldn't it be nice to be able to test that it makes sense?
+This is a very powerful feature of this approach to testing. When making a complex model so wouldn't it be nice to be able to test that it makes sense?
 
-It turns out that we can now do this very easily. Since our Model generator is parameterised by a Property Set and we can derive a Property Set from a Model via `satisfiesProperty` we can test that the logic encoded in our generator Transformations is consistent with the logic in `satisfiesProperty` by enumerating all allowed Property Sets and using them to generate corresponding Models which we then check satisfy the Properties in the set used to parameterise the generator. This closed loop tests the logic we encode in the generator matches the logic we encode in the properties.
+Since our generator is parameterised by a set of properties this allows us to test that it returns a model that satisfies this set of properties. This consistency test checks that the logic encoded by the generator matches the logic encoded by the properties.
 
-This means that we can develop and test a model for the device we want to create before writing a single line of code for the device.
+If we are using the PermutingGenerator to build our parameterised generator each edge must obey its contract. This provides additional testing of our assumptions about the model.
 
 ### How do we run a device test?
-We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. There is a generic minimal version of the framework in `Proper.Minimal` and a UPLC CEK machine test runner that can run a compiled Plutus script in `Proper.Script`.
+We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Proper.IsDeviceModel`. To test a Plutus script use `Proper.IsPlutusModel`.
+
+## Read the examples.
+For a minimal example see `examples/Spec/Int.hs`
+
+For the same example but using the PermutingGenerator see `examples/Spec/IntPermutingGen.hs`
 
 ## What are the goals of this project?
 To test code extremely thoroughly by generating test suites instead of constructing them by hand.

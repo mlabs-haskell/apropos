@@ -80,13 +80,17 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
                  -> Set p
                  -> PropertyT t m
   transformModel nodes edges graph m to = do
-    let pathOptions = findPathOptions graph nodes edges (properties m) to
-    traversePath pathOptions m
+    pathOptions <- findPathOptions (Proxy :: Proxy m) graph nodes (properties m) to
+    traversePath edges pathOptions m
 
-  traversePath :: forall t . Monad t => [[PermutationEdge m p]] -> m -> PropertyT t m
-  traversePath [] m = pure m
-  traversePath (h:r) m = do
-    tr <- forAll $ Gen.element h
+  traversePath :: forall t . Monad t => Map (Int,Int) [PermutationEdge m p]
+                 -> [(Int,Int)] -> m -> PropertyT t m
+  traversePath _ [] m = pure m
+  traversePath edges (h:r) m = do
+    pe <- case Map.lookup h edges of
+            Nothing -> failWithFootnote "this should never happen"
+            Just so -> pure so
+    tr <- forAll $ Gen.element pe
     nm <- forAll $ (permuteGen tr) m
     let expected = (contract tr) (properties m)
         observed = properties nm
@@ -97,17 +101,22 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
                $+$ hang "Edge:" 4 (ppDoc $ name tr)
                $+$ hang "Expected:" 4 (ppDoc expected)
                $+$ hang "Observed:" 4 (ppDoc observed)
-    traversePath r nm
+    traversePath edges r nm
 
-  findPathOptions :: Graph
-           -> Map (Set p) Int
-           -> Map (Int,Int) [PermutationEdge m p]
-           -> Set p -> Set p -> [[PermutationEdge m p]]
-  findPathOptions graph ns edges from to =
-    let fn = lut ns from
-        tn = lut ns to
-        pa = pairPath $ computeConnectedPath graph fn tn
-     in (lut edges) <$> pa
+  findPathOptions ::  forall t . Monad t => (Proxy m)
+                  -> Graph
+                  -> Map (Set p) Int
+                  -> Set p -> Set p -> PropertyT t [(Int,Int)]
+  findPathOptions _ graph ns from to = do
+    fn <- case Map.lookup from ns of
+            Nothing -> failWithFootnote $ renderStyle ourStyle $
+                        "Model logic inconsistency?"
+                         $+$ hang "Not in graph:" 4 (ppDoc from)
+            Just so -> pure so
+    tn <- case Map.lookup to ns of
+            Nothing -> failWithFootnote "to node not found"
+            Just so -> pure so
+    pure $ pairPath $ computeConnectedPath graph fn tn
 
   buildGraph :: Map (Int,Int) [PermutationEdge m p] -> Graph
   buildGraph pedges =

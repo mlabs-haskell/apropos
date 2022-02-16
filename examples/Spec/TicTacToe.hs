@@ -15,7 +15,7 @@ import Test.Tasty.Hedgehog (fromGroup)
 import qualified Data.Set as Set
 import Data.Maybe (isNothing)
 
-data Player = X | O deriving stock (Show)
+data Player = X | O deriving stock (Eq,Show)
 
 data TicTacToeMove =
   TicTacToeMove {
@@ -27,32 +27,58 @@ data TicTacToeMove =
 
 data TicTacToeProperty =
       FromBoardIsCorrectSize
-    | ToBoardIsCorrectSize
     | FromBoardIsEmpty
+    | FromBoardInInitialState
+    | ToBoardIsCorrectSize
     | ToBoardIsEmpty
+    | PlayerIsX
+    | OddNumberOfPiecesOnBoard
     | WinDeclared
     deriving stock (Eq,Ord,Enum,Show,Bounded)
 
 instance Proposition TicTacToeProperty where
-  logic = Yes
+  logic = All [Var FromBoardInInitialState :<->: (All $ Var <$> [FromBoardIsCorrectSize
+                                                                ,FromBoardIsEmpty
+                                                                ])
+              ,Var OddNumberOfPiecesOnBoard :->: Not (Var FromBoardIsEmpty)
+              ]
 
 instance HasProperties TicTacToeMove TicTacToeProperty where
   satisfiesProperty m FromBoardIsCorrectSize = 9 == length (from m)
-  satisfiesProperty m ToBoardIsCorrectSize = 9 == length (to m)
   satisfiesProperty m FromBoardIsEmpty = all isNothing (from m)
+  satisfiesProperty m FromBoardInInitialState = 9 == length (from m) &&  all isNothing (from m)
+  satisfiesProperty m ToBoardIsCorrectSize = 9 == length (to m)
   satisfiesProperty m ToBoardIsEmpty = all isNothing (to m)
   satisfiesProperty m WinDeclared = declare m
+  satisfiesProperty m PlayerIsX = X == player m
+  satisfiesProperty m OddNumberOfPiecesOnBoard = oddNumberOfPiecesOnBoard $ from m
 
 instance PermutingGenerator TicTacToeMove TicTacToeProperty where
   generators =
     [ PermutationEdge
-      { name = "MakeFromBoardCorrectSize"
-      , match = Not $ Var FromBoardIsCorrectSize
+      { name = "MakeFromBoardCorrectSizeOdd"
+      , match = (Not $ Var FromBoardIsCorrectSize) :&&: Var OddNumberOfPiecesOnBoard
       , contract = Set.insert FromBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- if satisfiesProperty m FromBoardIsEmpty
-                 then pure $ genEmptyBoardOfSize 9
-                 else genNonEmptyBoardOfSize 9
+          b <- genBoardWithOddNumberOfPiecesWithSize 9
+          pure $ m { from = b }
+      }
+    , PermutationEdge
+      { name = "MakeFromBoardCorrectSizeEven"
+      , match = (Not $ Var FromBoardIsCorrectSize)
+           :&&: (Not $ Var OddNumberOfPiecesOnBoard)
+           :&&: (Not $ Var FromBoardIsEmpty)
+      , contract = Set.insert FromBoardIsCorrectSize
+      , permuteGen = \m -> do
+          b <- Gen.filter (not . boardIsEmpty) $ genBoardWithEvenNumberOfPiecesWithSize 9
+          pure $ m { from = b }
+      }
+    ,PermutationEdge
+      { name = "MakeFromBoardCorrectSizeEmpty"
+      , match = (Not $ Var FromBoardIsCorrectSize) :&&: Var FromBoardIsEmpty
+      , contract = Set.insert FromBoardIsCorrectSize . Set.insert FromBoardInInitialState
+      , permuteGen = \m -> do
+          b <- pure $ genEmptyBoardOfSize 9
           pure $ m { from = b }
       }
     , PermutationEdge
@@ -62,16 +88,43 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
       , permuteGen = \m -> do
           b <- genEmptyBoardOfIncorrectSize
           pure $ m { from = b }
-      } -- it's okay to have overlapping edges
-        -- they will be chosen from at random
+      }
     , PermutationEdge
-      { name = "MakeFromBoardIncorrectSize"
-      , match = Var FromBoardIsCorrectSize
+      { name = "MakeFromBoardIncorrectSizeOdd"
+      , match = Var FromBoardIsCorrectSize :&&: Var OddNumberOfPiecesOnBoard
       , contract = Set.delete FromBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- if satisfiesProperty m FromBoardIsEmpty
-                 then genEmptyBoardOfIncorrectSize
-                 else genNonEmptyBoardOfIncorrectSize
+          i <- Gen.filter (/= 9) (Gen.int (linear 1 100))
+          b <- genBoardWithOddNumberOfPiecesWithSize i
+          pure $ m { from = b }
+      }
+    , PermutationEdge
+      { name = "MakeFromBoardIncorrectSizeEven"
+      , match = Var FromBoardIsCorrectSize 
+          :&&: (Not $ Var OddNumberOfPiecesOnBoard)
+      , contract = Set.delete FromBoardIsCorrectSize
+                 . Set.delete FromBoardInInitialState
+                 . Set.delete FromBoardIsEmpty
+      , permuteGen = \m -> do
+          i <- Gen.filter (/= 9) (Gen.int (linear 2 100))
+          b <- Gen.filter (not . boardIsEmpty) $ genBoardWithEvenNumberOfPiecesWithSize i
+          pure $ m { from = b }
+      }
+    , PermutationEdge
+      { name = "MakeFromBoardHaveOddNumberOfPieces"
+      , match = Not $ Var OddNumberOfPiecesOnBoard
+      , contract = Set.insert OddNumberOfPiecesOnBoard
+      , permuteGen = \m -> do
+          b <- genBoardWithOddNumberOfPiecesWithSize (length (from m))
+          pure $ m { from = b }
+      }
+    , PermutationEdge
+      { name = "MakeFromBoardHaveEvenNumberOfPieces"
+      , match = Var OddNumberOfPiecesOnBoard :&&: Not (Var FromBoardIsCorrectSize)
+      , contract = Set.delete OddNumberOfPiecesOnBoard
+      , permuteGen = \m -> do
+          b <- Gen.filter (not . boardIsEmpty)
+                 $ genBoardWithEvenNumberOfPiecesWithSize (length $ from m)
           pure $ m { from = b }
       }
     , PermutationEdge
@@ -115,11 +168,20 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
           pure $ m { from = b }
       }
     , PermutationEdge
-      { name = "MakeFromBoardNotEmpty"
-      , match = Var FromBoardIsEmpty
+      { name = "MakeFromBoardNotEmptyOdd"
+      , match = Var FromBoardIsEmpty :&&: Var OddNumberOfPiecesOnBoard
       , contract = Set.delete FromBoardIsEmpty
       , permuteGen = \m -> do
-          b <- genNonEmptyBoardOfSize (length (from m))
+          b <- genBoardWithOddNumberOfPiecesWithSize (length (from m))
+          pure $ m { from = b }
+      }
+    , PermutationEdge
+      { name = "MakeFromBoardNotEmptyEven"
+      , match = Var FromBoardIsEmpty :&&: Not (Var OddNumberOfPiecesOnBoard)
+      , contract = Set.delete FromBoardIsEmpty
+      , permuteGen = \m -> do
+          b <- Gen.filter (not . boardIsEmpty)
+                $ genBoardWithEvenNumberOfPiecesWithSize (length (from m))
           pure $ m { from = b }
       }
     , PermutationEdge
@@ -150,7 +212,22 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
       , contract = Set.delete WinDeclared
       , permuteGen = \m -> pure $ m { declare = False }
       }
+    , PermutationEdge
+      { name = "SetPlayerIsX"
+      , match = Not $ Var PlayerIsX
+      , contract = Set.insert PlayerIsX
+      , permuteGen = \m -> pure $ m { player = X }
+      }
+    , PermutationEdge
+      { name = "UnsetPlayerIsX"
+      , match = Var PlayerIsX
+      , contract = Set.delete PlayerIsX
+      , permuteGen = \m -> pure $ m { player = O }
+      }
     ]
+
+oddNumberOfPiecesOnBoard :: [Maybe Player] -> Bool
+oddNumberOfPiecesOnBoard board = odd $ length $ filter (not . isNothing) board
 
 boardIsEmpty :: [Maybe Player] -> Bool
 boardIsEmpty = all isNothing
@@ -178,6 +255,18 @@ genEmptyBoardOfIncorrectSize = do
    if b
       then Gen.list (linear 0 8) $ pure Nothing
       else Gen.list (linear 10 100) $ pure Nothing
+
+genBoardWithOddNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
+genBoardWithOddNumberOfPiecesWithSize s = do
+  p <- Gen.filter odd $ Gen.int (linear 0 s)
+  pieces <- Gen.list (singleton p) (Gen.element [Just O, Just X])
+  Gen.shuffle $ pieces <> (replicate (s - p) Nothing)
+
+genBoardWithEvenNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
+genBoardWithEvenNumberOfPiecesWithSize s = do
+  p <- Gen.filter even $ Gen.int (linear 0 s)
+  pieces <- Gen.list (singleton p) (Gen.element [Just O, Just X])
+  Gen.shuffle $ pieces <> (replicate (s - p) Nothing)
 
 instance HasParameterisedGenerator TicTacToeMove TicTacToeProperty where
   parameterisedGenerator = buildGen $ do

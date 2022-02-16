@@ -14,7 +14,7 @@ import qualified Data.Map as Map
 import SAT.MiniSat (Formula(..))
 import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
-import Data.Graph (buildG,scc,dfs)
+import Data.Graph (buildG,scc,dfs,path)
 import Data.Tree (Tree(..))
 import Data.Maybe (isNothing)
 import Text.Show.Pretty (ppDoc)
@@ -44,7 +44,7 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
   buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
   buildGen g = do
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
-        (sn,_) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+        (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
      in \targetProperties -> do
@@ -54,10 +54,23 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
              else pure ()
           if isco
              then pure ()
-             else failWithFootnote $ renderStyle ourStyle $
-                    "PermutationEdges do not form a strongly connected graph."
-                    $+$ hang "Graph:" 4 (ppDoc graph)
+             else
+               let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+                in failWithFootnote $ renderStyle ourStyle $
+                      "PermutationEdges do not form a strongly connected graph."
+                      $+$ hang "No Edge Between here:" 4 (ppDoc a)
+                      $+$ hang "            and here:" 4 (ppDoc b)
           transformModel sn pedges graph m targetProperties
+
+  findNoPath :: Proxy m
+             -> Map Int (Set p)
+             -> Graph
+             -> (Set p, Set p)
+  findNoPath _ m g = head [ (lut m a, lut m b)
+                          | a <- Map.keys m
+                          , b <- Map.keys m
+                          , not (path g a b)
+                          ]
 
   transformModel :: forall t . Monad t
                  => Map (Set p) Int

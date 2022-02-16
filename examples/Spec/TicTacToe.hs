@@ -29,6 +29,7 @@ data TicTacToeProperty =
       FromBoardIsCorrectSize
     | ToBoardIsCorrectSize
     | FromBoardIsEmpty
+    | ToBoardIsEmpty
     | WinDeclared
     deriving stock (Eq,Ord,Enum,Show,Bounded)
 
@@ -39,6 +40,7 @@ instance HasProperties TicTacToeMove TicTacToeProperty where
   satisfiesProperty m FromBoardIsCorrectSize = 9 == length (from m)
   satisfiesProperty m ToBoardIsCorrectSize = 9 == length (to m)
   satisfiesProperty m FromBoardIsEmpty = all isNothing (from m)
+  satisfiesProperty m ToBoardIsEmpty = all isNothing (to m)
   satisfiesProperty m WinDeclared = declare m
 
 instance PermutingGenerator TicTacToeMove TicTacToeProperty where

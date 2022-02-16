@@ -72,6 +72,7 @@ test-suite examples
   other-modules:
     Spec.Int
     Spec.IntPermutingGen
+    Spec.TicTacToe
   build-depends:
     base,
     apropos-tx,

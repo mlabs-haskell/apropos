@@ -16,7 +16,6 @@ import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
 import Data.Graph (buildG,scc,dfs,path)
 import Data.Tree (Tree(..))
-import Data.Maybe (isNothing)
 import Text.Show.Pretty (ppDoc)
 import Text.PrettyPrint (
   Style (lineLength),
@@ -25,7 +24,7 @@ import Text.PrettyPrint (
   style,
   ($+$),
  )
-
+import Control.Monad (join)
 
 data PermutationEdge m p =
   PermutationEdge {
@@ -116,7 +115,8 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
     tn <- case Map.lookup to ns of
             Nothing -> failWithFootnote "to node not found"
             Just so -> pure so
-    pure $ pairPath $ computeConnectedPath graph fn tn
+    rpath <- forAll $ Gen.element $ computeConnectedPaths graph fn tn
+    pure $ pairPath rpath
 
   buildGraph :: Map (Int,Int) [PermutationEdge m p] -> Graph
   buildGraph pedges =
@@ -158,20 +158,13 @@ pairPath (a:b:r) = (a,b):(pairPath (b:r))
 isStronglyConnected :: Graph -> Bool
 isStronglyConnected g = 1 == length (scc g)
 
-computeConnectedPath :: Graph -> Int -> Int -> [Int]
-computeConnectedPath g f t =
-  let paths = dfs g [f]
-      blah = case paths of
-               [p] -> findPathTo [] p
-               _ -> Nothing
-   in case blah of
-        Nothing -> error "this should never happen"
-        Just so -> so
-  where findPathTo breadcrumbs (Node i _) | t == i = Just $ reverse (i:breadcrumbs)
-        findPathTo breadcrumbs (Node i is) =
-          case filter (not . isNothing) (findPathTo (i:breadcrumbs) <$> is) of
-            ((Just s):_) -> Just s
-            _ -> Nothing
+computeConnectedPaths :: Graph -> Int -> Int -> [[Int]]
+computeConnectedPaths g f t =
+  let ts = dfs g [f]
+   in join (findPathsTo [] <$> ts)
+  where findPathsTo breadcrumbs (Node i _) | t == i = [reverse (i:breadcrumbs)]
+        findPathsTo breadcrumbs (Node i is) =
+          filter (\pa -> length pa > 0) $ join $ (findPathsTo (i:breadcrumbs) <$> is)
 
 lut :: Ord a => Map a b -> a -> b
 lut m i = case Map.lookup i m of

@@ -1,5 +1,5 @@
 # `apropos-tx`
-Lets you write more tests than you write lines of code.
+Automatically generate a suite of property tests from a logical model.
 
 ## What is this?
 It's a thing that generates property tests for you from a model.

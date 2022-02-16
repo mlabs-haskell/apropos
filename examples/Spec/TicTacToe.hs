@@ -54,6 +54,15 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
           pure $ m { from = b }
       }
     , PermutationEdge
+      { name = "MakeEmptyFromBoardIncorrectSize"
+      , match = Var FromBoardIsCorrectSize :&&: Var FromBoardIsEmpty
+      , contract = Set.delete FromBoardIsCorrectSize
+      , permuteGen = \m -> do
+          b <- genEmptyBoardOfIncorrectSize
+          pure $ m { from = b }
+      } -- it's okay to have overlapping edges
+        -- they will be chosen from at random
+    , PermutationEdge
       { name = "MakeFromBoardIncorrectSize"
       , match = Var FromBoardIsCorrectSize
       , contract = Set.delete FromBoardIsCorrectSize

@@ -76,18 +76,34 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
       }
     , PermutationEdge
       { name = "MakeToBoardCorrectSize"
-      , match = Not $ Var ToBoardIsCorrectSize
+      , match = Not (Var ToBoardIsCorrectSize) :&&: Var ToBoardIsEmpty
       , contract = Set.insert ToBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- genCorrectSizedBoard
+          let b = genEmptyBoardOfSize 9
+          pure $ m { to = b }
+      }
+    , PermutationEdge
+      { name = "MakeToBoardCorrectSize"
+      , match = Not (Var ToBoardIsCorrectSize) :&&: Not (Var ToBoardIsEmpty)
+      , contract = Set.insert ToBoardIsCorrectSize
+      , permuteGen = \m -> do
+          b <- genNonEmptyBoardOfSize 9
+          pure $ m { to = b }
+      }
+    , PermutationEdge
+      { name = "MakeEmptyToBoardIncorrectSize"
+      , match = Var ToBoardIsCorrectSize :&&: Var ToBoardIsEmpty
+      , contract = Set.delete ToBoardIsCorrectSize
+      , permuteGen = \m -> do
+          b <- genEmptyBoardOfIncorrectSize
           pure $ m { to = b }
       }
     , PermutationEdge
       { name = "MakeToBoardIncorrectSize"
-      , match = Var ToBoardIsCorrectSize
+      , match = Var ToBoardIsCorrectSize :&&: (Not (Var ToBoardIsEmpty))
       , contract = Set.delete ToBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- genIncorrectSizedBoard
+          b <- genNonEmptyBoardOfIncorrectSize
           pure $ m { to = b }
       }
     , PermutationEdge
@@ -107,6 +123,22 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
           pure $ m { from = b }
       }
     , PermutationEdge
+      { name = "MakeToBoardEmpty"
+      , match = Not $ Var ToBoardIsEmpty
+      , contract = Set.insert ToBoardIsEmpty
+      , permuteGen = \m -> do
+          let b = genEmptyBoardOfSize (length (to m))
+          pure $ m { to = b }
+      }
+    , PermutationEdge
+      { name = "MakeToBoardNotEmpty"
+      , match = Var ToBoardIsEmpty
+      , contract = Set.delete ToBoardIsEmpty
+      , permuteGen = \m -> do
+          b <- genNonEmptyBoardOfSize (length (to m))
+          pure $ m { to = b }
+      }
+    , PermutationEdge
       { name = "DeclareWin"
       , match = Not $ Var WinDeclared
       , contract = Set.insert WinDeclared
@@ -120,6 +152,9 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
       }
     ]
 
+boardIsEmpty :: [Maybe Player] -> Bool
+boardIsEmpty = all isNothing
+
 genTile :: Gen (Maybe Player)
 genTile = Gen.element [Nothing, Just X, Just O]
 
@@ -129,12 +164,6 @@ genEmptyBoardOfSize size = replicate size Nothing
 genNonEmptyBoardOfSize :: Int -> Gen [Maybe Player]
 genNonEmptyBoardOfSize size =
   Gen.filter (not . boardIsEmpty) $ Gen.list (singleton size) genTile
-
-boardIsEmpty :: [Maybe Player] -> Bool
-boardIsEmpty = all isNothing
-
-genCorrectSizedBoard :: Gen [Maybe Player]
-genCorrectSizedBoard = Gen.list (singleton 9) genTile
 
 genNonEmptyBoardOfIncorrectSize :: Gen [Maybe Player]
 genNonEmptyBoardOfIncorrectSize = Gen.filter (not . boardIsEmpty) $ do
@@ -149,13 +178,6 @@ genEmptyBoardOfIncorrectSize = do
    if b
       then Gen.list (linear 0 8) $ pure Nothing
       else Gen.list (linear 10 100) $ pure Nothing
-
-genIncorrectSizedBoard :: Gen [Maybe Player]
-genIncorrectSizedBoard = do
-   b <- Gen.bool
-   if b
-      then Gen.list (linear 0 8) genTile
-      else Gen.list (linear 10 100) genTile
 
 instance HasParameterisedGenerator TicTacToeMove TicTacToeProperty where
   parameterisedGenerator = buildGen $ do

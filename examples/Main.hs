@@ -2,7 +2,7 @@ module Main ( main ) where
 import Test.Tasty
 import Spec.Int
 import Spec.IntPermutingGen
-import Spec.TicTacToe
+--import Spec.TicTacToe
 
 main :: IO ()
 main = defaultMain tests
@@ -21,7 +21,7 @@ tests =
         , intPermutingGenDeviceTests
         , intPermutingGenPlutarchTests
         ]
-    , testGroup "TicTacToe"
-        [ ticTacToeGenTests
-        ]
+--    , testGroup "TicTacToe"
+--        [ ticTacToeGenTests
+--        ]
     ]

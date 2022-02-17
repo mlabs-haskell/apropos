@@ -1,7 +1,6 @@
 module Proper.PermutingGenerator (
   PermutingGenerator(..),
   PermutationEdge(..),
-  isStronglyConnected,
   ) where
 
 import Proper.HasProperties
@@ -15,8 +14,7 @@ import qualified Data.Map as Map
 import SAT.MiniSat (Formula(..))
 import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
-import Data.Graph (buildG,scc,dfs,path)
-import Data.Tree (Tree(..))
+import Data.Graph (buildG,scc,path)
 import Text.Show.Pretty (ppDoc)
 import Text.PrettyPrint (
   Style (lineLength),
@@ -109,6 +107,8 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
   buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
   buildGen g = do
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
+        edges = Map.keys pedges
+        distmap = distanceMap edges
         (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
@@ -125,7 +125,7 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
                       "PermutationEdges do not form a strongly connected graph."
                       $+$ hang "No Edge Between here:" 4 (ppDoc a)
                       $+$ hang "            and here:" 4 (ppDoc b)
-          transformModel sn pedges graph m targetProperties
+          transformModel sn pedges edges distmap m targetProperties
 
   findNoPath :: Proxy m
              -> Map Int (Set p)
@@ -140,13 +140,14 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
   transformModel :: forall t . Monad t
                  => Map (Set p) Int
                  -> Map (Int,Int) [PermutationEdge m p]
-                 -> Graph
+                 -> [(Int,Int)]
+                 -> Map Int (Map Int Int)
                  -> m
                  -> Set p
                  -> PropertyT t m
-  transformModel nodes edges graph m to = do
-    pathOptions <- findPathOptions (Proxy :: Proxy m) graph nodes (properties m) to
-    traversePath edges pathOptions m
+  transformModel nodes pedges edges distmap m to = do
+    pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
+    traversePath pedges pathOptions m
 
   traversePath :: forall t . Monad t => Map (Int,Int) [PermutationEdge m p]
                  -> [(Int,Int)] -> m -> PropertyT t m
@@ -169,10 +170,11 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
     traversePath edges r nm
 
   findPathOptions ::  forall t . Monad t => (Proxy m)
-                  -> Graph
+                  -> [(Int,Int)]
+                  -> Map Int (Map Int Int)
                   -> Map (Set p) Int
                   -> Set p -> Set p -> PropertyT t [(Int,Int)]
-  findPathOptions _ graph ns from to = do
+  findPathOptions _ edges distmap ns from to = do
     fn <- case Map.lookup from ns of
             Nothing -> failWithFootnote $ renderStyle ourStyle $
                         "Model logic inconsistency?"
@@ -181,7 +183,7 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
     tn <- case Map.lookup to ns of
             Nothing -> failWithFootnote "to node not found"
             Just so -> pure so
-    rpath <- forAll $ Gen.element $ computeConnectedPaths graph fn tn
+    rpath <- forAll $ genRandomPath edges distmap fn tn
     pure $ pairPath rpath
 
   buildGraph :: Map (Int,Int) [PermutationEdge m p] -> Graph
@@ -224,14 +226,6 @@ pairPath (a:b:r) = (a,b):(pairPath (b:r))
 isStronglyConnected :: Graph -> Bool
 isStronglyConnected g = 1 == length (scc g)
 
-computeConnectedPaths :: Graph -> Int -> Int -> [[Int]]
-computeConnectedPaths g f t =
-  let ts = dfs g [f]
-   in join (findPathsTo [] <$> ts)
-  where findPathsTo breadcrumbs (Node i _) | t == i = [reverse (i:breadcrumbs)]
-        findPathsTo breadcrumbs (Node i is) =
-          filter (\pa -> length pa > 0) $ join $ (findPathsTo (i:breadcrumbs) <$> is)
-
 lut :: Ord a => Map a b -> a -> b
 lut m i = case Map.lookup i m of
            Nothing -> error "this should never happen"
@@ -242,4 +236,58 @@ failWithFootnote s = footnote s >> failure
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
+
+genRandomPath :: [(Int,Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen [Int]
+genRandomPath edges m from to = go [] from
+  where
+    go breadcrumbs f =
+      let shopasto = lut m f
+          shopa = lut shopasto to
+          awayfrom = snd <$> filter ((==f) . fst) edges
+          diston = (\af -> (af,lut (lut m af) to)) <$> awayfrom
+          options = fst <$> filter ((<=shopa) . snd) diston
+      in case shopa of
+           0 -> pure []
+           1 -> pure [f,to]
+           _ -> do
+              p <- Gen.element $ filter (\o -> not (o `elem` breadcrumbs)) options
+              (f:) <$> go (p:breadcrumbs) p
+
+-- this is surely really inefficient... let's get something good in here
+-- I tried using digraph from kadena-io but couldn't get it to build
+distanceMap :: [(Int,Int)] -> Map Int (Map Int Int)
+distanceMap edges =
+  let initial = foldr ($) Map.empty (insertEdge <$> edges)
+      nodes = Map.keys initial
+      algo = distanceMapUpdate <$> nodes
+   in go initial algo
+  where
+    go m algo =
+      if distanceMapComplete m
+         then m
+         else foldr ($) m algo
+    insertEdge :: (Int,Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)
+    insertEdge (f,t) m =
+      case Map.lookup f m of
+        Nothing -> Map.insert f (Map.fromList [(f,0),(t,1)]) m
+        Just so -> Map.insert f (Map.insert t 1 so) m
+    distanceMapComplete :: Map Int (Map Int Int) -> Bool
+    distanceMapComplete m =
+      let nodes = Map.keys m
+       in all id [ Set.fromList (Map.keys (lut m node)) == Set.fromList nodes | node <- nodes ]
+    distanceMapUpdate :: Int -> Map Int (Map Int Int) -> Map Int (Map Int Int)
+    distanceMapUpdate node m =
+      let know = Map.toList $ lut m node
+          news = join $ [ (\(t,d) -> (t,d+dist)) <$> Map.toList (lut m known)
+                        | (known,dist) <- know
+                        ]
+       in foldr updateDistance m news
+      where updateDistance :: (Int,Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)
+            updateDistance (t,d) ma =
+              let curdists = lut ma node
+               in case Map.lookup t curdists of
+                    Nothing -> Map.insert node (Map.insert t d curdists) ma
+                    Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
+                    _ -> ma
+
 

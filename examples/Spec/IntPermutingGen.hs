@@ -10,7 +10,7 @@ import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.IsDeviceModel
-import Proper.PermutingGenerator
+import Proper.HasPermutationGenerator
 import Proper.IsPlutusModel
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
@@ -50,7 +50,7 @@ instance HasLogicalModel Int IntProp where
   satisfiesProperty i IsLarge    = i > 10 || i < -10
   satisfiesProperty i IsSmall    = i <= 10 && i >= -10
 
-instance PermutingGenerator Int IntProp where
+instance HasPermutationGenerator Int IntProp where
   generators =
     [ PermutationEdge
       { name = "MakeZero"
@@ -133,7 +133,7 @@ intPermutingGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
   ]
 
 intPermutingGenSelfTests :: TestTree
-intPermutingGenSelfTests = testGroup "Int PermutingGenerator selfTest" $
-  fromGroup <$> selfTest (\(_ :: PermutationEdge Int IntProp) -> True) baseGen
+intPermutingGenSelfTests = testGroup "Int HasPermutationGenerator permutationGeneratorSelfTest" $
+  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge Int IntProp) -> True) baseGen
 
 

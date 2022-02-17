@@ -4,7 +4,7 @@ module Spec.TicTacToe (ticTacToeGenTests,ticTacToeGenSelfTests) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
-import Proper.PermutingGenerator
+import Proper.HasPermutationGenerator
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
@@ -67,7 +67,7 @@ instance HasLogicalModel TicTacToeMove TicTacToeProperty where
   satisfiesProperty m FromBoardHasEqualNumberOfPieces = numXs (from m) == numOs (from m)
   satisfiesProperty m FromBoardHasOneMoreXThanO = numXs (from m) == (numOs (from m) + 1)
 
-instance PermutingGenerator TicTacToeMove TicTacToeProperty where
+instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
   generators =
     [ PermutationEdge
       { name = "MakeFromBoardCorrectSizeOdd"
@@ -406,8 +406,8 @@ baseGen = do
 
 
 ticTacToeGenSelfTests :: TestTree
-ticTacToeGenSelfTests = testGroup "TicTacToe PermutingGenerator selfTest" $
-  fromGroup <$> selfTest (\(_ :: PermutationEdge TicTacToeMove TicTacToeProperty) -> True) baseGen
+ticTacToeGenSelfTests = testGroup "TicTacToe HasPermutationGenerator permutationGeneratorSelfTest" $
+  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge TicTacToeMove TicTacToeProperty) -> True) baseGen
 
 ticTacToeGenTests :: TestTree
 ticTacToeGenTests = testGroup "Spec TicTacToe" $

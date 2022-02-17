@@ -58,7 +58,7 @@ library
   import:          lang
   exposed-modules: Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
-                 , Proper.PermutingGenerator
+                 , Proper.HasPermutationGenerator
                  , Proper.IsDeviceModel
                  , Proper.LogicalModel
                  , Proper.IsPlutusModel

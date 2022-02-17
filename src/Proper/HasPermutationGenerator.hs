@@ -1,5 +1,5 @@
-module Proper.PermutingGenerator (
-  PermutingGenerator(..),
+module Proper.HasPermutationGenerator (
+  HasPermutationGenerator(..),
   PermutationEdge(..),
   ) where
 import Debug.Trace
@@ -40,11 +40,11 @@ instance Eq (PermutationEdge m p) where
 instance Show (PermutationEdge m p) where
   show = name
 
-class (HasLogicalModel m p, Show m) => PermutingGenerator m p where
+class (HasLogicalModel m p, Show m) => HasPermutationGenerator m p where
   generators :: [PermutationEdge m p]
 
-  selfTest :: (PermutationEdge m p -> Bool) -> Gen m -> [Group]
-  selfTest pefilter bgen =
+  permutationGeneratorSelfTest :: (PermutationEdge m p -> Bool) -> Gen m -> [Group]
+  permutationGeneratorSelfTest pefilter bgen =
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
         (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         mGen = buildGen bgen
@@ -53,11 +53,11 @@ class (HasLogicalModel m p, Show m) => PermutingGenerator m p where
      in if isco
            then case findDupEdgeNames of
                   [] -> testEdge ns pedges mGen <$> filter pefilter generators
-                  dups -> [Group "PermutingGenerator edge names must be unique." $
+                  dups -> [Group "HasPermutationGenerator edge names must be unique." $
                            [(fromString $ dup <> " not unique", property $ failure)
                            | dup <- dups]
                           ]
-           else [Group "PermutingGenerator Graph Not Strongly Connected" $
+           else [Group "HasPermutationGenerator Graph Not Strongly Connected" $
                           [(fromString "Not strongly connected", abortNotSCC ns graph)]
                         ]
     where

@@ -53,10 +53,15 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
         graph = buildGraph pedges
         isco = isStronglyConnected graph
      in if isco
-           then testEdge ns pedges mGen <$> filter pefilter generators
-           else [Group "PermutingGenerator Not Strongly Connected" $
-                   [(fromString "Not strongly connected", abortNotSCC ns graph)]
-                ]
+           then case findDupEdgeNames of
+                  [] -> testEdge ns pedges mGen <$> filter pefilter generators
+                  dups -> [Group "PermutingGenerator edge names must be unique." $
+                           [(fromString $ dup <> " not unique", property $ failure)
+                           | dup <- dups]
+                          ]
+           else [Group "PermutingGenerator Graph Not Strongly Connected" $
+                          [(fromString "Not strongly connected", abortNotSCC ns graph)]
+                        ]
     where
       abortNotSCC ns graph =
         let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
@@ -64,6 +69,8 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
                "PermutationEdges do not form a strongly connected graph."
                $+$ hang "No Edge Between here:" 4 (ppDoc a)
                $+$ hang "            and here:" 4 (ppDoc b)
+      findDupEdgeNames = [ name g | g <- generators :: [PermutationEdge m p]
+                                  , length (filter (==g) generators) > 1 ]
       testEdge :: Map Int (Set p)
                -> Map (Int,Int) [PermutationEdge m p]
                -> (Set p -> PropertyT IO m)
@@ -76,7 +83,7 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
           ]
         where
           matchesEdges = [ e | (e,v) <- Map.toList pem, pe `elem` v ]
-          edgeTestName f t = fromString $ (show $ Set.toList (lut ns f)) <> " -> " <> (show $ Set.toList (lut ns t))
+          edgeTestName f t = fromString $ name pe <> " : " <> (show $ Set.toList (lut ns f)) <> " -> " <> (show $ Set.toList (lut ns t))
           isRequired =
             let x = [ () | (_,v) <- Map.toList pem, length v == 1, p <- v, p == pe ]
              in length x > 0
@@ -84,7 +91,7 @@ class (HasProperties m p, Show m) => PermutingGenerator m p where
             if isRequired
                then pure ()
                else failWithFootnote $ renderStyle ourStyle $
-                      "PermutationEdge not required to make graph strongly connected."
+                      (fromString $ "PermutationEdge " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = property $ do
             om <- mGen (lut ns f)

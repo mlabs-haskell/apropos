@@ -31,6 +31,22 @@ data TicTacToeProperty =
     | FromBoardHasOddNumberOfPieces
 --    | FromBoardHasEqualNumberOfPieces -- moving this to here causes a behaviour change
 --                                         we get "gave up after 100 discards" errors
+--                                         suspect this is due to the path finding algorithm
+--                                         it returns a different path depending on the
+--                                         numbering of the nodes and this causes generators
+--                                         to compose differently
+--
+--                                         the best solution to this may be to randomly
+--                                         choose between available paths which would
+--                                         flag up these filter errors as they are introduced
+--                                         since this is really a hidden model failure
+--                                         being revealed by changing paths
+--
+--                                         instead of using dfs to find a path we can
+--                                         construct a distance matrix up front and
+--                                         randomly choose a next node from the set of
+--                                         reachable nodes that reduce the distance to
+--                                         the target
     | ToBoardIsCorrectSize
     | ToBoardIsEmpty
     | PlayerIsX
@@ -112,14 +128,6 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
       , contract = Set.insert FromBoardIsCorrectSize . Set.insert FromBoardInInitialState
       , permuteGen = \m -> do
           b <- pure $ genEmptyBoardOfSize 9
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeEmptyFromBoardIncorrectSize"
-      , match = Var FromBoardIsCorrectSize :&&: Var FromBoardIsEmpty
-      , contract = Set.delete FromBoardIsCorrectSize
-      , permuteGen = \m -> do
-          b <- genEmptyBoardOfIncorrectSize
           pure $ m { from = b }
       }
     , PermutationEdge
@@ -231,9 +239,9 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
           pure $ m { from = b }
       }
     , PermutationEdge
-      { name = "MakeToBoardCorrectSize"
+      { name = "MakeToBoardCorrectSizeEmpty"
       , match = Not (Var ToBoardIsCorrectSize) :&&: Var ToBoardIsEmpty
-      , contract = Set.insert ToBoardIsCorrectSize
+      , contract = Set.insert ToBoardIsCorrectSize . Set.insert ToBoardIsEmpty
       , permuteGen = \m -> do
           let b = genEmptyBoardOfSize 9
           pure $ m { to = b }
@@ -241,7 +249,7 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
     , PermutationEdge
       { name = "MakeToBoardCorrectSize"
       , match = Not (Var ToBoardIsCorrectSize) :&&: Not (Var ToBoardIsEmpty)
-      , contract = Set.insert ToBoardIsCorrectSize
+      , contract = Set.insert ToBoardIsCorrectSize . Set.delete ToBoardIsEmpty
       , permuteGen = \m -> do
           b <- genNonEmptyBoardOfSize 9
           pure $ m { to = b }
@@ -271,19 +279,11 @@ instance PermutingGenerator TicTacToeMove TicTacToeProperty where
           pure $ m { from = b }
       }
     , PermutationEdge
-      { name = "MakeFromBoardNotEmptyOdd"
-      , match = Var FromBoardIsEmpty :&&: Var FromBoardHasOddNumberOfPieces
-      , contract = Set.delete FromBoardIsEmpty
-      , permuteGen = \m -> do
-          b <- genBoardWithOddNumberOfPiecesWithSize (length (from m))
-          pure $ m { from = b }
-      }
-    , PermutationEdge
       { name = "MakeFromBoardNotEmptyEven"
       , match = Var FromBoardIsEmpty :&&: Not (Var FromBoardHasOddNumberOfPieces)
       , contract = Set.delete FromBoardIsEmpty . Set.delete FromBoardHasEqualNumberOfPieces
       , permuteGen = \m -> do
-          b <- genBoardWithEvenNumberOfPiecesWithSize $ length $ from m
+          b <- genBoardWithEvenNumberOfPiecesWithSize $ max 2 (length $ from m)
           pure $ m { from = b }
       }
     , PermutationEdge

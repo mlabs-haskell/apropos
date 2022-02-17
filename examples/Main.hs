@@ -13,12 +13,12 @@ tests =
     "all tests"
     [ testGroup "Hand Written Parameterised Generator"
         [intGenTests
-        , intDeviceTests
+        , intPureTests
         , intPlutarchTests
         ]
     , testGroup "Permutation Generator"
         [ intPermutingGenTests
-        , intPermutingGenDeviceTests
+        , intPermutingGenPureTests
         , intPermutingGenPlutarchTests
         , intPermutingGenSelfTests
         ]

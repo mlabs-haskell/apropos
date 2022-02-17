@@ -1,11 +1,11 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Spec.Int (HasLogicalModel (..), IntProp(..),intGenTests,intDeviceTests,intPlutarchTests) where
+module Spec.Int (HasLogicalModel (..), IntProp(..),intGenTests,intPureTests,intPlutarchTests) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.IsPlutusModel
-import Proper.IsDeviceModel
+import Proper.IsPureModel
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (forAll)
 import qualified Hedgehog.Gen as Gen
@@ -64,16 +64,14 @@ intGenTests = testGroup "Spec.Int" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-acceptsSmallNegativeInts :: Device Int IntProp
-acceptsSmallNegativeInts = Device (Var IsSmall :&&: Var IsNegative)
-                                  (\i -> i < 0 && i >= -10)
+instance IsPureModel Int IntProp where
+  expect _ = Var IsSmall :&&: Var IsNegative
+  run _ i = i < 0 && i >= -10
 
-instance IsDeviceModel Int IntProp
-
-intDeviceTests :: TestTree
-intDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
+intPureTests :: TestTree
+intPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
   fromGroup <$> [
-    runDeviceTestsWhere acceptsSmallNegativeInts "AcceptsSmallNegativeInts" Yes
+    runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
   ]
 
 instance IsPlutusModel Int IntProp where

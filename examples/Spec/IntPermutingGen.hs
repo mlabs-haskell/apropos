@@ -2,14 +2,14 @@
 
 module Spec.IntPermutingGen (
   intPermutingGenTests,
-  intPermutingGenDeviceTests,
+  intPermutingGenPureTests,
   intPermutingGenPlutarchTests,
   intPermutingGenSelfTests,
   ) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
-import Proper.IsDeviceModel
+import Proper.IsPureModel
 import Proper.HasPermutationGenerator
 import Proper.IsPlutusModel
 import SAT.MiniSat ( Formula (..) )
@@ -108,17 +108,16 @@ intPermutingGenTests = testGroup "Spec.IntPermutingGen" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-acceptsSmallNegativeInts :: Device Int IntProp
-acceptsSmallNegativeInts = Device (Var IsSmall :&&: Var IsNegative)
-                                  (\i -> i < 0 && i >= -10)
+instance IsPureModel Int IntProp where
+  expect _ = Var IsSmall :&&: Var IsNegative
+  run _ i = i < 0 && i >= -10
 
-instance IsDeviceModel Int IntProp
-
-intPermutingGenDeviceTests :: TestTree
-intPermutingGenDeviceTests = testGroup "Device.AcceptsSmallNegativeInts" $
+intPermutingGenPureTests :: TestTree
+intPermutingGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
   fromGroup <$> [
-    runDeviceTestsWhere acceptsSmallNegativeInts "AcceptsSmallNegativeInts" Yes
-  ]
+
+    runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+                ]
 
 instance IsPlutusModel Int IntProp where
   expect _ _ = Var IsSmall :&&: Var IsNegative

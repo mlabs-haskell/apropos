@@ -59,7 +59,7 @@ library
   exposed-modules: Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator
-                 , Proper.IsDeviceModel
+                 , Proper.IsPureModel
                  , Proper.LogicalModel
                  , Proper.IsPlutusModel
   hs-source-dirs:  src

@@ -20,6 +20,7 @@ tests =
         [ intPermutingGenTests
         , intPermutingGenDeviceTests
         , intPermutingGenPlutarchTests
+        , intPermutingGenSelfTests
         ]
 --    , testGroup "TicTacToe"
 --        [ ticTacToeGenTests

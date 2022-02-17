@@ -60,7 +60,7 @@ library
                  , Proper.HasParameterisedGenerator
                  , Proper.PermutingGenerator
                  , Proper.IsDeviceModel
-                 , Proper.Proposition
+                 , Proper.LogicalModel
                  , Proper.IsPlutusModel
   hs-source-dirs:  src
 

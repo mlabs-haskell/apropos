@@ -1,5 +1,5 @@
 module Proper.IsPlutusModel (IsPlutusModel(..)) where
-import Proper.Proposition
+import Proper.LogicalModel
 import Proper.HasProperties
 import Proper.HasParameterisedGenerator
 

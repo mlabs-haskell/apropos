@@ -1,7 +1,7 @@
 module Proper.IsDeviceModel ( IsDeviceModel(..), Device(..) ) where
 import Proper.HasProperties
 import Proper.HasParameterisedGenerator
-import Proper.Proposition
+import Proper.LogicalModel
 import Hedgehog (Property,Group(..),property,(===))
 import SAT.MiniSat ( Formula (..) )
 import Data.Set (Set)

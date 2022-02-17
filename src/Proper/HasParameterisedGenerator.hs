@@ -4,7 +4,7 @@ module Proper.HasParameterisedGenerator (
 import Hedgehog (PropertyT,Property,Group(..),property,(===))
 import Data.String (fromString)
 import Proper.HasProperties
-import Proper.Proposition
+import Proper.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Proxy (Proxy)

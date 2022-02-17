@@ -2,7 +2,7 @@
 
 module Spec.TicTacToe (ticTacToeGenTests,ticTacToeGenSelfTests) where
 import Proper.HasProperties
-import Proper.Proposition
+import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.PermutingGenerator
 import SAT.MiniSat ( Formula (..) )
@@ -39,7 +39,7 @@ data TicTacToeProperty =
     | WinDeclared
     deriving stock (Eq,Ord,Enum,Show,Bounded)
 
-instance Proposition TicTacToeProperty where
+instance LogicalModel TicTacToeProperty where
   logic = All [Var FromBoardInInitialState :<->: (All $ Var <$> [FromBoardIsCorrectSize
                                                                 ,FromBoardIsEmpty
                                                                 ])

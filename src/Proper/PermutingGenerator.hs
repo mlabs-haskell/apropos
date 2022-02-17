@@ -4,7 +4,7 @@ module Proper.PermutingGenerator (
   ) where
 import Debug.Trace
 import Proper.HasProperties
-import Proper.Proposition
+import Proper.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)

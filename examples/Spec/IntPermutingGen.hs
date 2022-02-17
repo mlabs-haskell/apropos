@@ -7,7 +7,7 @@ module Spec.IntPermutingGen (
   intPermutingGenSelfTests,
   ) where
 import Proper.HasProperties
-import Proper.Proposition
+import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.IsDeviceModel
 import Proper.PermutingGenerator
@@ -34,7 +34,7 @@ data IntProp =
     | IsMinBound
     deriving stock (Eq,Ord,Enum,Show,Bounded)
 
-instance Proposition IntProp where
+instance LogicalModel IntProp where
   logic = ExactlyOne [Var IsNegative, Var IsPositive, Var IsZero]
      :&&: ExactlyOne [Var IsLarge, Var IsSmall]
      :&&: (Var IsZero :->: Var IsSmall)

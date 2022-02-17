@@ -57,7 +57,7 @@ Neat! Terms like these are used to encode Three aspects of our model.
 This is a term you define to constrain which properties of the model can be true at the same time.
 
 ```Haskell
-instance Proposition MyProperty where
+instance LogicalModel MyProperty where
   logic = Var This :->: Var That
 ```
 
@@ -77,7 +77,7 @@ You could use the idiom of including PASS/FAIL or VALIDATE/ERROR in the Properti
 This lets you fold the logic into the one expression. Or you could write a logical expression here and keep the logic separate.
 
 ```Haskell
-instace IsPlutusModel Model MyProperty where
+instace HasPlutusTestRunner Model MyProperty where
   expect =  All $ Var <$> [ This
                           , That
                           , TheOther
@@ -123,7 +123,7 @@ These edges have a name, match on a set of properties with a Formula, obey a pro
 If you can provide a set of these that form a strongly connected graph then you'll have something you can plug into HasParameterisedGenerator. All the graph building, path traversal, and contract checking is done for you.
 
 ```Haskell
-class (HasProperties m p, Show m) => PermutingGenerator m p where
+class (HasLogicalModel m p, Show m) => HasPermutationGenerator m p where
   generators :: [PermutationEdge m p]
   buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
   buildGen g = ... -- you get the rest for free!

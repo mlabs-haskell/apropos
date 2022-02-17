@@ -6,7 +6,7 @@ module Spec.IntPermutingGen (
   intPermutingGenPlutarchTests,
   intPermutingGenSelfTests,
   ) where
-import Proper.HasProperties
+import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.IsDeviceModel
@@ -41,7 +41,7 @@ instance LogicalModel IntProp where
      :&&: (Var IsMaxBound :->: (Var IsLarge :&&: Var IsPositive))
      :&&: (Var IsMinBound :->: (Var IsLarge :&&: Var IsNegative))
 
-instance HasProperties Int IntProp where
+instance HasLogicalModel Int IntProp where
   satisfiesProperty i IsNegative = i < 0
   satisfiesProperty i IsPositive = i > 0
   satisfiesProperty i IsMaxBound = i == maxBound

@@ -1,5 +1,5 @@
 module Proper.IsDeviceModel ( IsDeviceModel(..), Device(..) ) where
-import Proper.HasProperties
+import Proper.HasLogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.LogicalModel
 import Hedgehog (Property,Group(..),property,(===))
@@ -14,7 +14,7 @@ data Device m p =
   , run :: m -> Bool
   }
 
-class (HasProperties m p, HasParameterisedGenerator m p) => IsDeviceModel m p where
+class (HasLogicalModel m p, HasParameterisedGenerator m p) => IsDeviceModel m p where
   runDeviceTest :: Device m p -> Set p -> Property
   runDeviceTest device s = property $ do
     (m :: m) <- parameterisedGenerator s

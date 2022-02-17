@@ -56,7 +56,7 @@ common lang
 
 library
   import:          lang
-  exposed-modules: Proper.HasProperties
+  exposed-modules: Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
                  , Proper.PermutingGenerator
                  , Proper.IsDeviceModel

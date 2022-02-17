@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Spec.TicTacToe (ticTacToeGenTests,ticTacToeGenSelfTests) where
-import Proper.HasProperties
+import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.PermutingGenerator
@@ -52,7 +52,7 @@ instance LogicalModel TicTacToeProperty where
               , Var FromBoardHasOneMoreXThanO :->: Var FromBoardHasOddNumberOfPieces
               ]
 
-instance HasProperties TicTacToeMove TicTacToeProperty where
+instance HasLogicalModel TicTacToeMove TicTacToeProperty where
   satisfiesProperty m FromBoardIsCorrectSize = 9 == length (from m)
   satisfiesProperty m FromBoardIsEmpty = all isNothing (from m)
   satisfiesProperty m FromBoardInInitialState = 9 == length (from m) &&  all isNothing (from m)

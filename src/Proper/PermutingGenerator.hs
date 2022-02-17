@@ -3,7 +3,7 @@ module Proper.PermutingGenerator (
   PermutationEdge(..),
   ) where
 import Debug.Trace
-import Proper.HasProperties
+import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -40,7 +40,7 @@ instance Eq (PermutationEdge m p) where
 instance Show (PermutationEdge m p) where
   show = name
 
-class (HasProperties m p, Show m) => PermutingGenerator m p where
+class (HasLogicalModel m p, Show m) => PermutingGenerator m p where
   generators :: [PermutationEdge m p]
 
   selfTest :: (PermutationEdge m p -> Bool) -> Gen m -> [Group]

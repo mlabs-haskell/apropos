@@ -1,4 +1,4 @@
-module Proper.IsPlutusModel (IsPlutusModel(..)) where
+module Proper.HasPlutusTestRunner (HasPlutusTestRunner(..)) where
 import Proper.LogicalModel
 import Proper.HasLogicalModel
 import Proper.HasParameterisedGenerator
@@ -59,7 +59,7 @@ import Prelude (
  )
 import Data.Proxy (Proxy(..))
 
-class (HasLogicalModel m p, HasParameterisedGenerator m p) => IsPlutusModel m p where
+class (HasLogicalModel m p, HasParameterisedGenerator m p) => HasPlutusTestRunner m p where
   script :: Proxy p -> m -> Script
   expect :: Proxy m -> Proxy p -> Formula p
 

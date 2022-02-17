@@ -1,17 +1,17 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Spec.IntPermutingGen (
-  intPermutingGenTests,
-  intPermutingGenPureTests,
-  intPermutingGenPlutarchTests,
-  intPermutingGenSelfTests,
+module Spec.IntPermutationGen (
+  intPermutationGenTests,
+  intPermutationGenPureTests,
+  intPermutationGenPlutarchTests,
+  intPermutationGenSelfTests,
   ) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
-import Proper.IsPureModel
+import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
-import Proper.IsPlutusModel
+import Proper.HasPlutusTestRunner
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
@@ -102,37 +102,37 @@ instance HasParameterisedGenerator Int IntProp where
 baseGen :: Gen Int
 baseGen = (Gen.int (linear minBound maxBound))
 
-intPermutingGenTests :: TestTree
-intPermutingGenTests = testGroup "Spec.IntPermutingGen" $
+intPermutationGenTests :: TestTree
+intPermutationGenTests = testGroup "Spec.IntPermutationGen" $
     fromGroup <$> [
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance IsPureModel Int IntProp where
+instance HasPureTestRunner Int IntProp where
   expect _ = Var IsSmall :&&: Var IsNegative
   run _ i = i < 0 && i >= -10
 
-intPermutingGenPureTests :: TestTree
-intPermutingGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
+intPermutationGenPureTests :: TestTree
+intPermutationGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
   fromGroup <$> [
 
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
                 ]
 
-instance IsPlutusModel Int IntProp where
+instance HasPlutusTestRunner Int IntProp where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer
      in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
 
-intPermutingGenPlutarchTests :: TestTree
-intPermutingGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
+intPermutationGenPlutarchTests :: TestTree
+intPermutationGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
   fromGroup <$> [
     runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
   ]
 
-intPermutingGenSelfTests :: TestTree
-intPermutingGenSelfTests = testGroup "Int HasPermutationGenerator permutationGeneratorSelfTest" $
+intPermutationGenSelfTests :: TestTree
+intPermutationGenSelfTests = testGroup "Int HasPermutationGenerator permutationGeneratorSelfTest" $
   fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge Int IntProp) -> True) baseGen
 
 

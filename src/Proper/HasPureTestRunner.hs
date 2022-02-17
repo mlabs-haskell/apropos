@@ -1,4 +1,4 @@
-module Proper.IsPureModel ( IsPureModel(..) ) where
+module Proper.HasPureTestRunner ( HasPureTestRunner(..) ) where
 import Proper.HasLogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.LogicalModel
@@ -10,7 +10,7 @@ import Data.String (fromString)
 import Data.Proxy (Proxy(..))
 
 
-class (HasLogicalModel m p, HasParameterisedGenerator m p) => IsPureModel m p where
+class (HasLogicalModel m p, HasParameterisedGenerator m p) => HasPureTestRunner m p where
   expect :: Proxy m -> Formula p
   run :: Proxy p -> m -> Bool
 

@@ -4,8 +4,8 @@ module Spec.Int (HasLogicalModel (..), IntProp(..),intGenTests,intPureTests,intP
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
-import Proper.IsPlutusModel
-import Proper.IsPureModel
+import Proper.HasPlutusTestRunner
+import Proper.HasPureTestRunner
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (forAll)
 import qualified Hedgehog.Gen as Gen
@@ -64,7 +64,7 @@ intGenTests = testGroup "Spec.Int" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance IsPureModel Int IntProp where
+instance HasPureTestRunner Int IntProp where
   expect _ = Var IsSmall :&&: Var IsNegative
   run _ i = i < 0 && i >= -10
 
@@ -74,7 +74,7 @@ intPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
   ]
 
-instance IsPlutusModel Int IntProp where
+instance HasPlutusTestRunner Int IntProp where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer

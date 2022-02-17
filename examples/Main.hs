@@ -1,7 +1,7 @@
 module Main ( main ) where
 import Test.Tasty
 import Spec.Int
-import Spec.IntPermutingGen
+import Spec.IntPermutationGen
 import Spec.TicTacToe
 
 main :: IO ()
@@ -17,10 +17,10 @@ tests =
         , intPlutarchTests
         ]
     , testGroup "Permutation Generator"
-        [ intPermutingGenTests
-        , intPermutingGenPureTests
-        , intPermutingGenPlutarchTests
-        , intPermutingGenSelfTests
+        [ intPermutationGenTests
+        , intPermutationGenPureTests
+        , intPermutationGenPlutarchTests
+        , intPermutationGenSelfTests
         ]
     , testGroup "TicTacToe"
         [ ticTacToeGenSelfTests

@@ -2,7 +2,7 @@ module Proper.PermutingGenerator (
   PermutingGenerator(..),
   PermutationEdge(..),
   ) where
-
+import Debug.Trace
 import Proper.HasProperties
 import Proper.Proposition
 import Data.Set (Set)
@@ -226,9 +226,9 @@ pairPath (a:b:r) = (a,b):(pairPath (b:r))
 isStronglyConnected :: Graph -> Bool
 isStronglyConnected g = 1 == length (scc g)
 
-lut :: Ord a => Map a b -> a -> b
+lut :: Show a => Show b => Ord a => Map a b -> a -> b
 lut m i = case Map.lookup i m of
-           Nothing -> error "this should never happen"
+           Nothing -> error $ "Not found: " <> show i  <> " in " <> show m <> "\nthis should never happen..."
            Just so -> so
 
 failWithFootnote :: MonadTest m => String -> m a
@@ -260,11 +260,11 @@ distanceMap edges =
   let initial = foldr ($) Map.empty (insertEdge <$> edges)
       nodes = Map.keys initial
       algo = distanceMapUpdate <$> nodes
-   in go initial algo
+   in go (foldr ($) initial algo) algo
   where
     go m algo =
       if distanceMapComplete m
-         then m
+         then trace (show m) m
          else foldr ($) m algo
     insertEdge :: (Int,Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)
     insertEdge (f,t) m =
@@ -274,12 +274,14 @@ distanceMap edges =
     distanceMapComplete :: Map Int (Map Int Int) -> Bool
     distanceMapComplete m =
       let nodes = Map.keys m
-       in all id [ Set.fromList (Map.keys (lut m node)) == Set.fromList nodes | node <- nodes ]
+       in not $ any (> length nodes) $ join [ snd <$> Map.toList (lut m node) | node <- nodes ]
     distanceMapUpdate :: Int -> Map Int (Map Int Int) -> Map Int (Map Int Int)
     distanceMapUpdate node m =
-      let know = Map.toList $ lut m node
+      let nodes = Map.keys m
+          know = Map.toList $ lut m node
+          unknown = filter (not . (`elem` (fst <$> know))) $ Map.keys m
           news = join $ [ (\(t,d) -> (t,d+dist)) <$> Map.toList (lut m known)
-                        | (known,dist) <- know
+                        | (known,dist) <- (know <> zip unknown (cycle [length nodes + 1]))
                         ]
        in foldr updateDistance m news
       where updateDistance :: (Int,Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)

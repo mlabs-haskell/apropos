@@ -23,6 +23,7 @@ tests =
         , intPermutingGenSelfTests
         ]
     , testGroup "TicTacToe"
-        [ ticTacToeGenTests
+        [ ticTacToeGenSelfTests
+        , ticTacToeGenTests
         ]
     ]

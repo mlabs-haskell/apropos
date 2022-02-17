@@ -29,28 +29,10 @@ data TicTacToeProperty =
     | FromBoardIsEmpty
     | FromBoardInInitialState
     | FromBoardHasOddNumberOfPieces
---    | FromBoardHasEqualNumberOfPieces -- moving this to here causes a behaviour change
---                                         we get "gave up after 100 discards" errors
---                                         suspect this is due to the path finding algorithm
---                                         it returns a different path depending on the
---                                         numbering of the nodes and this causes generators
---                                         to compose differently
---
---                                         the best solution to this may be to randomly
---                                         choose between available paths which would
---                                         flag up these filter errors as they are introduced
---                                         since this is really a hidden model failure
---                                         being revealed by changing paths
---
---                                         instead of using dfs to find a path we can
---                                         construct a distance matrix up front and
---                                         randomly choose a next node from the set of
---                                         reachable nodes that reduce the distance to
---                                         the target
+    | FromBoardHasEqualNumberOfPieces
     | ToBoardIsCorrectSize
     | ToBoardIsEmpty
     | PlayerIsX
-    | FromBoardHasEqualNumberOfPieces
     | OneMoreXThanO
     | IsPlayersTurn
     | WinDeclared

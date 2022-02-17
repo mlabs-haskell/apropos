@@ -253,8 +253,10 @@ genRandomPath edges m from to = go [] from
               p <- Gen.element $ filter (\o -> not (o `elem` breadcrumbs)) options
               (f:) <$> go (p:breadcrumbs) p
 
--- this is surely really inefficient... let's get something good in here
+-- I thought this would be slow but it seems okay
 -- I tried using digraph from kadena-io but couldn't get it to build
+-- It would be nice to depend on a library that gives us a distance matrix for a digraph
+-- instead of hand rolling it
 distanceMap :: [(Int,Int)] -> Map Int (Map Int Int)
 distanceMap edges =
   let initial = foldr ($) Map.empty (insertEdge <$> edges)

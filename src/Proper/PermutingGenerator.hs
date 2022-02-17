@@ -7,7 +7,8 @@ module Proper.PermutingGenerator (
 import Proper.HasProperties
 import Proper.Proposition
 import Data.Set (Set)
-import Hedgehog (Gen,PropertyT,MonadTest,forAll,failure,footnote)
+import qualified Data.Set as Set
+import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)
 import qualified Hedgehog.Gen as Gen
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -25,6 +26,7 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Control.Monad (join)
+import Data.String (fromString)
 
 data PermutationEdge m p =
   PermutationEdge {
@@ -34,11 +36,68 @@ data PermutationEdge m p =
   , permuteGen :: m -> Gen m
   }
 
+instance Eq (PermutationEdge m p) where
+  (==) a b = name a == name b
+
 instance Show (PermutationEdge m p) where
   show = name
 
 class (HasProperties m p, Show m) => PermutingGenerator m p where
   generators :: [PermutationEdge m p]
+
+  selfTest :: (PermutationEdge m p -> Bool) -> Gen m -> [Group]
+  selfTest pefilter bgen =
+    let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
+        (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+        mGen = buildGen bgen
+        graph = buildGraph pedges
+        isco = isStronglyConnected graph
+     in if isco
+           then testEdge ns pedges mGen <$> filter pefilter generators
+           else [Group "PermutingGenerator Not Strongly Connected" $
+                   [(fromString "Not strongly connected", abortNotSCC ns graph)]
+                ]
+    where
+      abortNotSCC ns graph =
+        let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+          in property $ failWithFootnote $ renderStyle ourStyle $
+               "PermutationEdges do not form a strongly connected graph."
+               $+$ hang "No Edge Between here:" 4 (ppDoc a)
+               $+$ hang "            and here:" 4 (ppDoc b)
+      testEdge :: Map Int (Set p)
+               -> Map (Int,Int) [PermutationEdge m p]
+               -> (Set p -> PropertyT IO m)
+               -> PermutationEdge m p
+               -> Group
+      testEdge ns pem mGen pe =
+        Group (fromString (name pe)) $ (fromString "Is Required", runRequiredTest):
+          [ (edgeTestName f t, runEdgeTest f t)
+          | (f,t) <- matchesEdges
+          ]
+        where
+          matchesEdges = [ e | (e,v) <- Map.toList pem, pe `elem` v ]
+          edgeTestName f t = fromString $ (show $ Set.toList (lut ns f)) <> " -> " <> (show $ Set.toList (lut ns t))
+          isRequired =
+            let x = [ () | (_,v) <- Map.toList pem, length v == 1, p <- v, p == pe ]
+             in length x > 0
+          runRequiredTest = property $ do
+            if isRequired
+               then pure ()
+               else failWithFootnote $ renderStyle ourStyle $
+                      "PermutationEdge not required to make graph strongly connected."
+                      $+$ hang "Edge:" 4 (ppDoc $ name pe)
+          runEdgeTest f t = property $ do
+            om <- mGen (lut ns f)
+            nm <- forAll $ (permuteGen pe) om
+            let expected = lut ns t
+                observed = properties nm
+            if expected == observed
+              then pure ()
+              else failWithFootnote $ renderStyle ourStyle $
+                     "PermutationEdge fails its contract."
+                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
+                       $+$ hang "Expected:" 4 (ppDoc expected)
+                       $+$ hang "Observed:" 4 (ppDoc observed)
 
   buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
   buildGen g = do

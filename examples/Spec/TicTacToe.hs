@@ -9,7 +9,6 @@ import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear,singleton)
-import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import qualified Data.Set as Set
@@ -410,7 +409,10 @@ genBoardWithEvenNumberOfPiecesWithSize s = do
   Gen.shuffle $ as <> bs <> es
 
 instance HasParameterisedGenerator TicTacToeMove TicTacToeProperty where
-  parameterisedGenerator = buildGen $ do
+  parameterisedGenerator = buildGen baseGen
+
+baseGen :: Gen TicTacToeMove
+baseGen = do
     let genBoard = Gen.list (linear 0 100) genTile
         genPlayer = Gen.element [X,O]
         genDeclare = Gen.bool
@@ -419,11 +421,15 @@ instance HasParameterisedGenerator TicTacToeMove TicTacToeProperty where
                   <*> genPlayer
                   <*> genDeclare
 
+
 ticTacToeGenTests :: TestTree
-ticTacToeGenTests = testGroup "Spec TicTacToe" $
-    fromGroup <$> [
-      runGeneratorTestsWhere (Proxy :: Proxy TicTacToeMove)
-                             "TicTacToe Generator"
-                             (Yes :: Formula TicTacToeProperty)
-    ]
+ticTacToeGenTests = testGroup "TicTacToe PermutingGenerator selfTest" $
+  fromGroup <$> selfTest (\(_ :: PermutationEdge TicTacToeMove TicTacToeProperty) -> True) baseGen
+
+--ticTacToeGenTests = testGroup "Spec TicTacToe" $
+--    fromGroup <$> [
+--      runGeneratorTestsWhere (Proxy :: Proxy TicTacToeMove)
+--                             "TicTacToe Generator"
+--                             (Yes :: Formula TicTacToeProperty)
+--    ]
 

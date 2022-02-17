@@ -12,14 +12,14 @@ import Data.Proxy (Proxy(..))
 
 class (HasLogicalModel m p, HasParameterisedGenerator m p) => HasPureTestRunner m p where
   expect :: Proxy m -> Formula p
-  run :: Proxy p -> m -> Bool
+  script :: Proxy p -> m -> Bool
 
   runPureTest :: Proxy m -> Set p -> Property
   runPureTest pm s = property $ do
     (m :: m) <- parameterisedGenerator s
     let expect' = expect pm
-        run'    = run (Proxy :: Proxy p)
-    satisfiesFormula expect' s === run' m
+        script'    = script (Proxy :: Proxy p)
+    satisfiesFormula expect' s === script' m
   runPureTestsWhere :: Proxy m -> String -> Formula p -> Group
   runPureTestsWhere pm name condition =
     Group (fromString name) $

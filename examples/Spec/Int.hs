@@ -66,7 +66,7 @@ intGenTests = testGroup "Spec.Int" $
 
 instance HasPureTestRunner Int IntProp where
   expect _ = Var IsSmall :&&: Var IsNegative
-  run _ i = i < 0 && i >= -10
+  script _ i = i < 0 && i >= -10
 
 intPureTests :: TestTree
 intPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $

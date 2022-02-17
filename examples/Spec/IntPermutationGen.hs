@@ -110,7 +110,7 @@ intPermutationGenTests = testGroup "Spec.IntPermutationGen" $
 
 instance HasPureTestRunner Int IntProp where
   expect _ = Var IsSmall :&&: Var IsNegative
-  run _ i = i < 0 && i >= -10
+  script _ i = i < 0 && i >= -10
 
 intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $

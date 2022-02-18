@@ -49,6 +49,7 @@ common lang
                     , pretty-show
                     , safe
                     , text
+                    , transformers
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
@@ -60,6 +61,7 @@ library
                  , Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator
+                 , Proper.HasPermutationGenerator.Contract
                  , Proper.HasPureTestRunner
                  , Proper.HasPlutusTestRunner
   hs-source-dirs:  src

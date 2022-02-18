@@ -5,6 +5,7 @@ module Proper.HasPermutationGenerator (
 import Debug.Trace
 import Proper.HasLogicalModel
 import Proper.LogicalModel
+import Proper.HasPermutationGenerator.Contract
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)
@@ -30,7 +31,7 @@ data PermutationEdge m p =
   PermutationEdge {
     name :: String
   , match :: Formula p
-  , contract :: Set p -> Set p
+  , contract :: Contract p ()
   , permuteGen :: m -> Gen m
   }
 
@@ -158,16 +159,22 @@ class (HasLogicalModel m p, Show m) => HasPermutationGenerator m p where
             Just so -> pure so
     tr <- forAll $ Gen.element pe
     nm <- forAll $ (permuteGen tr) m
-    let expected = (contract tr) (properties m)
-        observed = properties nm
-    if expected == observed
-      then pure ()
-      else failWithFootnote $ renderStyle ourStyle $
-             "PermutationEdge fails its contract."
-               $+$ hang "Edge:" 4 (ppDoc $ name tr)
-               $+$ hang "Expected:" 4 (ppDoc expected)
-               $+$ hang "Observed:" 4 (ppDoc observed)
-    traversePath edges r nm
+    let mexpected = runContract (contract tr) (name tr) (properties m)
+    case mexpected of
+      Left e -> failWithFootnote e
+      Right Nothing -> failWithFootnote $ renderStyle ourStyle $
+                    "PermutationEdge doesn't work. This is a model error"
+                    $+$ "This should never happen at this point in the program."
+      Right (Just expected) -> do
+        let observed = properties nm
+        if expected == observed
+          then pure ()
+          else failWithFootnote $ renderStyle ourStyle $
+                 "PermutationEdge fails its contract."
+                   $+$ hang "Edge:" 4 (ppDoc $ name tr)
+                   $+$ hang "Expected:" 4 (ppDoc expected)
+                   $+$ hang "Observed:" 4 (ppDoc observed)
+        traversePath edges r nm
 
   findPathOptions ::  forall t . Monad t => (Proxy m)
                   -> [(Int,Int)]
@@ -195,8 +202,11 @@ class (HasLogicalModel m p, Show m) => HasPermutationGenerator m p where
 
   mapsBetween :: Map Int (Set p) -> Int -> Int -> PermutationEdge m p -> Bool
   mapsBetween m a b pedge =
-     satisfiesFormula (match pedge) (lut m a)
-        && ((contract pedge) (lut m a)) == (lut m b)
+    case runContract (contract pedge) (name pedge) (lut m a) of
+      Left e -> error e
+      Right Nothing -> False
+      Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == (lut m b)
+
 
   findPermutationEdges :: Proxy m
                        -> Proxy p
@@ -297,5 +307,4 @@ distanceMap edges =
                     Nothing -> Map.insert node (Map.insert t d curdists) ma
                     Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
                     _ -> ma
-
 

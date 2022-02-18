@@ -11,6 +11,7 @@ import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
+import Proper.HasPermutationGenerator.Contract
 import Proper.HasPlutusTestRunner
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
@@ -19,7 +20,6 @@ import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import qualified Data.Set as Set
 
 import Plutarch (compile)
 import Plutarch.Prelude
@@ -55,39 +55,39 @@ instance HasPermutationGenerator Int IntProp where
     [ PermutationEdge
       { name = "MakeZero"
       , match = Not $ Var IsZero
-      , contract = \_ -> Set.fromList [IsZero,IsSmall]
+      , contract = clear >> addAll [IsZero,IsSmall]
       , permuteGen = \_ -> pure 0
       }
     , PermutationEdge
       { name = "MakeMaxBound"
       , match = Not $ Var IsMaxBound
-      , contract = \_ -> Set.fromList [IsMaxBound,IsLarge,IsPositive]
+      , contract = clear >> addAll [IsMaxBound,IsLarge,IsPositive]
       , permuteGen = \_ -> pure maxBound
       }
     , PermutationEdge
       { name = "MakeMinBound"
       , match = Not $ Var IsMinBound
-      , contract = \_ -> Set.fromList [IsMinBound,IsLarge,IsNegative]
+      , contract = clear >> addAll [IsMinBound,IsLarge,IsNegative]
       , permuteGen = \_ -> pure minBound
       }
     , PermutationEdge
       { name = "MakeLarge"
       , match = Not $ Var IsLarge
-      , contract = \_ -> Set.fromList [IsLarge, IsPositive]
+      , contract = clear >> addAll [IsLarge, IsPositive]
       , permuteGen = \_ -> Gen.int (linear 11 (maxBound -1))
       }
     , PermutationEdge
       { name = "MakeSmall"
       , match = Not $ Var IsSmall
-      , contract = \_ -> Set.fromList [IsSmall,IsPositive]
+      , contract = clear >> addAll [IsSmall,IsPositive]
       , permuteGen = \_ -> Gen.int (linear 1 10)
       }
     , PermutationEdge
       { name = "Negate"
       , match = Not $ Var IsZero
-      , contract = \s -> if IsNegative `elem` s
-                           then Set.delete IsNegative $ Set.insert IsPositive s
-                           else Set.insert IsNegative $ Set.delete IsPositive s
+      , contract = branches [has IsNegative >> remove IsNegative >> add IsPositive
+                            ,has IsPositive >> remove IsPositive >> add IsNegative
+                            ]
       , permuteGen = \i -> pure (-i)
       }
     ]

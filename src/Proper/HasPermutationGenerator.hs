@@ -246,11 +246,15 @@ genRandomPath edges m from to = go [] from
           awayfrom = snd <$> filter ((==f) . fst) edges
           diston = (\af -> (af,lut (lut m af) to)) <$> awayfrom
           options = fst <$> filter ((<=shopa) . snd) diston
+          options' = filter (\o -> not (o `elem` breadcrumbs)) options
+          options'' = case options' of
+                        [] -> options
+                        _ -> options'
       in case shopa of
            0 -> pure []
            1 -> pure [f,to]
            _ -> do
-              p <- Gen.element $ filter (\o -> not (o `elem` breadcrumbs)) options
+              p <- Gen.element options''
               (f:) <$> go (p:breadcrumbs) p
 
 -- I thought this would be slow but it seems okay

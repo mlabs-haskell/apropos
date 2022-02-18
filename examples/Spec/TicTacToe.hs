@@ -77,31 +77,52 @@ instance HasLogicalModel TicTacToeMove TicTacToeProperty where
   satisfiesProperty m FromBoardHasOneMoreXThanO = numXs (from m) == (numOs (from m) + 1)
   satisfiesProperty m ToBoardEqualToFromBoard = from m == to m
 
+-- You are hopefully wondering how all of these complex interdependent generators were
+-- constructed.
+-- The answer is iteratively with feedback from the permutationGeneratorSelfTest
+-- generated test suite.
+-- This test suite will construct property tests for each PermutationEdge that check
+-- that the edge contracts hold.
+-- You can think of these contracts as types and the permutationGeneratorSelfTest
+-- as running a dynamic type checker on random inputs to try and catch type errors.
+-- The types are in terms of model properties encoded in the match and contract fields.
+-- Running the test suite gives you a feedback loop much like running a type checker
+-- and helps you to construct a valid PermutationGenerator.
+-- The self test suite is bootstrapped using the PermutationGenerator itself to construct
+-- inputs to the edges so it first checks that the edges form a strongly connected graph.
+-- It is possible that errors might slip through a single run of the self test suite
+-- since this 'type checker' relies on randomness but if a type error ever occurs during
+-- generation using a PermutationGenerator (in the self test suite or otherwise)
+-- this will cause the test using the generator to fail since it checks these contracts
+-- during the graph traversal as it generates.
 instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
   generators =
     [ PermutationEdge
       { name = "MakeFromBoardCorrectSizeOdd"
-      , match = (Not $ Var FromBoardHasOneMoreXThanO)
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Not $ Var FromBoardHasOneMoreXThanO)
            :&&: (Not $ Var FromBoardIsCorrectSize)
            :&&: Var FromBoardHasOddNumberOfPieces
       , contract = Set.insert FromBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- genBoardWithOddNumberOfPiecesWithSize 9
+          b <- Gen.filter (/= to m) $ genBoardWithOddNumberOfPiecesWithSize 9
           pure $ m { from = b }
       }
     , PermutationEdge
       { name = "MakeFromBoardCorrectSizeHaveOneMoreXThanO"
-      , match = (Var FromBoardHasOneMoreXThanO)
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Var FromBoardHasOneMoreXThanO)
            :&&: (Not $ Var FromBoardIsCorrectSize)
            :&&: Var FromBoardHasOddNumberOfPieces
       , contract = Set.insert FromBoardIsCorrectSize
       , permuteGen = \m -> do
-          b <- genBoardWithFromBoardHasOneMoreXThanOWithSize 9
+          b <- Gen.filter (/= to m) $ genBoardWithFromBoardHasOneMoreXThanOWithSize 9
           pure $ m { from = b }
       }
     ,PermutationEdge
       { name = "MakeFromBoardCorrectSizeEven"
-      , match = (Not $ Var FromBoardIsCorrectSize)
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Not $ Var FromBoardIsCorrectSize)
            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
            :&&: (Not $ Var FromBoardIsEmpty)
       , contract = Set.insert FromBoardIsCorrectSize . Set.delete FromBoardHasEqualNumberOfPieces
@@ -111,17 +132,20 @@ instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
       }
     , PermutationEdge
       { name = "MakeFromBoardCorrectSizeEqual"
-      , match = (Not $ Var FromBoardIsCorrectSize)
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Not $ Var FromBoardIsCorrectSize)
            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
            :&&: (Not $ Var FromBoardIsEmpty)
       , contract = Set.insert FromBoardIsCorrectSize . Set.insert FromBoardHasEqualNumberOfPieces
       , permuteGen = \m -> do
-          b <- Gen.filter (not . boardIsEmpty) $ genBoardWithEqualNumberOfPiecesWithSize 9
+          b <- Gen.filter (not . boardIsEmpty) $ Gen.filter (/= to m) $ genBoardWithEqualNumberOfPiecesWithSize 9
           pure $ m { from = b }
       }
     ,PermutationEdge
       { name = "MakeFromBoardCorrectSizeEmpty"
-      , match = (Not $ Var FromBoardIsCorrectSize) :&&: Var FromBoardIsEmpty
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Not $ Var FromBoardIsCorrectSize)
+           :&&: Var FromBoardIsEmpty
       , contract = \s ->
           if ToBoardIsCorrectSize `elem` s && ToBoardIsEmpty `elem` s
              then Set.insert FromBoardIsCorrectSize
@@ -135,7 +159,8 @@ instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
       }
     , PermutationEdge
       { name = "MakeFromBoardIncorrectSizeHaveOneMoreXThanO"
-      , match = (Var FromBoardHasOneMoreXThanO)
+      , match = (Not $ Var ToBoardEqualToFromBoard)
+           :&&: (Var FromBoardHasOneMoreXThanO)
            :&&: Var FromBoardIsCorrectSize
            :&&: Var FromBoardHasOddNumberOfPieces
       , contract = Set.delete FromBoardIsCorrectSize . Set.delete FromBoardHasEqualNumberOfPieces

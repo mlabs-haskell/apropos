@@ -416,11 +416,7 @@ instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
     ]
 
 genNot9 :: Int -> Int -> Gen Int
-genNot9 l u = do
-  b <- Gen.bool
-  if b
-     then Gen.int (linear l 8)
-     else Gen.int (linear 10 u)
+genNot9 l u = Gen.choice [Gen.int (linear l 8), Gen.int (linear 10 u)]
 
 numXs :: [Maybe Player] -> Int
 numXs = length . filter (== Just X)

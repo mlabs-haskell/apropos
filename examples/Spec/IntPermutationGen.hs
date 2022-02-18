@@ -83,15 +83,11 @@ instance HasPermutationGenerator Int IntProp where
       , permuteGen = \_ -> Gen.int (linear 1 10)
       }
     , PermutationEdge
-      { name = "NegatePos"
-      , match = Var IsPositive
-      , contract = Set.delete IsPositive . Set.insert IsNegative
-      , permuteGen = \i -> pure (-i)
-      }
-    , PermutationEdge
-      { name = "NegateNeg"
-      , match = Var IsNegative
-      , contract = Set.delete IsNegative . Set.insert IsPositive
+      { name = "Negate"
+      , match = Not $ Var IsZero
+      , contract = \s -> if IsNegative `elem` s
+                           then Set.delete IsNegative $ Set.insert IsPositive s
+                           else Set.insert IsNegative $ Set.delete IsPositive s
       , permuteGen = \i -> pure (-i)
       }
     ]

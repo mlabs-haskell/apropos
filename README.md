@@ -157,7 +157,7 @@ The specification is encoded not just in the properties: it is co-representated 
 
 
 ## How do I use this?
-I highly recommend reading the examples and implementation. It's not too much code and it will really help in understanding the library. If you feel you need more documentation or description of any aspect of the library please submit an issue.
+Start by looking at the examples.
 
 ## What can I do with this?
 You can test all the things in all the ways you can think of without having to write individual tests for each permutation by hand. If your model is complex enough I expect you will generate many more property tests than you write lines of code for the model. If you find you are generating too many tests then you can filter them using a logical expression. You can also use these logical expressions to subdivide your test suite into long (exhaustive) and short (subset) tests.

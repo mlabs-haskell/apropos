@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Spec.TicTacToe (ticTacToeGenTests,ticTacToeGenSelfTests) where
 import Spec.TicTacToe.Board
@@ -16,7 +16,7 @@ import Test.Tasty (TestTree)
 --import Data.Maybe (isNothing)
 --import Data.Proxy (Proxy(..))
 --import Control.Monad.Trans.Reader (ask)
-
+import Control.Monad (join)
 --data Player = X | O deriving stock (Eq,Show)
 
 data TicTacToeMove =
@@ -35,17 +35,10 @@ data TicTacToeProperty =
     | WinDeclared
     deriving stock (Eq,Ord,Show)
 
--- this is not ideal to have to implement by hand
--- if we miss a constructor then the model will be broken
--- TODO - figure out how to derive this generically
--- or provide a template haskell function to meta-program it
-instance Enumerable TicTacToeProperty where
-  enumerated = [ FromBoardProperty bp | bp <- enumerated ]
-            <> [ ToBoardProperty bp   | bp <- enumerated ]
-            <> [PlayerIsX,IsPlayersTurn,WinDeclared]
+$(gen_enumerable ''TicTacToeProperty)
 
 instance LogicalModel TicTacToeProperty where
-  logic = All [ FromBoardProperty <$> logic -- we can embed the logic for board like this
+  logic = All [ FromBoardProperty <$> logic
               , ToBoardProperty <$> logic
               ]
 

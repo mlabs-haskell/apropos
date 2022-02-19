@@ -5,14 +5,15 @@ module Proper.LogicalModel
   , satisfiesFormula
   , enumerateSolutions
   , module Proper.LogicalModel.Formula
+  , module Proper.LogicalModel.Enumerable
+  , module Proper.LogicalModel.Enumerable.TH
   ) where
+import Proper.LogicalModel.Enumerable
+import Proper.LogicalModel.Enumerable.TH
 import Proper.LogicalModel.Formula
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-
-class Enumerable p where
-  enumerated :: [p]
 
 class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p

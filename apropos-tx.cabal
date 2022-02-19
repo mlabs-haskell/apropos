@@ -48,17 +48,21 @@ common lang
                     , pretty
                     , pretty-show
                     , safe
+                    , template-haskell
                     , text
                     , transformers
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
     -Wmissing-deriving-strategies
+    -ddump-splices
 
 library
   import:          lang
   exposed-modules: Proper.LogicalModel
                  , Proper.LogicalModel.Formula
+                 , Proper.LogicalModel.Enumerable
+                 , Proper.LogicalModel.Enumerable.TH
                  , Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator

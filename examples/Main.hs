@@ -30,6 +30,7 @@ tests =
         [ intPairGenSelfTests
         , intPairGenSelfTests
         , intPairGenPureTests
+        , intPairGenPlutarchTests
         ]
     , testGroup "TicTacToe"
         [ ticTacToePlayerGenSelfTests

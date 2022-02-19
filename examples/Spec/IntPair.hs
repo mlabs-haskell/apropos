@@ -4,6 +4,7 @@ module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
   intPairGenSelfTests,
+  intPairGenPlutarchTests,
   ) where
 import Spec.IntPermutationGen
 import Proper.HasLogicalModel
@@ -13,7 +14,7 @@ import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
 --import Proper.HasPermutationGenerator.Contract
 --import Proper.HasPermutationGenerator.Gen
---import Proper.HasPlutusTestRunner
+import Proper.HasPlutusTestRunner
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -21,8 +22,8 @@ import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 --import Control.Monad.Trans.Reader (ask)
---import Plutarch (compile)
---import Plutarch.Prelude
+import Plutarch (compile)
+import Plutarch.Prelude
 import Control.Monad (join)
 
 data IntPairProp =
@@ -81,23 +82,26 @@ instance HasPureTestRunner IntPairProp (Int,Int) where
   script _ (l,r) = l < 0 && l >= -10 && r > 0 && r <= 10
 
 intPairGenPureTests :: TestTree
-intPairGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
+intPairGenPureTests = testGroup "Pure.IntPair" $
   fromGroup <$> [
 
-    runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+    runPureTestsWhere (Proxy :: Proxy (Int,Int)) "AcceptsLeftSmallNegativeRightSmallPositive" (Yes :: Formula IntPairProp)
                 ]
 
---instance HasPlutusTestRunner IntProp Int where
---  expect _ _ = Var IsSmall :&&: Var IsNegative
---  script _ i =
---    let ii = (fromIntegral i) :: Integer
---     in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
---
---intPairGenPlutarchTests :: TestTree
---intPairGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
---  fromGroup <$> [
---    runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
---  ]
+instance HasPlutusTestRunner IntPairProp (Int,Int) where
+  expect _ _ =  All $ Var <$> (join [L <$> [IsSmall,IsNegative]
+                                 ,R <$> [IsSmall,IsPositive]])
+  script _ (il,ir) =
+    let iil = (fromIntegral il) :: Integer
+        iir = (fromIntegral ir) :: Integer
+     in compile (pif ((pif (((fromInteger iil) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger iil))) (pcon PTrue) perror) #&& (pif ((((fromInteger 0) :: Term s PInteger) #< (fromInteger iir)) #&& ((fromInteger iir) #<= ((fromInteger (10)) :: Term s PInteger))) (pcon PTrue) perror)) (pcon PUnit) perror)
+
+
+intPairGenPlutarchTests :: TestTree
+intPairGenPlutarchTests = testGroup "Plutarch.IntPair" $
+  fromGroup <$> [
+    runScriptTestsWhere (Proxy :: Proxy (Int,Int)) (Proxy :: Proxy IntPairProp) "AcceptsLeftSmallNegativeRightSmallPositive" Yes
+  ]
 
 intPairGenSelfTests :: TestTree
 intPairGenSelfTests = testGroup "(Int,Int) HasPermutationGenerator permutationGeneratorSelfTest" $

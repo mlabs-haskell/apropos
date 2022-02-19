@@ -1,11 +1,12 @@
-{-# LANGUAGE RankNTypes #-}
 module Proper.HasPermutationGenerator (
   HasPermutationGenerator(..),
   PermutationEdge(..),
+  liftEdges,
   ) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasPermutationGenerator.Contract
+import Proper.HasPermutationGenerator.PermutationEdge
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)
@@ -24,22 +25,8 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Control.Monad (join)
-import Control.Monad.Trans.Reader (ReaderT,runReaderT)
+import Control.Monad.Trans.Reader (runReaderT)
 import Data.String (fromString)
-
-data PermutationEdge p m =
-  PermutationEdge {
-    name :: String
-  , match :: Formula p
-  , contract :: Contract p ()
-  , permuteGen :: forall t . Monad t => ReaderT m (PropertyT t) m
-  }
-
-instance Eq (PermutationEdge p m) where
-  (==) a b = name a == name b
-
-instance Show (PermutationEdge p m) where
-  show = name
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [PermutationEdge p m]
@@ -51,16 +38,21 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         mGen = buildGen bgen
         graph = buildGraph pedges
         isco = isStronglyConnected graph
-     in if isco
-           then case findDupEdgeNames of
-                  [] -> testEdge ns pedges mGen <$> filter pefilter generators
-                  dups -> [Group "HasPermutationGenerator edge names must be unique." $
-                           [(fromString $ dup <> " not unique", property $ failure)
-                           | dup <- dups]
-                          ]
-           else [Group "HasPermutationGenerator Graph Not Strongly Connected" $
-                          [(fromString "Not strongly connected", abortNotSCC ns graph)]
-                        ]
+     in if length (Map.keys pedges) == 0
+          then [Group "No permutation edges defined."
+                [(fromString "no edges defined"
+                 ,property $ failWithFootnote "no PermutationEdges defined"
+                 )]]
+          else if isco
+                 then case findDupEdgeNames of
+                        [] -> testEdge ns pedges mGen <$> filter pefilter generators
+                        dups -> [Group "HasPermutationGenerator edge names must be unique." $
+                                 [(fromString $ dup <> " not unique", property $ failure)
+                                 | dup <- dups]
+                                ]
+                 else [Group "HasPermutationGenerator Graph Not Strongly Connected" $
+                                [(fromString "Not strongly connected", abortNotSCC ns graph)]
+                              ]
     where
       abortNotSCC ns graph =
         let (a,b) = findNoPath (Proxy :: Proxy m) ns graph

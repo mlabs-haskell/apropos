@@ -19,6 +19,7 @@ module Proper.HasPermutationGenerator.Contract
     removeAll,
     removeAllIf,
     clear,
+    output,
   )where
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
@@ -107,6 +108,9 @@ removeAll = mapM_ remove
 
 clear :: Contract p ()
 clear = lift $ lift $ put Set.empty
+
+output :: Set p -> Contract p ()
+output = lift . lift . put
 
 addIf :: (Ord p, Show p) => p -> p -> Contract p ()
 addIf p q = branches [ has p >> add q, hasn't p]

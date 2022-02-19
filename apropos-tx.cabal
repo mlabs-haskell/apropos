@@ -67,6 +67,7 @@ library
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator
                  , Proper.HasPermutationGenerator.Contract
+                 , Proper.HasPermutationGenerator.PermutationEdge
                  , Proper.HasPermutationGenerator.Gen
                  , Proper.HasPureTestRunner
                  , Proper.HasPlutusTestRunner
@@ -80,6 +81,7 @@ test-suite examples
   other-modules:
     Spec.Int
     Spec.IntPermutationGen
+    Spec.IntPair
     Spec.TicTacToe
     Spec.TicTacToe.Player
     Spec.TicTacToe.Tile

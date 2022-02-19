@@ -5,6 +5,7 @@ module Spec.IntPermutationGen (
   intPermutationGenPureTests,
   intPermutationGenPlutarchTests,
   intPermutationGenSelfTests,
+  IntProp(..),
   ) where
 import Proper.HasLogicalModel
 import Proper.LogicalModel

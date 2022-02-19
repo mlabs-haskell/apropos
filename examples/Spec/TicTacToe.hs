@@ -1,489 +1,525 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Spec.TicTacToe (ticTacToeGenTests,ticTacToeGenSelfTests) where
-import Proper.HasLogicalModel
+import Spec.TicTacToe.Board
 import Proper.LogicalModel
-import Proper.HasParameterisedGenerator
-import Proper.HasPermutationGenerator
-import Proper.HasPermutationGenerator.Contract
-import SAT.MiniSat ( Formula (..) )
-import Hedgehog (Gen)
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear,singleton)
-import Test.Tasty (TestTree,testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
-import Data.Maybe (isNothing)
-import Data.Proxy (Proxy(..))
+--import Proper.HasLogicalModel
+--import Proper.HasParameterisedGenerator
+--import Proper.HasPermutationGenerator
+--import Proper.HasPermutationGenerator.Contract
+--import SAT.MiniSat ( Formula (..) )
+--import Hedgehog (Gen)
+--import qualified Hedgehog.Gen as Gen
+--import Hedgehog.Range (linear,singleton)
+--import Test.Tasty (TestTree,testGroup)
+import Test.Tasty (TestTree)
+--import Test.Tasty.Hedgehog (fromGroup)
+--import Data.Maybe (isNothing)
+--import Data.Proxy (Proxy(..))
+--import Control.Monad.Trans.Reader (ask)
 
-data Player = X | O deriving stock (Eq,Show)
+--data Player = X | O deriving stock (Eq,Show)
 
 data TicTacToeMove =
   TicTacToeMove {
-    from :: [Maybe Player]
-  , to   :: [Maybe Player]
-  , player :: Player
+    from :: [Integer]
+  , to   :: [Integer]
+  , player :: Integer
   , declare :: Bool
   } deriving stock (Show)
 
 data TicTacToeProperty =
-      FromBoardIsCorrectSize
-    | FromBoardIsEmpty
-    | FromBoardInInitialState
-    | FromBoardHasOddNumberOfPieces
-    | FromBoardHasEqualNumberOfPieces
-    | FromBoardHasOneMoreXThanO
-    | ToBoardIsCorrectSize
-    | ToBoardIsEmpty
-    | ToBoardEqualToFromBoard
+      FromBoardProperty BoardProperty
+    | ToBoardProperty BoardProperty
     | PlayerIsX
     | IsPlayersTurn
     | WinDeclared
-    deriving stock (Eq,Ord,Enum,Show,Bounded)
+    deriving stock (Eq,Ord,Show)
 
-instance LogicalModel TicTacToeProperty where
-  logic = All [Var FromBoardInInitialState :<->: (All $ Var <$> [FromBoardIsCorrectSize
-                                                                ,FromBoardIsEmpty
-                                                                ])
-              ,Var FromBoardHasOddNumberOfPieces :->: Not (Var FromBoardIsEmpty)
-              ,Var IsPlayersTurn :<->:
-                   ((Var PlayerIsX :&&: (Not $ Var FromBoardHasOddNumberOfPieces))
-                 :||: ((Not $ Var PlayerIsX) :&&: (Var FromBoardHasOddNumberOfPieces)))
-              , Var FromBoardIsEmpty :->: Var FromBoardHasEqualNumberOfPieces
-              , Var FromBoardHasEqualNumberOfPieces :->: (Not $ Var FromBoardHasOddNumberOfPieces)
-              , Var FromBoardHasOneMoreXThanO :->: Var FromBoardHasOddNumberOfPieces
-              , Var ToBoardEqualToFromBoard :->: (All [
-                   Var FromBoardIsCorrectSize :<->: Var ToBoardIsCorrectSize
-                 , Var FromBoardIsEmpty :<->: Var ToBoardIsEmpty
-                                                      ])
-              , (All $ Var <$> [FromBoardIsCorrectSize
-                               ,FromBoardIsEmpty
-                               ,ToBoardIsCorrectSize
-                               ,ToBoardIsEmpty]) :->: Var ToBoardEqualToFromBoard
-              ]
+-- this is not ideal to have to implement by hand
+-- if we miss a constructor then the model will be broken
+-- TODO - figure out how to derive this generically
+-- or provide a template haskell function to meta-program it
+instance Enumerable TicTacToeProperty where
+  enumerated = [ FromBoardProperty bp | bp <- enumerated ]
+            <> [ ToBoardProperty bp   | bp <- enumerated ]
+            <> [PlayerIsX,IsPlayersTurn,WinDeclared]
 
-instance HasLogicalModel TicTacToeMove TicTacToeProperty where
-  satisfiesProperty m FromBoardIsCorrectSize = 9 == length (from m)
-  satisfiesProperty m FromBoardIsEmpty = all isNothing (from m)
-  satisfiesProperty m FromBoardInInitialState = 9 == length (from m) &&  all isNothing (from m)
-  satisfiesProperty m ToBoardIsCorrectSize = 9 == length (to m)
-  satisfiesProperty m ToBoardIsEmpty = all isNothing (to m)
-  satisfiesProperty m WinDeclared = declare m
-  satisfiesProperty m PlayerIsX = X == player m
-  satisfiesProperty m FromBoardHasOddNumberOfPieces = oddNumberOfPiecesOnBoard $ from m
-  satisfiesProperty m IsPlayersTurn =
-    (oddNumberOfPiecesOnBoard (from m) && O == (player m))
-    || ((not (oddNumberOfPiecesOnBoard (from m))) && X == (player m))
-  satisfiesProperty m FromBoardHasEqualNumberOfPieces = numXs (from m) == numOs (from m)
-  satisfiesProperty m FromBoardHasOneMoreXThanO = numXs (from m) == (numOs (from m) + 1)
-  satisfiesProperty m ToBoardEqualToFromBoard = from m == to m
+-- further to this we will want to import the logical models from the
+-- child model into the parent model
+-- this would be easy to do with a syntax tree traversal over the logic
+-- something like this would be nice
+--
+-- embed :: Logic a -> (a -> b) -> Logic b
+--
+-- then we could say something like this
+--
+-- instance LogicalModel TicTacToeProperty where
+--   logic = All [ embed logic FromBoardProperty
+--               , embed logic ToBoardProperty
+--               , moreLogic
+--               ]
+--
+-- this will require us to implement our own Logic AST which should
+-- resolve this issue raised by Koz https://github.com/mlabs-haskell/apropos-tx/issues/3
+--
+--
+-- solving these two issues will allow us to compose models more easily
+--
+-- we can already embed generators from child models using logical expressions with
+-- genSatisfying as demonstrated in Spec.TicTacToe.Board
 
--- You are hopefully wondering how all of these complex interdependent generators were
--- constructed.
--- The answer is iteratively with feedback from the permutationGeneratorSelfTest
--- generated test suite.
--- This test suite will construct property tests for each PermutationEdge that check
--- that the edge contracts hold.
--- You can think of these contracts as types and the permutationGeneratorSelfTest
--- as running a dynamic type checker on random inputs to try and catch type errors.
--- The types are in terms of model properties encoded in the match and contract fields.
--- Running the test suite gives you a feedback loop much like running a type checker
--- and helps you to construct a valid PermutationGenerator.
--- The self test suite is bootstrapped using the PermutationGenerator itself to construct
--- inputs to the edges so it first checks that the edges form a strongly connected graph.
--- It is possible that errors might slip through a single run of the self test suite
--- since this 'type checker' relies on randomness but if a type error ever occurs during
--- generation using a PermutationGenerator (in the self test suite or otherwise)
--- this will cause the test using the generator to fail since it checks these contracts
--- during the graph traversal as it generates.
-instance HasPermutationGenerator TicTacToeMove TicTacToeProperty where
-  generators =
-    [ PermutationEdge
-      { name = "MakeFromBoardCorrectSizeOdd"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardHasOneMoreXThanO)
-           :&&: (Not $ Var FromBoardIsCorrectSize)
-           :&&: Var FromBoardHasOddNumberOfPieces
-      , contract = add FromBoardIsCorrectSize
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= to m) $ genBoardWithOddNumberOfPiecesWithSize 9
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardCorrectSizeHaveOneMoreXThanO"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Var FromBoardHasOneMoreXThanO)
-           :&&: (Not $ Var FromBoardIsCorrectSize)
-           :&&: Var FromBoardHasOddNumberOfPieces
-      , contract = add FromBoardIsCorrectSize
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= to m) $ genBoardWithFromBoardHasOneMoreXThanOWithSize 9
-          pure $ m { from = b }
-      }
-    ,PermutationEdge
-      { name = "MakeFromBoardCorrectSizeEven"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardIsCorrectSize)
-           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-           :&&: (Not $ Var FromBoardIsEmpty)
-      , contract = add FromBoardIsCorrectSize >> remove FromBoardHasEqualNumberOfPieces
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize 9
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardCorrectSizeEqual"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardIsCorrectSize)
-           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-           :&&: (Not $ Var FromBoardIsEmpty)
-      , contract = addAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
-      , permuteGen = \m -> do
-          b <- Gen.filter (not . boardIsEmpty) $ Gen.filter (/= to m) $ genBoardWithEqualNumberOfPiecesWithSize 9
-          pure $ m { from = b }
-      }
-    ,PermutationEdge
-      { name = "MakeFromBoardCorrectSizeEmpty"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardIsCorrectSize)
-           :&&: Var FromBoardIsEmpty
-      , contract = addAll [FromBoardIsCorrectSize,FromBoardInInitialState] >>
-                     branchIf ToBoardIsCorrectSize
-                       (branchIf ToBoardIsCorrectSize (add ToBoardEqualToFromBoard)
-                                                      (pure()) )
-                       (pure ())
-      , permuteGen = \m -> do
-          b <- pure $ genEmptyBoardOfSize 9
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardIncorrectSizeHaveOneMoreXThanO"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Var FromBoardHasOneMoreXThanO)
-           :&&: Var FromBoardIsCorrectSize
-           :&&: Var FromBoardHasOddNumberOfPieces
-      , contract = removeAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
-      , permuteGen = \m -> do
-          i <- genNot9 1 100
-          b <- Gen.filter (/= to m) $ genBoardWithFromBoardHasOneMoreXThanOWithSize i
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardIncorrectSizeOdd"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardHasOneMoreXThanO)
-           :&&: Var FromBoardIsCorrectSize
-           :&&: Var FromBoardHasOddNumberOfPieces
-      , contract = removeAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
-      , permuteGen = \m -> do
-          i <- genNot9 1 100
-          b <- Gen.filter (/= to m) $ genBoardWithOddNumberOfPiecesWithSize i
-          pure $ m { from = b }
 
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardIncorrectSizeEqualNumPieces"
-      , match =  (Not $ Var ToBoardEqualToFromBoard)
-            :&&: Var FromBoardIsCorrectSize
-            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-      , contract = removeAll [FromBoardIsCorrectSize
-                             ,FromBoardInInitialState
-                             ,FromBoardIsEmpty
-                             ] >> add FromBoardHasEqualNumberOfPieces
-      , permuteGen = \m -> do
-          i <- genNot9 2 100
-          b <- Gen.filter (not . boardIsEmpty)
-             $ Gen.filter (/= to m)
-             $ genBoardWithEqualNumberOfPiecesWithSize i
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardIncorrectSizeEven"
-      , match =  (Not $ Var ToBoardEqualToFromBoard)
-            :&&: Var FromBoardIsCorrectSize
-            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-      , contract = removeAll [FromBoardIsCorrectSize
-                             ,FromBoardInInitialState
-                             ,FromBoardIsEmpty
-                             ,FromBoardHasEqualNumberOfPieces
-                             ]
-      , permuteGen = \m -> do
-          i <- genNot9 2 100
-          b <- Gen.filter (not . boardIsEmpty)
-             $ Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize i
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardHaveOneMoreXThanO"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-      , contract = addAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
-                      remove FromBoardHasEqualNumberOfPieces >>
-                        branchIf PlayerIsX (remove IsPlayersTurn) (add IsPlayersTurn)
-      , permuteGen = \m -> do
-               b <- Gen.filter (/= to m)
-                  $ genBoardWithFromBoardHasOneMoreXThanOWithSize (length (from m))
-               pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardHaveOddNumberOfPieces"
-      , match = (Not $ Var ToBoardEqualToFromBoard)
-           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
-      , contract = add FromBoardHasOddNumberOfPieces >>
-                    remove FromBoardHasEqualNumberOfPieces >>
-                      branchIf PlayerIsX (remove IsPlayersTurn) (add IsPlayersTurn)
-      , permuteGen = \m -> do
-               b <- Gen.filter (/= to m)
-                  $ genBoardWithOddNumberOfPiecesWithSize (length (from m))
-               pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardHaveEqualNumberOfPieces"
-      , match = (Not $ Var ToBoardEqualToFromBoard) :&&: Var FromBoardHasOddNumberOfPieces :&&: Not (Var FromBoardIsCorrectSize)
-      , contract = removeAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
-                     add FromBoardHasEqualNumberOfPieces >>
-                       branchIf PlayerIsX (add IsPlayersTurn) (remove IsPlayersTurn)
-      , permuteGen = \m -> do
-          let l = length $ from m
-              s = max 2 l
-          b <- Gen.filter (not . boardIsEmpty)
-                 $ Gen.filter (/= to m) $ genBoardWithEqualNumberOfPiecesWithSize s
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardHaveEvenNumberOfPieces"
-      , match = Var FromBoardHasOddNumberOfPieces :&&: Not (Var FromBoardIsCorrectSize)
-      , contract = removeAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
-                    branchIf PlayerIsX (add IsPlayersTurn) (remove IsPlayersTurn)
-      , permuteGen = \m -> do
-          let l = length $ from m
-          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize l
-          if to m == from m
-             then pure $ m { from = b, to = b }
-             else pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeToBoardCorrectSizeEmpty"
-      , match = Not (Var ToBoardIsCorrectSize) :&&: Var ToBoardIsEmpty
-      , contract = addAll [ToBoardIsCorrectSize,ToBoardIsEmpty] >>
-                    addIf FromBoardInInitialState ToBoardEqualToFromBoard
-      , permuteGen = \m -> do
-          let b = genEmptyBoardOfSize 9
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "MakeToBoardCorrectSize"
-      , match = Not (Var ToBoardEqualToFromBoard)
-           :&&: Not (Var ToBoardIsCorrectSize) :&&: Not (Var ToBoardIsEmpty)
-      , contract = add ToBoardIsCorrectSize >> remove ToBoardIsEmpty
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfSize 9
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "MakeEmptyToBoardIncorrectSize"
-      , match = Var ToBoardIsCorrectSize :&&: Var ToBoardIsEmpty
-      , contract = remove ToBoardIsCorrectSize >>
-                     branchIf FromBoardInInitialState
-                              (remove ToBoardEqualToFromBoard)
-                              (pure ())
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= from m) $ genEmptyBoardOfIncorrectSize
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "MakeToBoardIncorrectSize"
-      , match = Var ToBoardIsCorrectSize :&&: (Not (Var ToBoardIsEmpty))
-      , contract = remove ToBoardIsCorrectSize
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfIncorrectSize
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardEmpty"
-      , match = (Not $ Var FromBoardIsEmpty) :&&: (Not $ Var ToBoardIsEmpty)
-      , contract = add FromBoardIsEmpty
-      , permuteGen = \m -> do
-          let b = genEmptyBoardOfSize (length (from m))
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeFromBoardNotEmptyEven"
-      , match = Var FromBoardIsEmpty :&&: Not (Var FromBoardHasOddNumberOfPieces)
-      , contract = removeAll [FromBoardIsEmpty, FromBoardHasEqualNumberOfPieces]
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize $ max 2 (length $ from m)
-          pure $ m { from = b }
-      }
-    , PermutationEdge
-      { name = "MakeToBoardEmpty"
-      , match = (Not $ Var ToBoardIsEmpty) :&&: (Not $ Var FromBoardIsEmpty)
-      , contract = add ToBoardIsEmpty
-      , permuteGen = \m -> do
-          let b = genEmptyBoardOfSize (length (to m))
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "MakeToBoardNotEmpty"
-      , match = Var ToBoardIsEmpty
-      , contract = remove ToBoardIsEmpty
-      , permuteGen = \m -> do
-          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfSize (length (to m))
-          pure $ m { to = b }
-      }
-    , PermutationEdge
-      { name = "DeclareWin"
-      , match = Not $ Var WinDeclared
-      , contract = add WinDeclared
-      , permuteGen = \m -> pure $ m { declare = True }
-      }
-    , PermutationEdge
-      { name = "UndeclareWin"
-      , match = Var WinDeclared
-      , contract = remove WinDeclared
-      , permuteGen = \m -> pure $ m { declare = False }
-      }
-    , PermutationEdge
-      { name = "SetPlayerIsX"
-      , match = Not $ Var PlayerIsX
-      , contract = add PlayerIsX >>
-                    branchIf FromBoardHasOddNumberOfPieces
-                          (remove IsPlayersTurn)
-                          (add IsPlayersTurn)
-      , permuteGen = \m -> pure $ m { player = X }
-      }
-    , PermutationEdge
-      { name = "UnsetPlayerIsX"
-      , match = Var PlayerIsX
-      , contract = remove PlayerIsX >>
-                   branchIf FromBoardHasOddNumberOfPieces
-                            (add IsPlayersTurn)
-                            (remove IsPlayersTurn)
-      , permuteGen = \m -> pure $ m { player = O }
-      }
-    , PermutationEdge
-      { name = "SetToBoardEqualToFromBoard"
-      , match = Not $ Var ToBoardEqualToFromBoard
-      , contract = add ToBoardEqualToFromBoard >>
-           branches [hasAll [FromBoardIsCorrectSize,FromBoardIsEmpty]
-                     >> addAll [ToBoardIsCorrectSize,ToBoardIsEmpty]
-                    ,has FromBoardIsCorrectSize >> hasn't FromBoardIsEmpty
-                          >> addAll [ToBoardIsCorrectSize]
-                    ,hasn't FromBoardIsCorrectSize >> has FromBoardIsEmpty
-                          >> addAll [ToBoardIsEmpty]
-                    , hasNone [FromBoardIsCorrectSize,FromBoardIsEmpty]
-                    ]
-      , permuteGen = \m -> pure $ m { to = from m }
-      }
-    , PermutationEdge
-      { name = "UnsetToBoardEqualToFromBoard"
-      , match = Var ToBoardEqualToFromBoard
-      , contract = remove ToBoardEqualToFromBoard
-      , permuteGen = \m ->
-          if boardIsEmpty $ to m
-             then do
-               l <- Gen.filter (/= (length (from m))) $ genNot9 0 100
-               pure $ m { to = genEmptyBoardOfSize l }
-             else do
-                nt <- Gen.filter (/= (to m)) $ Gen.shuffle (to m)
-                pure $ m { to = nt }
-      }
 
-    ]
-
-genNot9 :: Int -> Int -> Gen Int
-genNot9 l u = Gen.choice [Gen.int (linear l 8), Gen.int (linear 10 u)]
-
-numXs :: [Maybe Player] -> Int
-numXs = length . filter (== Just X)
-
-numOs :: [Maybe Player] -> Int
-numOs = length . filter (== Just O)
-
-oddNumberOfPiecesOnBoard :: [Maybe Player] -> Bool
-oddNumberOfPiecesOnBoard board = odd $ length $ filter (not . isNothing) board
-
-boardIsEmpty :: [Maybe Player] -> Bool
-boardIsEmpty = all isNothing
-
-genTile :: Gen (Maybe Player)
-genTile = Gen.element [Nothing, Just X, Just O]
-
-genEmptyBoardOfSize :: Int -> [Maybe Player]
-genEmptyBoardOfSize size = replicate size Nothing
-
-genNonEmptyBoardOfSize :: Int -> Gen [Maybe Player]
-genNonEmptyBoardOfSize size =
-  Gen.filter (not . boardIsEmpty) $ Gen.list (singleton size) genTile
-
-genNonEmptyBoardOfIncorrectSize :: Gen [Maybe Player]
-genNonEmptyBoardOfIncorrectSize = Gen.filter (not . boardIsEmpty) $ do
-   b <- Gen.bool
-   if b
-      then Gen.list (linear 0 8) genTile
-      else Gen.list (linear 10 100) genTile
-
-genEmptyBoardOfIncorrectSize :: Gen [Maybe Player]
-genEmptyBoardOfIncorrectSize = do
-   b <- Gen.bool
-   if b
-      then Gen.list (linear 0 8) $ pure Nothing
-      else Gen.list (linear 10 100) $ pure Nothing
-
-genBoardWithOddNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
-genBoardWithOddNumberOfPiecesWithSize s = do
-  p <- Gen.filter odd $ Gen.int (linear 0 s)
-  let notFromBoardHasOneMoreXThanO = Gen.filter (\b -> not ((numXs b) == ((numOs b) + 1)))
-  pieces <- notFromBoardHasOneMoreXThanO $ Gen.list (singleton p) (Gen.element [Just O, Just X])
-  Gen.shuffle $ pieces <> (replicate (s - p) Nothing)
-
-genBoardWithFromBoardHasOneMoreXThanOWithSize :: Int -> Gen [Maybe Player]
-genBoardWithFromBoardHasOneMoreXThanOWithSize s = do
-  p <- Gen.filter even $ Gen.int (linear 0 (s-1))
-  let xs = replicate ((p `div` 2) + 1) (Just X)
-      os = replicate (p `div` 2) (Just O)
-      es = replicate (s - (2*(p `div` 2) + 1)) Nothing
-  Gen.shuffle $ xs <> os <> es
-
-genBoardWithEqualNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
-genBoardWithEqualNumberOfPiecesWithSize s = do
-  p <- Gen.filter even $ Gen.int (linear 0 s)
-  let xs = replicate (p `div` 2) (Just X)
-      os = replicate (p `div` 2) (Just O)
-      es = (replicate (s - p) Nothing)
-  Gen.shuffle $ xs <> os <> es
-
-genBoardWithEvenNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
-genBoardWithEvenNumberOfPiecesWithSize s = do
-  p <- Gen.filter even $ Gen.int (linear 2 s)
-  b <- Gen.int (linear 0 ((p `div` 2) - 1))
-  q <- Gen.shuffle [X,O]
-  let as = replicate b (Just (q!!0))
-      bs = replicate (p - b) (Just (q!!1))
-      es = (replicate (s - p) Nothing)
-  Gen.shuffle $ as <> bs <> es
-
-instance HasParameterisedGenerator TicTacToeMove TicTacToeProperty where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen TicTacToeMove
-baseGen = do
-    let genBoard = Gen.list (linear 0 100) genTile
-        genPlayer = Gen.element [X,O]
-        genDeclare = Gen.bool
-    TicTacToeMove <$> genBoard
-                  <*> genBoard
-                  <*> genPlayer
-                  <*> genDeclare
-
+--instance LogicalModel TicTacToeProperty where
+--  logic = All [Var FromBoardInInitialState :<->: (All $ Var <$> [FromBoardIsCorrectSize
+--                                                                ,FromBoardIsEmpty
+--                                                                ])
+--              ,Var FromBoardHasOddNumberOfPieces :->: Not (Var FromBoardIsEmpty)
+--              ,Var IsPlayersTurn :<->:
+--                   ((Var PlayerIsX :&&: (Not $ Var FromBoardHasOddNumberOfPieces))
+--                 :||: ((Not $ Var PlayerIsX) :&&: (Var FromBoardHasOddNumberOfPieces)))
+--              , Var FromBoardIsEmpty :->: Var FromBoardHasEqualNumberOfPieces
+--              , Var FromBoardHasEqualNumberOfPieces :->: (Not $ Var FromBoardHasOddNumberOfPieces)
+--              , Var FromBoardHasOneMoreXThanO :->: Var FromBoardHasOddNumberOfPieces
+--              , Var ToBoardEqualToFromBoard :->: (All [
+--                   Var FromBoardIsCorrectSize :<->: Var ToBoardIsCorrectSize
+--                 , Var FromBoardIsEmpty :<->: Var ToBoardIsEmpty
+--                                                      ])
+--              , (All $ Var <$> [FromBoardIsCorrectSize
+--                               ,FromBoardIsEmpty
+--                               ,ToBoardIsCorrectSize
+--                               ,ToBoardIsEmpty]) :->: Var ToBoardEqualToFromBoard
+--              ]
+--
+--instance HasLogicalModel TicTacToeProperty TicTacToeMove where
+--  satisfiesProperty FromBoardIsCorrectSize m = 9 == length (from m)
+--  satisfiesProperty FromBoardIsEmpty m = all isNothing (from m)
+--  satisfiesProperty FromBoardInInitialState m = 9 == length (from m) &&  all isNothing (from m)
+--  satisfiesProperty ToBoardIsCorrectSize m = 9 == length (to m)
+--  satisfiesProperty ToBoardIsEmpty m = all isNothing (to m)
+--  satisfiesProperty WinDeclared m = declare m
+--  satisfiesProperty PlayerIsX m = X == player m
+--  satisfiesProperty FromBoardHasOddNumberOfPieces m = oddNumberOfPiecesOnBoard $ from m
+--  satisfiesProperty IsPlayersTurn m =
+--    (oddNumberOfPiecesOnBoard (from m) && O == (player m))
+--    || ((not (oddNumberOfPiecesOnBoard (from m))) && X == (player m))
+--  satisfiesProperty FromBoardHasEqualNumberOfPieces m = numXs (from m) == numOs (from m)
+--  satisfiesProperty FromBoardHasOneMoreXThanO m = numXs (from m) == (numOs (from m) + 1)
+--  satisfiesProperty ToBoardEqualToFromBoard m = from m == to m
+--
+---- You are hopefully wondering how all of these complex interdependent generators were
+---- constructed.
+---- The answer is iteratively with feedback from the permutationGeneratorSelfTest
+---- generated test suite.
+---- This test suite will construct property tests for each PermutationEdge that check
+---- that the edge contracts hold.
+---- You can think of these contracts as types and the permutationGeneratorSelfTest
+---- as running a dynamic type checker on random inputs to try and catch type errors.
+---- The types are in terms of model properties encoded in the match and contract fields.
+---- Running the test suite gives you a feedback loop much like running a type checker
+---- and helps you to construct a valid PermutationGenerator.
+---- The self test suite is bootstrapped using the PermutationGenerator itself to construct
+---- inputs to the edges so it first checks that the edges form a strongly connected graph.
+---- It is possible that errors might slip through a single run of the self test suite
+---- since this 'type checker' relies on randomness but if a type error ever occurs during
+---- generation using a PermutationGenerator (in the self test suite or otherwise)
+---- this will cause the test using the generator to fail since it checks these contracts
+---- during the graph traversal as it generates.
+--instance HasPermutationGenerator TicTacToeProperty TicTacToeMove where
+--  generators =
+--    [ PermutationEdge
+--      { name = "MakeFromBoardCorrectSizeOdd"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardHasOneMoreXThanO)
+--           :&&: (Not $ Var FromBoardIsCorrectSize)
+--           :&&: Var FromBoardHasOddNumberOfPieces
+--      , contract = add FromBoardIsCorrectSize
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= to m) $ genBoardWithOddNumberOfPiecesWithSize 9
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardCorrectSizeHaveOneMoreXThanO"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Var FromBoardHasOneMoreXThanO)
+--           :&&: (Not $ Var FromBoardIsCorrectSize)
+--           :&&: Var FromBoardHasOddNumberOfPieces
+--      , contract = add FromBoardIsCorrectSize
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= to m) $ genBoardWithFromBoardHasOneMoreXThanOWithSize 9
+--          pure $ m { from = b }
+--      }
+--    ,PermutationEdge
+--      { name = "MakeFromBoardCorrectSizeEven"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardIsCorrectSize)
+--           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--           :&&: (Not $ Var FromBoardIsEmpty)
+--      , contract = add FromBoardIsCorrectSize >> remove FromBoardHasEqualNumberOfPieces
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize 9
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardCorrectSizeEqual"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardIsCorrectSize)
+--           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--           :&&: (Not $ Var FromBoardIsEmpty)
+--      , contract = addAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (not . boardIsEmpty) $ Gen.filter (/= to m) $ genBoardWithEqualNumberOfPiecesWithSize 9
+--          pure $ m { from = b }
+--      }
+--    ,PermutationEdge
+--      { name = "MakeFromBoardCorrectSizeEmpty"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardIsCorrectSize)
+--           :&&: Var FromBoardIsEmpty
+--      , contract = addAll [FromBoardIsCorrectSize,FromBoardInInitialState] >>
+--                     branchIf ToBoardIsCorrectSize
+--                       (branchIf ToBoardIsCorrectSize (add ToBoardEqualToFromBoard)
+--                                                      (pure()) )
+--                       (pure ())
+--      , permuteGen = \m -> do
+--          b <- pure $ genEmptyBoardOfSize 9
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardIncorrectSizeHaveOneMoreXThanO"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Var FromBoardHasOneMoreXThanO)
+--           :&&: Var FromBoardIsCorrectSize
+--           :&&: Var FromBoardHasOddNumberOfPieces
+--      , contract = removeAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
+--      , permuteGen = \m -> do
+--          i <- genNot9 1 100
+--          b <- Gen.filter (/= to m) $ genBoardWithFromBoardHasOneMoreXThanOWithSize i
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardIncorrectSizeOdd"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardHasOneMoreXThanO)
+--           :&&: Var FromBoardIsCorrectSize
+--           :&&: Var FromBoardHasOddNumberOfPieces
+--      , contract = removeAll [FromBoardIsCorrectSize, FromBoardHasEqualNumberOfPieces]
+--      , permuteGen = \m -> do
+--          i <- genNot9 1 100
+--          b <- Gen.filter (/= to m) $ genBoardWithOddNumberOfPiecesWithSize i
+--          pure $ m { from = b }
+--
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardIncorrectSizeEqualNumPieces"
+--      , match =  (Not $ Var ToBoardEqualToFromBoard)
+--            :&&: Var FromBoardIsCorrectSize
+--            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--      , contract = removeAll [FromBoardIsCorrectSize
+--                             ,FromBoardInInitialState
+--                             ,FromBoardIsEmpty
+--                             ] >> add FromBoardHasEqualNumberOfPieces
+--      , permuteGen = \m -> do
+--          i <- genNot9 2 100
+--          b <- Gen.filter (not . boardIsEmpty)
+--             $ Gen.filter (/= to m)
+--             $ genBoardWithEqualNumberOfPiecesWithSize i
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardIncorrectSizeEven"
+--      , match =  (Not $ Var ToBoardEqualToFromBoard)
+--            :&&: Var FromBoardIsCorrectSize
+--            :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--      , contract = removeAll [FromBoardIsCorrectSize
+--                             ,FromBoardInInitialState
+--                             ,FromBoardIsEmpty
+--                             ,FromBoardHasEqualNumberOfPieces
+--                             ]
+--      , permuteGen = \m -> do
+--          i <- genNot9 2 100
+--          b <- Gen.filter (not . boardIsEmpty)
+--             $ Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize i
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardHaveOneMoreXThanO"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--      , contract = addAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
+--                      remove FromBoardHasEqualNumberOfPieces >>
+--                        branchIf PlayerIsX (remove IsPlayersTurn) (add IsPlayersTurn)
+--      , permuteGen = \m -> do
+--               b <- Gen.filter (/= to m)
+--                  $ genBoardWithFromBoardHasOneMoreXThanOWithSize (length (from m))
+--               pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardHaveOddNumberOfPieces"
+--      , match = (Not $ Var ToBoardEqualToFromBoard)
+--           :&&: (Not $ Var FromBoardHasOddNumberOfPieces)
+--      , contract = add FromBoardHasOddNumberOfPieces >>
+--                    remove FromBoardHasEqualNumberOfPieces >>
+--                      branchIf PlayerIsX (remove IsPlayersTurn) (add IsPlayersTurn)
+--      , permuteGen = \m -> do
+--               b <- Gen.filter (/= to m)
+--                  $ genBoardWithOddNumberOfPiecesWithSize (length (from m))
+--               pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardHaveEqualNumberOfPieces"
+--      , match = (Not $ Var ToBoardEqualToFromBoard) :&&: Var FromBoardHasOddNumberOfPieces :&&: Not (Var FromBoardIsCorrectSize)
+--      , contract = removeAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
+--                     add FromBoardHasEqualNumberOfPieces >>
+--                       branchIf PlayerIsX (add IsPlayersTurn) (remove IsPlayersTurn)
+--      , permuteGen = \m -> do
+--          let l = length $ from m
+--              s = max 2 l
+--          b <- Gen.filter (not . boardIsEmpty)
+--                 $ Gen.filter (/= to m) $ genBoardWithEqualNumberOfPiecesWithSize s
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardHaveEvenNumberOfPieces"
+--      , match = Var FromBoardHasOddNumberOfPieces :&&: Not (Var FromBoardIsCorrectSize)
+--      , contract = removeAll [FromBoardHasOddNumberOfPieces,FromBoardHasOneMoreXThanO] >>
+--                    branchIf PlayerIsX (add IsPlayersTurn) (remove IsPlayersTurn)
+--      , permuteGen = \m -> do
+--          let l = length $ from m
+--          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize l
+--          if to m == from m
+--             then pure $ m { from = b, to = b }
+--             else pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeToBoardCorrectSizeEmpty"
+--      , match = Not (Var ToBoardIsCorrectSize) :&&: Var ToBoardIsEmpty
+--      , contract = addAll [ToBoardIsCorrectSize,ToBoardIsEmpty] >>
+--                    addIf FromBoardInInitialState ToBoardEqualToFromBoard
+--      , permuteGen = \m -> do
+--          let b = genEmptyBoardOfSize 9
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeToBoardCorrectSize"
+--      , match = Not (Var ToBoardEqualToFromBoard)
+--           :&&: Not (Var ToBoardIsCorrectSize) :&&: Not (Var ToBoardIsEmpty)
+--      , contract = add ToBoardIsCorrectSize >> remove ToBoardIsEmpty
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfSize 9
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeEmptyToBoardIncorrectSize"
+--      , match = Var ToBoardIsCorrectSize :&&: Var ToBoardIsEmpty
+--      , contract = remove ToBoardIsCorrectSize >>
+--                     branchIf FromBoardInInitialState
+--                              (remove ToBoardEqualToFromBoard)
+--                              (pure ())
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= from m) $ genEmptyBoardOfIncorrectSize
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeToBoardIncorrectSize"
+--      , match = Var ToBoardIsCorrectSize :&&: (Not (Var ToBoardIsEmpty))
+--      , contract = remove ToBoardIsCorrectSize
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfIncorrectSize
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardEmpty"
+--      , match = (Not $ Var FromBoardIsEmpty) :&&: (Not $ Var ToBoardIsEmpty)
+--      , contract = add FromBoardIsEmpty
+--      , permuteGen = \m -> do
+--          let b = genEmptyBoardOfSize (length (from m))
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeFromBoardNotEmptyEven"
+--      , match = Var FromBoardIsEmpty :&&: Not (Var FromBoardHasOddNumberOfPieces)
+--      , contract = removeAll [FromBoardIsEmpty, FromBoardHasEqualNumberOfPieces]
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= to m) $ genBoardWithEvenNumberOfPiecesWithSize $ max 2 (length $ from m)
+--          pure $ m { from = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeToBoardEmpty"
+--      , match = (Not $ Var ToBoardIsEmpty) :&&: (Not $ Var FromBoardIsEmpty)
+--      , contract = add ToBoardIsEmpty
+--      , permuteGen = \m -> do
+--          let b = genEmptyBoardOfSize (length (to m))
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "MakeToBoardNotEmpty"
+--      , match = Var ToBoardIsEmpty
+--      , contract = remove ToBoardIsEmpty
+--      , permuteGen = \m -> do
+--          b <- Gen.filter (/= from m) $ genNonEmptyBoardOfSize (length (to m))
+--          pure $ m { to = b }
+--      }
+--    , PermutationEdge
+--      { name = "DeclareWin"
+--      , match = Not $ Var WinDeclared
+--      , contract = add WinDeclared
+--      , permuteGen = \m -> pure $ m { declare = True }
+--      }
+--    , PermutationEdge
+--      { name = "UndeclareWin"
+--      , match = Var WinDeclared
+--      , contract = remove WinDeclared
+--      , permuteGen = \m -> pure $ m { declare = False }
+--      }
+--    , PermutationEdge
+--      { name = "SetPlayerIsX"
+--      , match = Not $ Var PlayerIsX
+--      , contract = add PlayerIsX >>
+--                    branchIf FromBoardHasOddNumberOfPieces
+--                          (remove IsPlayersTurn)
+--                          (add IsPlayersTurn)
+--      , permuteGen = \m -> pure $ m { player = X }
+--      }
+--    , PermutationEdge
+--      { name = "UnsetPlayerIsX"
+--      , match = Var PlayerIsX
+--      , contract = remove PlayerIsX >>
+--                   branchIf FromBoardHasOddNumberOfPieces
+--                            (add IsPlayersTurn)
+--                            (remove IsPlayersTurn)
+--      , permuteGen = \m -> pure $ m { player = O }
+--      }
+--    , PermutationEdge
+--      { name = "SetToBoardEqualToFromBoard"
+--      , match = Not $ Var ToBoardEqualToFromBoard
+--      , contract = add ToBoardEqualToFromBoard >>
+--           branches [hasAll [FromBoardIsCorrectSize,FromBoardIsEmpty]
+--                     >> addAll [ToBoardIsCorrectSize,ToBoardIsEmpty]
+--                    ,has FromBoardIsCorrectSize >> hasn't FromBoardIsEmpty
+--                          >> addAll [ToBoardIsCorrectSize]
+--                    ,hasn't FromBoardIsCorrectSize >> has FromBoardIsEmpty
+--                          >> addAll [ToBoardIsEmpty]
+--                    , hasNone [FromBoardIsCorrectSize,FromBoardIsEmpty]
+--                    ]
+--      , permuteGen = do
+--          m <- ask
+--          pure $ m { to = from m }
+--      }
+--    , PermutationEdge
+--      { name = "UnsetToBoardEqualToFromBoard"
+--      , match = Var ToBoardEqualToFromBoard
+--      , contract = remove ToBoardEqualToFromBoard
+--      , permuteGen = do
+--          m <- ask
+--          if boardIsEmpty $ to m
+--             then do
+--               l <- forALL $ Gen.filter (/= (length (from m))) $ genNot9 0 100
+--               pure $ m { to = genEmptyBoardOfSize l }
+--             else do
+--                nt <- forALL $ Gen.filter (/= (to m)) $ Gen.shuffle (to m)
+--                pure $ m { to = nt }
+--      }
+--
+--    ]
+--
+--genNot9 :: Int -> Int -> Gen Int
+--genNot9 l u = Gen.choice [Gen.int (linear l 8), Gen.int (linear 10 u)]
+--
+--numXs :: [Maybe Player] -> Int
+--numXs = length . filter (== Just X)
+--
+--numOs :: [Maybe Player] -> Int
+--numOs = length . filter (== Just O)
+--
+--oddNumberOfPiecesOnBoard :: [Maybe Player] -> Bool
+--oddNumberOfPiecesOnBoard board = odd $ length $ filter (not . isNothing) board
+--
+--boardIsEmpty :: [Maybe Player] -> Bool
+--boardIsEmpty = all isNothing
+--
+--genTile :: Gen (Maybe Player)
+--genTile = Gen.element [Nothing, Just X, Just O]
+--
+--genEmptyBoardOfSize :: Int -> [Maybe Player]
+--genEmptyBoardOfSize size = replicate size Nothing
+--
+--genNonEmptyBoardOfSize :: Int -> Gen [Maybe Player]
+--genNonEmptyBoardOfSize size =
+--  Gen.filter (not . boardIsEmpty) $ Gen.list (singleton size) genTile
+--
+--genNonEmptyBoardOfIncorrectSize :: Gen [Maybe Player]
+--genNonEmptyBoardOfIncorrectSize = Gen.filter (not . boardIsEmpty) $ do
+--   b <- Gen.bool
+--   if b
+--      then Gen.list (linear 0 8) genTile
+--      else Gen.list (linear 10 100) genTile
+--
+--genEmptyBoardOfIncorrectSize :: Gen [Maybe Player]
+--genEmptyBoardOfIncorrectSize = do
+--   b <- Gen.bool
+--   if b
+--      then Gen.list (linear 0 8) $ pure Nothing
+--      else Gen.list (linear 10 100) $ pure Nothing
+--
+--genBoardWithOddNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
+--genBoardWithOddNumberOfPiecesWithSize s = do
+--  p <- Gen.filter odd $ Gen.int (linear 0 s)
+--  let notFromBoardHasOneMoreXThanO = Gen.filter (\b -> not ((numXs b) == ((numOs b) + 1)))
+--  pieces <- notFromBoardHasOneMoreXThanO $ Gen.list (singleton p) (Gen.element [Just O, Just X])
+--  Gen.shuffle $ pieces <> (replicate (s - p) Nothing)
+--
+--genBoardWithFromBoardHasOneMoreXThanOWithSize :: Int -> Gen [Maybe Player]
+--genBoardWithFromBoardHasOneMoreXThanOWithSize s = do
+--  p <- Gen.filter even $ Gen.int (linear 0 (s-1))
+--  let xs = replicate ((p `div` 2) + 1) (Just X)
+--      os = replicate (p `div` 2) (Just O)
+--      es = replicate (s - (2*(p `div` 2) + 1)) Nothing
+--  Gen.shuffle $ xs <> os <> es
+--
+--genBoardWithEqualNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
+--genBoardWithEqualNumberOfPiecesWithSize s = do
+--  p <- Gen.filter even $ Gen.int (linear 0 s)
+--  let xs = replicate (p `div` 2) (Just X)
+--      os = replicate (p `div` 2) (Just O)
+--      es = (replicate (s - p) Nothing)
+--  Gen.shuffle $ xs <> os <> es
+--
+--genBoardWithEvenNumberOfPiecesWithSize :: Int -> Gen [Maybe Player]
+--genBoardWithEvenNumberOfPiecesWithSize s = do
+--  p <- Gen.filter even $ Gen.int (linear 2 s)
+--  b <- Gen.int (linear 0 ((p `div` 2) - 1))
+--  q <- Gen.shuffle [X,O]
+--  let as = replicate b (Just (q!!0))
+--      bs = replicate (p - b) (Just (q!!1))
+--      es = (replicate (s - p) Nothing)
+--  Gen.shuffle $ as <> bs <> es
+--
+--instance HasParameterisedGenerator TicTacToeProperty TicTacToeMove where
+--  parameterisedGenerator = buildGen baseGen
+--
+--baseGen :: Gen TicTacToeMove
+--baseGen = do
+--    let genBoard = Gen.list (linear 0 100) genTile
+--        genPlayer = Gen.element [X,O]
+--        genDeclare = Gen.bool
+--    TicTacToeMove <$> genBoard
+--                  <*> genBoard
+--                  <*> genPlayer
+--                  <*> genDeclare
+--
 ticTacToeGenSelfTests :: TestTree
-ticTacToeGenSelfTests = testGroup "TicTacToe HasPermutationGenerator permutationGeneratorSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge TicTacToeMove TicTacToeProperty) -> True) baseGen
-
+ticTacToeGenSelfTests = undefined
+--ticTacToeGenSelfTests = testGroup "TicTacToe HasPermutationGenerator permutationGeneratorSelfTest" $
+--  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge TicTacToeProperty TicTacToeMove) -> True) baseGen
+--
 ticTacToeGenTests :: TestTree
-ticTacToeGenTests = testGroup "Spec TicTacToe" $
-    fromGroup <$> [
-      runGeneratorTestsWhere (Proxy :: Proxy TicTacToeMove)
-                             "TicTacToe Generator"
-                             (Yes :: Formula TicTacToeProperty)
-    ]
+ticTacToeGenTests = undefined
+--ticTacToeGenTests = testGroup "Spec TicTacToe" $
+--    fromGroup <$> [
+--      runGeneratorTestsWhere (Proxy :: Proxy TicTacToeMove)
+--                             "TicTacToe Generator"
+--                             (Yes :: Formula TicTacToeProperty)
+--    ]
 

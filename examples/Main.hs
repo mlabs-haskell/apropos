@@ -2,7 +2,9 @@ module Main ( main ) where
 import Test.Tasty
 import Spec.Int
 import Spec.IntPermutationGen
-import Spec.TicTacToe
+import Spec.TicTacToe.Player
+import Spec.TicTacToe.Tile
+import Spec.TicTacToe.Board
 
 main :: IO ()
 main = defaultMain tests
@@ -23,7 +25,8 @@ tests =
         , intPermutationGenSelfTests
         ]
     , testGroup "TicTacToe"
-        [ ticTacToeGenSelfTests
-        , ticTacToeGenTests
+        [ ticTacToePlayerGenSelfTests
+        , ticTacToeTileGenSelfTests
+        , ticTacToeBoardGenSelfTests
         ]
     ]

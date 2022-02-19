@@ -12,6 +12,7 @@ import Proper.HasParameterisedGenerator
 import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
 import Proper.HasPermutationGenerator.Contract
+import Proper.HasPermutationGenerator.Gen
 import Proper.HasPlutusTestRunner
 import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
@@ -20,7 +21,7 @@ import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-
+import Control.Monad.Trans.Reader (ask)
 import Plutarch (compile)
 import Plutarch.Prelude
 
@@ -41,46 +42,46 @@ instance LogicalModel IntProp where
      :&&: (Var IsMaxBound :->: (Var IsLarge :&&: Var IsPositive))
      :&&: (Var IsMinBound :->: (Var IsLarge :&&: Var IsNegative))
 
-instance HasLogicalModel Int IntProp where
-  satisfiesProperty i IsNegative = i < 0
-  satisfiesProperty i IsPositive = i > 0
-  satisfiesProperty i IsMaxBound = i == maxBound
-  satisfiesProperty i IsMinBound = i == minBound
-  satisfiesProperty i IsZero     = i == 0
-  satisfiesProperty i IsLarge    = i > 10 || i < -10
-  satisfiesProperty i IsSmall    = i <= 10 && i >= -10
+instance HasLogicalModel IntProp Int where
+  satisfiesProperty IsNegative i = i < 0
+  satisfiesProperty IsPositive i = i > 0
+  satisfiesProperty IsMaxBound i = i == maxBound
+  satisfiesProperty IsMinBound i = i == minBound
+  satisfiesProperty IsZero     i = i == 0
+  satisfiesProperty IsLarge    i = i > 10 || i < -10
+  satisfiesProperty IsSmall    i = i <= 10 && i >= -10
 
-instance HasPermutationGenerator Int IntProp where
+instance HasPermutationGenerator IntProp Int where
   generators =
     [ PermutationEdge
       { name = "MakeZero"
       , match = Not $ Var IsZero
       , contract = clear >> addAll [IsZero,IsSmall]
-      , permuteGen = \_ -> pure 0
+      , permuteGen = pure 0
       }
     , PermutationEdge
       { name = "MakeMaxBound"
       , match = Not $ Var IsMaxBound
       , contract = clear >> addAll [IsMaxBound,IsLarge,IsPositive]
-      , permuteGen = \_ -> pure maxBound
+      , permuteGen = pure maxBound
       }
     , PermutationEdge
       { name = "MakeMinBound"
       , match = Not $ Var IsMinBound
       , contract = clear >> addAll [IsMinBound,IsLarge,IsNegative]
-      , permuteGen = \_ -> pure minBound
+      , permuteGen = pure minBound
       }
     , PermutationEdge
       { name = "MakeLarge"
       , match = Not $ Var IsLarge
       , contract = clear >> addAll [IsLarge, IsPositive]
-      , permuteGen = \_ -> Gen.int (linear 11 (maxBound -1))
+      , permuteGen = liftGen $ Gen.int (linear 11 (maxBound -1))
       }
     , PermutationEdge
       { name = "MakeSmall"
       , match = Not $ Var IsSmall
       , contract = clear >> addAll [IsSmall,IsPositive]
-      , permuteGen = \_ -> Gen.int (linear 1 10)
+      , permuteGen = liftGen $ Gen.int (linear 1 10)
       }
     , PermutationEdge
       { name = "Negate"
@@ -88,11 +89,13 @@ instance HasPermutationGenerator Int IntProp where
       , contract = branches [has IsNegative >> remove IsNegative >> add IsPositive
                             ,has IsPositive >> remove IsPositive >> add IsNegative
                             ]
-      , permuteGen = \i -> pure (-i)
+      , permuteGen = do
+          i <- ask
+          pure (-i)
       }
     ]
 
-instance HasParameterisedGenerator Int IntProp where
+instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator = buildGen baseGen
 
 baseGen :: Gen Int
@@ -104,7 +107,7 @@ intPermutationGenTests = testGroup "Spec.IntPermutationGen" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance HasPureTestRunner Int IntProp where
+instance HasPureTestRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i = i < 0 && i >= -10
 
@@ -115,7 +118,7 @@ intPermutationGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
                 ]
 
-instance HasPlutusTestRunner Int IntProp where
+instance HasPlutusTestRunner IntProp Int where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer
@@ -129,6 +132,6 @@ intPermutationGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
 
 intPermutationGenSelfTests :: TestTree
 intPermutationGenSelfTests = testGroup "Int HasPermutationGenerator permutationGeneratorSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge Int IntProp) -> True) baseGen
+  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge IntProp Int) -> True) baseGen
 
 

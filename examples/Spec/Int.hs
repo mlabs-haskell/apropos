@@ -34,16 +34,16 @@ instance LogicalModel IntProp where
      :&&: (Var IsMaxBound :->: (Var IsLarge :&&: Var IsPositive))
      :&&: (Var IsMinBound :->: (Var IsLarge :&&: Var IsNegative))
 
-instance HasLogicalModel Int IntProp where
-  satisfiesProperty i IsNegative = i < 0
-  satisfiesProperty i IsPositive = i > 0
-  satisfiesProperty i IsMaxBound = i == maxBound
-  satisfiesProperty i IsMinBound = i == minBound
-  satisfiesProperty i IsZero     = i == 0
-  satisfiesProperty i IsLarge    = i > 10 || i < -10
-  satisfiesProperty i IsSmall    = i <= 10 && i >= -10
+instance HasLogicalModel IntProp Int where
+  satisfiesProperty IsNegative i = i < 0
+  satisfiesProperty IsPositive i = i > 0
+  satisfiesProperty IsMaxBound i = i == maxBound
+  satisfiesProperty IsMinBound i = i == minBound
+  satisfiesProperty IsZero     i = i == 0
+  satisfiesProperty IsLarge    i = i > 10 || i < -10
+  satisfiesProperty IsSmall    i = i <= 10 && i >= -10
 
-instance HasParameterisedGenerator Int IntProp where
+instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator s = forAll $ do
     i <- if IsZero `elem` s
            then pure 0
@@ -64,7 +64,7 @@ intGenTests = testGroup "Spec.Int" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance HasPureTestRunner Int IntProp where
+instance HasPureTestRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i = i < 0 && i >= -10
 
@@ -74,7 +74,7 @@ intPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
   ]
 
-instance HasPlutusTestRunner Int IntProp where
+instance HasPlutusTestRunner IntProp Int where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer

@@ -62,6 +62,7 @@ library
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator
                  , Proper.HasPermutationGenerator.Contract
+                 , Proper.HasPermutationGenerator.Gen
                  , Proper.HasPureTestRunner
                  , Proper.HasPlutusTestRunner
   hs-source-dirs:  src
@@ -75,6 +76,9 @@ test-suite examples
     Spec.Int
     Spec.IntPermutationGen
     Spec.TicTacToe
+    Spec.TicTacToe.Player
+    Spec.TicTacToe.Tile
+    Spec.TicTacToe.Board
   build-depends:
     base,
     apropos-tx,

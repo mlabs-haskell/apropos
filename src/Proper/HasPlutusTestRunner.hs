@@ -59,7 +59,7 @@ import Prelude (
  )
 import Data.Proxy (Proxy(..))
 
-class (HasLogicalModel m p, HasParameterisedGenerator m p) => HasPlutusTestRunner m p where
+class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPlutusTestRunner p m where
   script :: Proxy p -> m -> Script
   expect :: Proxy m -> Proxy p -> Formula p
 

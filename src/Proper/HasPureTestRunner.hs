@@ -10,7 +10,7 @@ import Data.String (fromString)
 import Data.Proxy (Proxy(..))
 
 
-class (HasLogicalModel m p, HasParameterisedGenerator m p) => HasPureTestRunner m p where
+class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureTestRunner p m where
   expect :: Proxy m -> Formula p
   script :: Proxy p -> m -> Bool
 

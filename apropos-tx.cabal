@@ -58,6 +58,7 @@ common lang
 library
   import:          lang
   exposed-modules: Proper.LogicalModel
+                 , Proper.LogicalModel.Formula
                  , Proper.HasLogicalModel
                  , Proper.HasParameterisedGenerator
                  , Proper.HasPermutationGenerator

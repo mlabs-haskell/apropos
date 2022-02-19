@@ -4,7 +4,6 @@ module Proper.HasLogicalModel
 import Proper.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
-import SAT.MiniSat (Formula)
 
 class (LogicalModel p) => HasLogicalModel p m where
   satisfiesProperty :: p -> m -> Bool

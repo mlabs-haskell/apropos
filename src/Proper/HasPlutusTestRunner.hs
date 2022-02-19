@@ -20,9 +20,6 @@ import Data.String (fromString)
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 import Plutus.V1.Ledger.Scripts (Script, ScriptError (..), evaluateScript)
 import PlutusCore.Evaluation.Machine.ExBudget (ExBudget (..))
-import SAT.MiniSat (
-  Formula (..),
- )
 import Text.PrettyPrint (
   Doc,
   Style (lineLength),

@@ -7,7 +7,6 @@ import Proper.LogicalModel
 --import Proper.HasParameterisedGenerator
 --import Proper.HasPermutationGenerator
 --import Proper.HasPermutationGenerator.Contract
---import SAT.MiniSat ( Formula (..) )
 --import Hedgehog (Gen)
 --import qualified Hedgehog.Gen as Gen
 --import Hedgehog.Range (linear,singleton)
@@ -45,31 +44,10 @@ instance Enumerable TicTacToeProperty where
             <> [ ToBoardProperty bp   | bp <- enumerated ]
             <> [PlayerIsX,IsPlayersTurn,WinDeclared]
 
--- further to this we will want to import the logical models from the
--- child model into the parent model
--- this would be easy to do with a syntax tree traversal over the logic
--- something like this would be nice
---
--- embed :: Logic a -> (a -> b) -> Logic b
---
--- then we could say something like this
---
--- instance LogicalModel TicTacToeProperty where
---   logic = All [ embed logic FromBoardProperty
---               , embed logic ToBoardProperty
---               , moreLogic
---               ]
---
--- this will require us to implement our own Logic AST which should
--- resolve this issue raised by Koz https://github.com/mlabs-haskell/apropos-tx/issues/3
---
---
--- solving these two issues will allow us to compose models more easily
---
--- we can already embed generators from child models using logical expressions with
--- genSatisfying as demonstrated in Spec.TicTacToe.Board
-
-
+instance LogicalModel TicTacToeProperty where
+  logic = All [ FromBoardProperty <$> logic -- we can embed the logic for board like this
+              , ToBoardProperty <$> logic
+              ]
 
 --instance LogicalModel TicTacToeProperty where
 --  logic = All [Var FromBoardInInitialState :<->: (All $ Var <$> [FromBoardIsCorrectSize

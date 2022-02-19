@@ -3,7 +3,6 @@ import Proper.HasLogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.LogicalModel
 import Hedgehog (Property,Group(..),property,(===))
-import SAT.MiniSat ( Formula (..) )
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String (fromString)

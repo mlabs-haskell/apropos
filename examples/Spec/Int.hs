@@ -6,7 +6,6 @@ import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPlutusTestRunner
 import Proper.HasPureTestRunner
-import SAT.MiniSat ( Formula (..) )
 import Hedgehog (forAll)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -26,6 +25,9 @@ data IntProp =
     | IsMaxBound
     | IsMinBound
     deriving stock (Eq,Ord,Enum,Show,Bounded)
+
+instance Enumerable IntProp where
+  enumerated = [minBound..maxBound]
 
 instance LogicalModel IntProp where
   logic = ExactlyOne [Var IsNegative, Var IsPositive, Var IsZero]

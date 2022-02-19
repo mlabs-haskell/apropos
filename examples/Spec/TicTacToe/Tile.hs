@@ -11,7 +11,6 @@ import Proper.HasPermutationGenerator.Gen
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
-import SAT.MiniSat ( Formula (..) )
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -22,6 +21,9 @@ data TileProperty =
     | NotATile
     | IsValidTile
     deriving stock (Eq,Ord,Enum,Show,Bounded)
+
+instance Enumerable TileProperty where
+  enumerated = [minBound..maxBound]
 
 instance LogicalModel TileProperty where
   logic = (ExactlyOne $ Var <$> [TileIsEmpty,TileIsX,TileIsO,NotATile])

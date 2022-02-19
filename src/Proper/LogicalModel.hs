@@ -4,17 +4,15 @@ module Proper.LogicalModel
   , enumerateScenariosWhere
   , satisfiesFormula
   , enumerateSolutions
+  , module Proper.LogicalModel.Formula
   ) where
+import Proper.LogicalModel.Formula
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map
-import SAT.MiniSat ( Formula (..), solve_all, satisfiable)
 
 class Enumerable p where
   enumerated :: [p]
-
-instance (Enum p, Bounded p) => Enumerable p where
-  enumerated = [minBound..maxBound]
 
 class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p

@@ -12,7 +12,6 @@ import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,prope
 import qualified Hedgehog.Gen as Gen
 import Data.Map (Map)
 import qualified Data.Map as Map
-import SAT.MiniSat (Formula(..))
 import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
 import Data.Graph (buildG,scc,path)

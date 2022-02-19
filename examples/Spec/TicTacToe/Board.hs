@@ -12,7 +12,6 @@ import Proper.HasPermutationGenerator.Gen
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear,singleton)
-import SAT.MiniSat ( Formula (..) )
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Control.Monad.Trans.Reader (ask)
@@ -26,6 +25,9 @@ data BoardProperty =
     | BoardContainsWinForX
     | BoardContainsWinForO
     deriving stock (Eq,Ord,Enum,Show,Bounded)
+
+instance Enumerable BoardProperty where
+  enumerated = [minBound..maxBound]
 
 instance LogicalModel BoardProperty where
   logic = Var BoardIsEmpty :->: (All $ [Var BoardAllTilesValid

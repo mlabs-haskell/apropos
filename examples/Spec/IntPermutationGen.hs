@@ -14,7 +14,6 @@ import Proper.HasPermutationGenerator
 import Proper.HasPermutationGenerator.Contract
 import Proper.HasPermutationGenerator.Gen
 import Proper.HasPlutusTestRunner
-import SAT.MiniSat ( Formula (..) )
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -34,6 +33,9 @@ data IntProp =
     | IsMaxBound
     | IsMinBound
     deriving stock (Eq,Ord,Enum,Show,Bounded)
+
+instance Enumerable IntProp where
+  enumerated = [minBound..maxBound]
 
 instance LogicalModel IntProp where
   logic = ExactlyOne [Var IsNegative, Var IsPositive, Var IsZero]

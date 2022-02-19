@@ -9,7 +9,6 @@ import Proper.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Proxy (Proxy)
-import SAT.MiniSat (Formula)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   parameterisedGenerator :: forall t . Monad t => Set p -> PropertyT t m

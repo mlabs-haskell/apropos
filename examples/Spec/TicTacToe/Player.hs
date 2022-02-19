@@ -10,7 +10,6 @@ import Proper.HasPermutationGenerator.Gen
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
-import SAT.MiniSat ( Formula (..) )
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -19,6 +18,9 @@ data PlayerProperty =
     | IsPlayerO
     | NotAPlayer
     deriving stock (Eq,Ord,Enum,Show,Bounded)
+
+instance Enumerable PlayerProperty where
+  enumerated = [minBound..maxBound]
 
 instance LogicalModel PlayerProperty where
   logic = ExactlyOne $ Var <$> [IsPlayerX,IsPlayerO,NotAPlayer]

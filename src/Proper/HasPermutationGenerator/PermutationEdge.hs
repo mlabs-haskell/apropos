@@ -5,10 +5,10 @@ module Proper.HasPermutationGenerator.PermutationEdge (
   ) where
 import Proper.LogicalModel.Formula
 import Proper.HasPermutationGenerator.Contract
-import Hedgehog (PropertyT)
+import Proper.HasPermutationGenerator.Gen
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Control.Monad.Trans.Reader (ReaderT,ask,runReaderT)
+import Control.Monad.Trans.Reader (ask,runReaderT)
 import Control.Monad.Trans (lift)
 import Data.Maybe (isNothing,catMaybes)
 
@@ -17,7 +17,7 @@ data PermutationEdge p m =
     name :: String
   , match :: Formula p
   , contract :: Contract p ()
-  , permuteGen :: forall t . Monad t => ReaderT m (PropertyT t) m
+  , permuteGen :: PAGen m m
   }
 
 liftEdges :: (Ord p,Ord q) => (p -> q) -> (m -> n) -> (n -> m -> m) -> (q -> Maybe p)

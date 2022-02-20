@@ -15,7 +15,6 @@ import Proper.HasPermutationGenerator
 import Proper.HasPermutationGenerator.Contract
 import Proper.HasPermutationGenerator.Gen
 import Proper.HasPlutusTestRunner
-import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
@@ -78,13 +77,13 @@ instance HasPermutationGenerator IntProp Int where
       { name = "MakeLarge"
       , match = Not $ Var IsLarge
       , contract = clear >> addAll [IsLarge, IsPositive]
-      , permuteGen = liftGen $ Gen.int (linear 11 (maxBound -1))
+      , permuteGen = liftGenPA $ Gen.int (linear 11 (maxBound -1))
       }
     , PermutationEdge
       { name = "MakeSmall"
       , match = Not $ Var IsSmall
       , contract = clear >> addAll [IsSmall,IsPositive]
-      , permuteGen = liftGen $ Gen.int (linear 1 10)
+      , permuteGen = liftGenPA $ Gen.int (linear 1 10)
       }
     , PermutationEdge
       { name = "Negate"
@@ -101,8 +100,8 @@ instance HasPermutationGenerator IntProp Int where
 instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen Int
-baseGen = (Gen.int (linear minBound maxBound))
+baseGen :: PGen Int
+baseGen = liftGenP $ Gen.int (linear minBound maxBound)
 
 intPermutationGenTests :: TestTree
 intPermutationGenTests = testGroup "Spec.IntPermutationGen" $

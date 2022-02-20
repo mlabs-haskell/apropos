@@ -7,7 +7,6 @@ import Proper.HasParameterisedGenerator
 import Proper.HasPermutationGenerator
 import Proper.HasPermutationGenerator.Contract
 import Proper.HasPermutationGenerator.Gen
-import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Test.Tasty (TestTree,testGroup)
@@ -48,7 +47,7 @@ instance HasPermutationGenerator PlayerProperty Integer where
       { name = "MakeNotAPlayer"
       , match = Not $ Var NotAPlayer
       , contract = clear >> add NotAPlayer
-      , permuteGen = liftGen $ fromIntegral <$> (Gen.choice [Gen.int (linear minBound 0)
+      , permuteGen = liftGenPA $ fromIntegral <$> (Gen.choice [Gen.int (linear minBound 0)
                                                            ,Gen.int (linear 3 maxBound)])
       }
 
@@ -57,8 +56,8 @@ instance HasPermutationGenerator PlayerProperty Integer where
 instance HasParameterisedGenerator PlayerProperty Integer where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen Integer
-baseGen = fromIntegral <$> Gen.int (linear minBound maxBound)
+baseGen :: PGen Integer
+baseGen = liftGenP (fromIntegral <$> Gen.int (linear minBound maxBound))
 
 ticTacToePlayerGenSelfTests :: TestTree
 ticTacToePlayerGenSelfTests = testGroup "TicTacToe Player permutationGeneratorSelfTest" $

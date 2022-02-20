@@ -13,9 +13,8 @@ import Proper.HasParameterisedGenerator
 import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
 --import Proper.HasPermutationGenerator.Contract
---import Proper.HasPermutationGenerator.Gen
+import Proper.HasPermutationGenerator.Gen
 import Proper.HasPlutusTestRunner
-import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
@@ -65,9 +64,9 @@ instance HasPermutationGenerator IntPairProp (Int,Int) where
 instance HasParameterisedGenerator IntPairProp (Int,Int) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen (Int,Int)
-baseGen = (,) <$> Gen.int (linear minBound maxBound)
-              <*> Gen.int (linear minBound maxBound)
+baseGen :: PGen (Int,Int)
+baseGen = liftGenP ((,) <$> Gen.int (linear minBound maxBound)
+                        <*> Gen.int (linear minBound maxBound))
 
 intPairGenTests :: TestTree
 intPairGenTests = testGroup "Spec.IntPermutationGen" $

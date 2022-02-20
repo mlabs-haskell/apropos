@@ -1,7 +1,8 @@
 module Proper.HasParameterisedGenerator (
   HasParameterisedGenerator(..),
   ) where
-import Hedgehog (PropertyT,Property,Group(..),property,(===),forAll)
+import Proper.HasPermutationGenerator.Gen
+import Hedgehog (Property,Group(..),property,(===),forAll)
 import qualified Hedgehog.Gen as Gen
 import Data.String (fromString)
 import Proper.HasLogicalModel
@@ -11,10 +12,9 @@ import qualified Data.Set as Set
 import Data.Proxy (Proxy)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: forall t . Monad t => Set p -> PropertyT t m
---  genSatisfyingCached :: IORef (Map (Formula p) ([Set p]))
---  genSatisfyingCached =
-  genSatisfying :: forall t . Monad t => Formula p -> PropertyT t m
+  parameterisedGenerator :: Set p -> PGen m
+  --TODO caching calls to the solver in genSatisfying would probably be worth it
+  genSatisfying :: Formula p -> PGen m
   genSatisfying f = do
     s <- forAll $ Gen.element (enumerateScenariosWhere f)
     parameterisedGenerator s

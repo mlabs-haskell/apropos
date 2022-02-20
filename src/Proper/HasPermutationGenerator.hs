@@ -3,6 +3,7 @@ module Proper.HasPermutationGenerator (
   PermutationEdge(..),
   liftEdges,
   ) where
+import Debug.Trace
 import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasPermutationGenerator.Contract
@@ -31,13 +32,13 @@ import Data.String (fromString)
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [PermutationEdge p m]
 
-  permutationGeneratorSelfTest :: (PermutationEdge p m -> Bool) -> Gen m -> [Group]
+  permutationGeneratorSelfTest :: (PermutationEdge p m -> Bool) -> PropertyT IO m -> [Group]
   permutationGeneratorSelfTest pefilter bgen =
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
         (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         mGen = buildGen bgen
         graph = buildGraph pedges
-        isco = isStronglyConnected graph
+        isco = trace ("enumerated:::" <> show (length (Map.keys ns))) $ isStronglyConnected graph
      in if length (Map.keys pedges) == 0
           then [Group "No permutation edges defined."
                 [(fromString "no edges defined"
@@ -98,7 +99,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                        $+$ hang "Observed:" 4 (ppDoc observed)
 
 
-  buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
+  buildGen :: PropertyT IO m -> Set p -> PropertyT IO m
   buildGen g = do
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
         edges = Map.keys pedges
@@ -107,7 +108,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         graph = buildGraph pedges
         isco = isStronglyConnected graph
      in \targetProperties -> do
-          m <- forAll g
+          m <- g
           if length pedges == 0
              then failWithFootnote "no PermutationEdges defined"
              else pure ()
@@ -131,20 +132,19 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                           , not (path g a b)
                           ]
 
-  transformModel :: forall t . Monad t
-                 => Map (Set p) Int
+  transformModel :: Map (Set p) Int
                  -> Map (Int,Int) [PermutationEdge p m]
                  -> [(Int,Int)]
                  -> Map Int (Map Int Int)
                  -> m
                  -> Set p
-                 -> PropertyT t m
+                 -> PropertyT IO m
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
-  traversePath :: forall t . Monad t => Map (Int,Int) [PermutationEdge p m]
-                 -> [(Int,Int)] -> m -> PropertyT t m
+  traversePath :: Map (Int,Int) [PermutationEdge p m]
+                 -> [(Int,Int)] -> m -> PropertyT IO m
   traversePath _ [] m = pure m
   traversePath edges (h:r) m = do
     pe <- case Map.lookup h edges of
@@ -223,7 +223,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               -> Proxy p
               -> (Map (Set p) Int, Map Int (Set p))
   numberNodes _ (Proxy :: Proxy p) =
-    let scenarios = enumerateScenariosWhere (logic :: Formula p)
+    let scenarios = enumerateScenariosWhere (trace "enumerating" (logic :: Formula p))
         scennums = Map.fromList $ zip scenarios [0..]
         numsscen = Map.fromList $ zip [0..] scenarios
     in (scennums,numsscen)

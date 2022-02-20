@@ -7,9 +7,8 @@ import Proper.HasLogicalModel
 import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPermutationGenerator
-import Proper.HasPermutationGenerator.Contract
---import Proper.HasPermutationGenerator.Gen
-import Hedgehog (Gen)
+--import Proper.HasPermutationGenerator.Contract
+import Proper.HasPermutationGenerator.Gen
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear) --,singleton)
 import Test.Tasty (TestTree,testGroup)
@@ -17,10 +16,9 @@ import Test.Tasty.Hedgehog (fromGroup)
 import Control.Monad.Trans.Reader (ask)
 
 data BoardProperty =
-      BoardIsEmpty
-    | BoardIsFull
-    | BoardIsCorrectSize
+      BoardIsCorrectSize
     | BoardAllTilesValid
+    | BoardFull
     | BoardHasEqualNumberOfXsAndOs
     | BoardHasOneMoreXThanO
     | BoardContainsWinForX
@@ -31,22 +29,16 @@ instance Enumerable BoardProperty where
   enumerated = [minBound..maxBound]
 
 instance LogicalModel BoardProperty where
-  logic = All [Var BoardIsEmpty :->: (All $ [Var BoardAllTilesValid
-                                            ,Not $ Var BoardContainsWinForX
-                                            ,Not $ Var BoardContainsWinForO
-                                            ,Var BoardHasEqualNumberOfXsAndOs
-                                            ,Not $ Var BoardIsFull
-                                            ])
-              ,Var BoardIsFull :->: Not (Var BoardIsEmpty)
-              ,AtMostOne $ Var <$> [BoardHasEqualNumberOfXsAndOs,BoardHasOneMoreXThanO]
+  logic = All [AtMostOne $ Var <$> [BoardHasEqualNumberOfXsAndOs,BoardHasOneMoreXThanO]
+              ,(Var BoardFull :&&: Var BoardIsCorrectSize :&&: Var BoardAllTilesValid)
+                :->: Not (Var BoardHasEqualNumberOfXsAndOs)
               ]
 
 
 instance HasLogicalModel BoardProperty [Integer] where
-  satisfiesProperty BoardIsEmpty b = sum b == 0
-  satisfiesProperty BoardIsFull b = (not $ any (==0) b) && length b > 0
   satisfiesProperty BoardIsCorrectSize b = length b == 9
   satisfiesProperty BoardAllTilesValid b = all (satisfiesProperty IsValidTile) b
+  satisfiesProperty BoardFull b = not $ any (==0) b
   satisfiesProperty BoardHasEqualNumberOfXsAndOs b =
     length (filter (==1) b) == length (filter (==2) b)
   satisfiesProperty BoardHasOneMoreXThanO b =
@@ -91,28 +83,18 @@ _setIndices (r:rs) as a =
 instance HasPermutationGenerator BoardProperty [Integer] where
   generators =
     [ PermutationEdge
-      { name = "SetBoardIsEmpty"
-      , match = Not $ Var BoardIsEmpty
-      , contract = addAll [BoardAllTilesValid
-                          ,BoardIsEmpty
-                          ,BoardHasEqualNumberOfXsAndOs
-                          ]
-                >> removeAll [BoardContainsWinForX
-                             ,BoardContainsWinForO
-                             ,BoardHasOneMoreXThanO
-                             ,BoardIsFull
-                             ]
-      , permuteGen = do
-          m <- ask
-          pure $ replicate (length m) 0
+      { name = ""
+      , match = Yes
+      , contract = pure ()
+      , permuteGen = ask
       }
     ]
 
 instance HasParameterisedGenerator BoardProperty [Integer] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen [Integer]
-baseGen = Gen.list (linear 0 100) (fromIntegral <$> Gen.int (linear minBound maxBound))
+baseGen :: PGen [Integer]
+baseGen = liftGenP $ Gen.list (linear 0 100) (fromIntegral <$> Gen.int (linear minBound maxBound))
 
 ticTacToeBoardGenSelfTests :: TestTree
 ticTacToeBoardGenSelfTests = testGroup "TicTacToe Board permutationGeneratorSelfTest" $

@@ -6,7 +6,7 @@ import Spec.IntPair
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.Tile
 import Spec.TicTacToe.Board
-import Spec.TicTacToe
+--import Spec.TicTacToe
 
 main :: IO ()
 main = defaultMain tests
@@ -37,6 +37,6 @@ tests =
         , ticTacToeTileGenSelfTests
         , ticTacToeBoardGenSelfTests
 --        , ticTacToeGenTests
-        , ticTacToeGenSelfTests
+--        , ticTacToeGenSelfTests
         ]
     ]

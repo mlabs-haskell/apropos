@@ -12,8 +12,8 @@ import Data.Proxy (Proxy)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   parameterisedGenerator :: forall t . Monad t => Set p -> PropertyT t m
-  --TODO this results in lots of calls to the SAT solver during generation
-  --we should maintain a cache of the results to speed things up
+--  genSatisfyingCached :: IORef (Map (Formula p) ([Set p]))
+--  genSatisfyingCached =
   genSatisfying :: forall t . Monad t => Formula p -> PropertyT t m
   genSatisfying f = do
     s <- forAll $ Gen.element (enumerateScenariosWhere f)

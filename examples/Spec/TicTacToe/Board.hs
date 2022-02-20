@@ -8,16 +8,17 @@ import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPermutationGenerator
 import Proper.HasPermutationGenerator.Contract
-import Proper.HasPermutationGenerator.Gen
+--import Proper.HasPermutationGenerator.Gen
 import Hedgehog (Gen)
 import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear,singleton)
+import Hedgehog.Range (linear) --,singleton)
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Control.Monad.Trans.Reader (ask)
 
 data BoardProperty =
       BoardIsEmpty
+    | BoardIsFull
     | BoardIsCorrectSize
     | BoardAllTilesValid
     | BoardHasEqualNumberOfXsAndOs
@@ -30,14 +31,20 @@ instance Enumerable BoardProperty where
   enumerated = [minBound..maxBound]
 
 instance LogicalModel BoardProperty where
-  logic = Var BoardIsEmpty :->: (All $ [Var BoardAllTilesValid
-                                       ,Not $ Var BoardContainsWinForX
-                                       ,Not $ Var BoardContainsWinForO
-                                       ,Var BoardHasEqualNumberOfXsAndOs
-                                       ])
+  logic = All [Var BoardIsEmpty :->: (All $ [Var BoardAllTilesValid
+                                            ,Not $ Var BoardContainsWinForX
+                                            ,Not $ Var BoardContainsWinForO
+                                            ,Var BoardHasEqualNumberOfXsAndOs
+                                            ,Not $ Var BoardIsFull
+                                            ])
+              ,Var BoardIsFull :->: Not (Var BoardIsEmpty)
+              ,AtMostOne $ Var <$> [BoardHasEqualNumberOfXsAndOs,BoardHasOneMoreXThanO]
+              ]
+
 
 instance HasLogicalModel BoardProperty [Integer] where
   satisfiesProperty BoardIsEmpty b = sum b == 0
+  satisfiesProperty BoardIsFull b = (not $ any (==0) b) && length b > 0
   satisfiesProperty BoardIsCorrectSize b = length b == 9
   satisfiesProperty BoardAllTilesValid b = all (satisfiesProperty IsValidTile) b
   satisfiesProperty BoardHasEqualNumberOfXsAndOs b =
@@ -52,8 +59,8 @@ isWinFor a as = any (all (==a)) (extractRows as)
 
 -- the ways in which a board can support a double win condition
 -- parameterised by length to support incorrectly sized boards
-doubleWinPlaces :: Int -> [([Int],[Int])]
-doubleWinPlaces l = [ (r1,r2)
+_doubleWinPlaces :: Int -> [([Int],[Int])]
+_doubleWinPlaces l = [ (r1,r2)
                     | r1 <- rowIndices
                     , r2 <- rowIndices
                     , r1 /= r2
@@ -74,130 +81,30 @@ rowIndices = [[0,1,2],[3,4,5],[6,7,8] --horizontal
              ,[0,4,8],[2,4,6]         --diagonal
              ]
 
-setIndices :: [Int] -> [a] -> a -> [a]
-setIndices [] as _ = as
-setIndices (r:rs) as a =
+_setIndices :: [Int] -> [a] -> a -> [a]
+_setIndices [] as _ = as
+_setIndices (r:rs) as a =
   let h = take r as
       t = drop (r+1) as
-   in setIndices rs (h <> (a:t)) a
+   in _setIndices rs (h <> (a:t)) a
 
 instance HasPermutationGenerator BoardProperty [Integer] where
   generators =
     [ PermutationEdge
       { name = "SetBoardIsEmpty"
       , match = Not $ Var BoardIsEmpty
-      , contract = add BoardIsEmpty >> removeAll [BoardContainsWinForX
-                                                 ,BoardContainsWinForO]
+      , contract = addAll [BoardAllTilesValid
+                          ,BoardIsEmpty
+                          ,BoardHasEqualNumberOfXsAndOs
+                          ]
+                >> removeAll [BoardContainsWinForX
+                             ,BoardContainsWinForO
+                             ,BoardHasOneMoreXThanO
+                             ,BoardIsFull
+                             ]
       , permuteGen = do
           m <- ask
           pure $ replicate (length m) 0
-      }
-    , PermutationEdge
-      { name = "SetBoardBoardAllTilesValid"
-      , match = Not $ Var BoardAllTilesValid
-      , contract = add BoardAllTilesValid >>
-                   removeAll [BoardIsEmpty
-                             ,BoardContainsWinForX
-                             ,BoardContainsWinForO
-                             ]
-
-      , permuteGen = do
-          m <- ask
-          let l = max 1 (length m)
-          nonempties <-  liftGen $ Gen.filter (\z -> not (isWinFor 1 z || isWinFor 2 z))
-                            $ Gen.list (linear 1 l)
-                            $ (fromIntegral <$> Gen.int (linear 1 2))
-          let r = l - length nonempties
-          empties <- list (singleton r) (genSatisfying (Var TileIsEmpty))
-          liftGen $ Gen.filter (\z -> not (isWinFor 1 z || isWinFor 2 z))
-                  $ Gen.shuffle $ nonempties <> empties
-      }
-    , PermutationEdge
-      { name = "UnSetBoardBoardAllTilesValid"
-      , match = Var BoardAllTilesValid
-      , contract = removeAll [BoardAllTilesValid
-                             ,BoardIsEmpty
-                             ,BoardContainsWinForX
-                             ,BoardContainsWinForO
-                             ]
-      , permuteGen = do
-          m <- ask
-          let l = max 1 (length m)
-          invalids <- list (linear 1 l) (genSatisfying (Not $ Var IsValidTile))
-          let r = l - length invalids
-          valids <- liftGen $ Gen.filter (\z -> not (isWinFor 1 z || isWinFor 2 z))
-                            $ Gen.list (singleton r)
-                            $ (fromIntegral <$> Gen.int (linear 0 2))
-          liftGen $ Gen.filter (\z -> not (isWinFor 1 z || isWinFor 2 z))
-                  $ Gen.shuffle $ invalids <> valids
-      }
-    , PermutationEdge
-      { name = "SetBoardIsCorrectSizeEmpty"
-      , match = Not $ Var BoardIsCorrectSize
-      , contract = addAll [BoardIsCorrectSize, BoardIsEmpty]
-                >> removeAll [BoardContainsWinForX,BoardContainsWinForO]
-      , permuteGen = pure $ replicate 9 0
-      }
-    , PermutationEdge
-      { name = "UnsetBoardIsCorrectSizeEmpty"
-      , match = Var BoardIsCorrectSize
-      , contract = remove BoardIsCorrectSize >> add BoardIsEmpty
-      , permuteGen = do
-          l <- liftGen $ Gen.choice [Gen.int (linear 0 8), Gen.int (linear 10 100)]
-          pure $ replicate l 0
-      }
-    , PermutationEdge
-      { name = "SetBoardContainsWinForXAndO"
-      , match = (Not $ Var BoardContainsWinForX) :&&: (Not $ Var BoardContainsWinForO)
-      , contract = addAll [BoardContainsWinForX,BoardContainsWinForO] >> remove BoardIsEmpty
-      , permuteGen = do
-          m <- ask
-          if satisfiesProperty BoardAllTilesValid m
-             then do
-               let l = max 6 (length m)
-               m' <- list (singleton l) (genSatisfying (Var IsValidTile))
-               (r1,r2) <- liftGen $ Gen.element $ doubleWinPlaces l
-               pure $ setIndices r2 (setIndices r1 m' 1) 2
-             else do
-               let l = max 7 (length m)
-               m' <- list (singleton l) (genSatisfying (Not $ Var IsValidTile))
-               (r1,r2) <- liftGen $ Gen.element $ doubleWinPlaces l
-               pure $ setIndices r2 (setIndices r1 m' 1) 2
-      }
-    , PermutationEdge
-      { name = "SetBoardContainsWinForX"
-      , match = (Not $ Var BoardContainsWinForX) :&&: (Not $ Var BoardContainsWinForO)
-      , contract = add BoardContainsWinForX >> remove BoardIsEmpty
-      , permuteGen = do
-          m <- ask
-          if satisfiesProperty BoardAllTilesValid m
-             then do
-               let l = max 3 (length m)
-               r <- liftGen $ Gen.element $ filter (all (< l)) rowIndices
-               pure $ setIndices r m 1
-             else do
-               let l = max 4 (length m)
-               m' <- list (singleton l) (genSatisfying (Not $ Var IsValidTile))
-               r <- liftGen $ Gen.element $ filter (all (< l)) rowIndices
-               pure $ setIndices r m' 1
-      }
-    , PermutationEdge
-      { name = "SetBoardContainsWinForO"
-      , match = (Not $ Var BoardContainsWinForX) :&&: (Not $ Var BoardContainsWinForO)
-      , contract = add BoardContainsWinForO >> remove BoardIsEmpty
-      , permuteGen = do
-          m <- ask
-          if satisfiesProperty BoardAllTilesValid m
-             then do
-               let l = max 3 (length m)
-               r <- liftGen $ Gen.element $ filter (all (< l)) rowIndices
-               pure $ setIndices r m 2
-             else do
-               let l = max 4 (length m)
-               m' <- list (singleton l) (genSatisfying (Not $ Var IsValidTile))
-               r <- liftGen $ Gen.element $ filter (all (< l)) rowIndices
-               pure $ setIndices r m' 2
-
       }
     ]
 

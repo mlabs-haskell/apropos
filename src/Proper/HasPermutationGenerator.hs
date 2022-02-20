@@ -151,14 +151,22 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
             Nothing -> failWithFootnote "this should never happen"
             Just so -> pure so
     tr <- forAll $ Gen.element pe
-    nm <- runReaderT (permuteGen tr) m
-    let mexpected = runContract (contract tr) (name tr) (properties m)
+    let inprops = properties m
+        mexpected = runContract (contract tr) (name tr) inprops
     case mexpected of
       Left e -> failWithFootnote e
       Right Nothing -> failWithFootnote $ renderStyle ourStyle $
                     "PermutationEdge doesn't work. This is a model error"
                     $+$ "This should never happen at this point in the program."
       Right (Just expected) -> do
+        if satisfiesFormula logic expected
+           then pure ()
+           else failWithFootnote $ renderStyle ourStyle $
+                  "PermutationEdge contract produces invalid model"
+                  $+$ hang "Edge:" 4 (ppDoc $ name tr)
+                  $+$ hang "Input:" 4 (ppDoc inprops)
+                  $+$ hang "Output:" 4 (ppDoc expected)
+        nm <- runReaderT (permuteGen tr) m
         let observed = properties nm
         if expected == observed
           then pure ()
@@ -177,8 +185,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   findPathOptions _ edges distmap ns from to = do
     fn <- case Map.lookup from ns of
             Nothing -> failWithFootnote $ renderStyle ourStyle $
-                        "Model logic inconsistency?"
-                         $+$ hang "Not in graph:" 4 (ppDoc from)
+                        "Model logic inconsistency found."
+                         $+$ hang "A model was found that satisfies these properties:" 4 (ppDoc from)
             Just so -> pure so
     tn <- case Map.lookup to ns of
             Nothing -> failWithFootnote "to node not found"
@@ -190,8 +198,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   buildGraph pedges =
     let edges = Map.keys pedges
         ub = max (maximum (fst <$> edges)) (maximum (snd <$> edges))
-        lb = min (minimum (fst <$> edges)) (minimum (snd <$> edges))
-     in buildG (lb,ub) edges
+     in buildG (0,ub) edges
 
   mapsBetween :: Map Int (Set p) -> Int -> Int -> PermutationEdge p m -> Bool
   mapsBetween m a b pedge =

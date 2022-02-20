@@ -12,15 +12,11 @@ import Proper.LogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPureTestRunner
 import Proper.HasPermutationGenerator
---import Proper.HasPermutationGenerator.Contract
 import Proper.HasPermutationGenerator.Gen
 import Proper.HasPlutusTestRunner
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
---import Control.Monad.Trans.Reader (ask)
 import Plutarch (compile)
 import Plutarch.Prelude
 import Control.Monad (join)
@@ -31,7 +27,6 @@ data IntPairProp =
 
 $(gen_enumerable ''IntPairProp)
 
-
 instance LogicalModel IntPairProp where
   logic = (L <$> logic) :&&: (R <$> logic)
 
@@ -41,7 +36,7 @@ instance HasLogicalModel IntPairProp (Int,Int) where
 
 instance HasPermutationGenerator IntPairProp (Int,Int) where
   generators =
-    let l = liftEdges L
+    let l = liftEdges L --TODO liftEdges could be prettier
                       fst
                       (\f (_,r') -> (f,r'))
                       (\p -> case p of
@@ -60,13 +55,12 @@ instance HasPermutationGenerator IntPairProp (Int,Int) where
 
      in join [l,r]
 
-
 instance HasParameterisedGenerator IntPairProp (Int,Int) where
   parameterisedGenerator = buildGen baseGen
 
 baseGen :: PGen (Int,Int)
-baseGen = liftGenP ((,) <$> Gen.int (linear minBound maxBound)
-                        <*> Gen.int (linear minBound maxBound))
+baseGen = (,) <$> genSatisfying (Yes :: Formula IntProp)
+              <*> genSatisfying (Yes :: Formula IntProp)
 
 intPairGenTests :: TestTree
 intPairGenTests = testGroup "Spec.IntPermutationGen" $

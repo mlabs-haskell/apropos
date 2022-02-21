@@ -1,4 +1,4 @@
-module Proper.HasPermutationGenerator.Gen (
+module Brutus.Gen (
   PAGen,
   PGen,
   liftGenPA,

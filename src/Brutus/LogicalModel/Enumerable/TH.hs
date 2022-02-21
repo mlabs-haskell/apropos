@@ -1,4 +1,4 @@
-module Proper.LogicalModel.Enumerable.TH
+module Brutus.LogicalModel.Enumerable.TH
   ( gen_enumerable
   )where
 import Language.Haskell.TH

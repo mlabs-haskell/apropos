@@ -1,16 +1,16 @@
-module Proper.LogicalModel
+module Brutus.LogicalModel
   ( LogicalModel(..)
   , Enumerable(..)
   , enumerateScenariosWhere
   , satisfiesFormula
   , enumerateSolutions
-  , module Proper.LogicalModel.Formula
-  , module Proper.LogicalModel.Enumerable
-  , module Proper.LogicalModel.Enumerable.TH
+  , module Brutus.LogicalModel.Formula
+  , module Brutus.LogicalModel.Enumerable
+  , module Brutus.LogicalModel.Enumerable.TH
   ) where
-import Proper.LogicalModel.Enumerable
-import Proper.LogicalModel.Enumerable.TH
-import Proper.LogicalModel.Formula
+import Brutus.LogicalModel.Enumerable
+import Brutus.LogicalModel.Enumerable.TH
+import Brutus.LogicalModel.Formula
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Map as Map

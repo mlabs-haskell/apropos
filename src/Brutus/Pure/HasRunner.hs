@@ -1,7 +1,7 @@
-module Proper.HasPureTestRunner ( HasPureTestRunner(..) ) where
-import Proper.HasLogicalModel
-import Proper.HasParameterisedGenerator
-import Proper.LogicalModel
+module Brutus.Pure.HasRunner ( HasRunner(..) ) where
+import Brutus.HasLogicalModel
+import Brutus.HasParameterisedGenerator
+import Brutus.LogicalModel
 import Hedgehog (Property,Group(..),property,(===))
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -9,7 +9,7 @@ import Data.String (fromString)
 import Data.Proxy (Proxy(..))
 
 
-class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureTestRunner p m where
+class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasRunner p m where
   expect :: Proxy m -> Formula p
   script :: Proxy p -> m -> Bool
 

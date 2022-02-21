@@ -1,7 +1,7 @@
-module Proper.HasPlutusTestRunner (HasPlutusTestRunner(..)) where
-import Proper.LogicalModel
-import Proper.HasLogicalModel
-import Proper.HasParameterisedGenerator
+module Brutus.Plutus.HasScriptRunner (HasScriptRunner(..)) where
+import Brutus.LogicalModel
+import Brutus.HasLogicalModel
+import Brutus.HasParameterisedGenerator
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -56,7 +56,7 @@ import Prelude (
  )
 import Data.Proxy (Proxy(..))
 
-class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPlutusTestRunner p m where
+class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p m where
   script :: Proxy p -> m -> Script
   expect :: Proxy m -> Proxy p -> Formula p
 

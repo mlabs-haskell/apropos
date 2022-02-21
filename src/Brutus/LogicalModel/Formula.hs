@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveFunctor #-}
-module Proper.LogicalModel.Formula (
+module Brutus.LogicalModel.Formula (
   Formula(..),
   solve_all,
   satisfiable,

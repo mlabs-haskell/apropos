@@ -1,4 +1,4 @@
-module Proper.HasPermutationGenerator.Contract
+module Brutus.HasPermutationGenerator.Contract
   ( Contract,
     runContract,
     readContractInput,

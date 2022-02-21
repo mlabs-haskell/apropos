@@ -1,11 +1,11 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Spec.Int (HasLogicalModel (..), IntProp(..),intGenTests,intPureTests,intPlutarchTests) where
-import Proper.HasLogicalModel
-import Proper.LogicalModel
-import Proper.HasParameterisedGenerator
-import Proper.HasPlutusTestRunner
-import Proper.HasPureTestRunner
+import Brutus.HasLogicalModel
+import Brutus.LogicalModel
+import Brutus.HasParameterisedGenerator
+import Brutus.Plutus.HasScriptRunner
+import Brutus.Pure.HasRunner
 import Hedgehog (forAll)
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -66,7 +66,7 @@ intGenTests = testGroup "Spec.Int" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance HasPureTestRunner IntProp Int where
+instance HasRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i = i < 0 && i >= -10
 
@@ -76,7 +76,7 @@ intPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
   ]
 
-instance HasPlutusTestRunner IntProp Int where
+instance HasScriptRunner IntProp Int where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer

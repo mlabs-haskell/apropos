@@ -7,14 +7,14 @@ module Spec.IntPermutationGen (
   intPermutationGenSelfTests,
   IntProp(..),
   ) where
-import Proper.HasLogicalModel
-import Proper.LogicalModel
-import Proper.HasParameterisedGenerator
-import Proper.HasPureTestRunner
-import Proper.HasPermutationGenerator
-import Proper.HasPermutationGenerator.Contract
-import Proper.HasPermutationGenerator.Gen
-import Proper.HasPlutusTestRunner
+import Brutus.HasLogicalModel
+import Brutus.LogicalModel
+import Brutus.HasParameterisedGenerator
+import Brutus.HasPermutationGenerator
+import Brutus.HasPermutationGenerator.Contract
+import Brutus.Gen
+import Brutus.Pure.HasRunner
+import Brutus.Plutus.HasScriptRunner
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
@@ -109,7 +109,7 @@ intPermutationGenTests = testGroup "Spec.IntPermutationGen" $
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
-instance HasPureTestRunner IntProp Int where
+instance HasRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i = i < 0 && i >= -10
 
@@ -120,7 +120,7 @@ intPermutationGenPureTests = testGroup "Pure.AcceptsSmallNegativeInts" $
     runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
                 ]
 
-instance HasPlutusTestRunner IntProp Int where
+instance HasScriptRunner IntProp Int where
   expect _ _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer

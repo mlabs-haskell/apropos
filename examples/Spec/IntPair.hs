@@ -7,13 +7,13 @@ module Spec.IntPair (
   intPairGenPlutarchTests,
   ) where
 import Spec.IntPermutationGen
-import Proper.HasLogicalModel
-import Proper.LogicalModel
-import Proper.HasParameterisedGenerator
-import Proper.HasPureTestRunner
-import Proper.HasPermutationGenerator
-import Proper.HasPermutationGenerator.Gen
-import Proper.HasPlutusTestRunner
+import Brutus.HasLogicalModel
+import Brutus.LogicalModel
+import Brutus.HasParameterisedGenerator
+import Brutus.HasPermutationGenerator
+import Brutus.Gen
+import Brutus.Pure.HasRunner
+import Brutus.Plutus.HasScriptRunner
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -74,7 +74,7 @@ intPairGenTests = testGroup "Spec.IntPermutationGen" $
       runGeneratorTestsWhere (Proxy :: Proxy (Int,Int)) "(Int,Int) Generator" (Yes :: Formula IntPairProp)
     ]
 
-instance HasPureTestRunner IntPairProp (Int,Int) where
+instance HasRunner IntPairProp (Int,Int) where
   expect _ = All $ Var <$> (join [L <$> [IsSmall,IsNegative]
                                  ,R <$> [IsSmall,IsPositive]
                                  ])
@@ -87,7 +87,7 @@ intPairGenPureTests = testGroup "Pure.IntPair" $
     runPureTestsWhere (Proxy :: Proxy (Int,Int)) "AcceptsLeftSmallNegativeRightSmallPositive" (Yes :: Formula IntPairProp)
                 ]
 
-instance HasPlutusTestRunner IntPairProp (Int,Int) where
+instance HasScriptRunner IntPairProp (Int,Int) where
   expect _ _ =  All $ Var <$> (join [L <$> [IsSmall,IsNegative]
                                  ,R <$> [IsSmall,IsPositive]])
   script _ (il,ir) =

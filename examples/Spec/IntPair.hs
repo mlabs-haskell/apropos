@@ -22,14 +22,12 @@ import Plutarch.Prelude
 import Control.Monad (join)
 
 data IntPairProp =
-  -- IntPairProp IntProp IntProp  --TODO can we do this with applicative?
   L IntProp | R IntProp
   deriving stock (Eq,Ord,Show)
 
 $(gen_enumerable ''IntPairProp)
 
 instance LogicalModel IntPairProp where
---logic = IntPairProp <$> logic <*> logic --TODO can we do this with applicative?
   logic = (L <$> logic) :&&: (R <$> logic)
 
 instance HasLogicalModel IntPairProp (Int,Int) where
@@ -38,10 +36,7 @@ instance HasLogicalModel IntPairProp (Int,Int) where
 
 instance HasPermutationGenerator IntPairProp (Int,Int) where
   generators =
- --TODO liftEdges could be prettier
- --  can we do this with applicative somehow?
- --  e.g. it would be nice if we could write this
- --  IntPairProp <$> generators <*> generators
+ --TODO liftEdges could be prettier - something functor like? e.g. L <$> generators
     let l = liftEdges L
                       fst
                       (\f (_,r') -> (f,r'))

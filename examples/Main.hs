@@ -11,12 +11,12 @@ tests :: TestTree
 tests =
   testGroup
     "all tests"
-    [ testGroup "Hand Written Parameterised Generator"
-        [intGenTests
+    [ testGroup "Int model Hand Written Parameterised Generator"
+        [ intGenTests
         , intPureTests
         , intPlutarchTests
         ]
-    , testGroup "Permutation Generator"
+    , testGroup "Int model using Permutation Generator"
         [ intPermutationGenTests
         , intPermutationGenPureTests
         , intPermutationGenPlutarchTests

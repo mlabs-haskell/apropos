@@ -26,34 +26,6 @@ data Formula v =
   | AtMostOne [Formula v]
   deriving stock (Generic,Functor)
 
--- TODO review - is this lawful?
--- The solutions of (A <$> logic <*> logic) should be the cross product of the solutions
--- of the child models.
-instance Applicative Formula where
-  pure v = Var v
-  (<*>) Yes _ = Yes
-  (<*>) No _ = No
-  (<*>) (Var a) b = a <$> b
-  (<*>) (Not f) b = Not (f <*> b)
-  (<*>) (a :&&: b) c = appBinf (:&&:) a b c
-  (<*>) (a :||: b) c = appBinf (:||:) a b c
-  (<*>) (a :++: b) c = appBinf (:++:) a b c
-  (<*>) (a :->: b) c = appBinf (:->:) a b c
-  (<*>) (a :<->: b) c = appBinf (:<->:) a b c
-  (<*>) (All fs) c = All $ appListf fs c
-  (<*>) (Some fs) c = Some $ appListf fs c
-  (<*>) (None fs) c = None $ appListf fs c
-  (<*>) (ExactlyOne fs) c = ExactlyOne $ appListf fs c
-  (<*>) (AtMostOne fs) c = AtMostOne $ appListf fs c
-
-appBinf :: Applicative f
-        => (f b1 -> f b2 -> t) -> f (a -> b1) -> f (a -> b2) -> f a -> t
-appBinf f x y z = (x <*> z) `f` (y <*> z)
-
-appListf :: (Applicative f1, Functor f2) =>
-                  f2 (f1 (a -> b)) -> f1 a -> f2 (f1 b)
-appListf fs c = ((\f -> f <*> c) <$> fs)
-
 infixr 6 :&&:
 infixr 5 :||:
 infixr 4 :++:

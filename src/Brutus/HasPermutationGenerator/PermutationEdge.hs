@@ -20,14 +20,26 @@ data PermutationEdge p m =
   , permuteGen :: PAGen m m
   }
 
-liftEdges :: (Ord p,Ord q) => (p -> q) -> (m -> n) -> (n -> m -> m) -> (q -> Maybe p)
-          -> String -> [PermutationEdge p n] -> [PermutationEdge q m]
+--TODO use the lens library?
+
+liftEdges :: (Ord p, Ord q)
+          => (p -> q)       -- The constructor we are lifting into
+          -> (m -> n)       -- A lens to extract from the parent model
+          -> (n -> m -> m)  -- A lens to insert into the parent model
+          -> (q -> Maybe p) -- A lens to extract from the parent property
+          -> String         -- A prefix string for the lifted edges
+          -> [PermutationEdge p n] -> [PermutationEdge q m]
 liftEdges liftProp getSubmodel putSubmodel matchSub prefix edges =
   liftEdge liftProp getSubmodel putSubmodel matchSub prefix <$> edges
 
 
-liftEdge :: (Ord p, Ord q) => (p -> q) -> (m -> n) -> (n -> m -> m) -> (q -> Maybe p)
-         -> String -> PermutationEdge p n -> PermutationEdge q m
+liftEdge :: (Ord p, Ord q)
+         => (p -> q)       -- The constructor we are lifting into
+         -> (m -> n)       -- A lens to extract from the parent model
+         -> (n -> m -> m)  -- A lens to insert into the parent model
+         -> (q -> Maybe p) -- A lens to extract from the parent property
+         -> String         -- A prefix string for the lifted edge
+         -> PermutationEdge p n -> PermutationEdge q m
 liftEdge liftProp getSubmodel putSubmodel matchSub prefix edge =
   PermutationEdge {
     name = (prefix <> name edge)

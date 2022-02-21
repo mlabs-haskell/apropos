@@ -77,8 +77,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           matchesEdges = [ e | (e,v) <- Map.toList pem, pe `elem` v ]
           edgeTestName f t = fromString $ name pe <> " : " <> (show $ Set.toList (lut ns f)) <> " -> " <> (show $ Set.toList (lut ns t))
           isRequired =
-            let x = [ () | (_,v) <- Map.toList pem, length v == 1, p <- v, p == pe ]
-             in length x > 0
+            let inEdges = [ length v | (_,v) <- Map.toList pem, pe `elem` v ]
+             in any (==1) inEdges
           runRequiredTest = property $ do
             if isRequired
                then pure ()

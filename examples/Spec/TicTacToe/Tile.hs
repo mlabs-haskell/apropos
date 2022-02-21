@@ -29,14 +29,14 @@ instance LogicalModel TileProperty where
           :&&: (ExactlyOne $ Var <$> [NotATile,IsValidTile])
 
 
-instance HasLogicalModel TileProperty Integer where
+instance HasLogicalModel TileProperty Int where
   satisfiesProperty TileIsEmpty i = i == 0
   satisfiesProperty TileIsX i = i == 1
   satisfiesProperty TileIsO i = i == 2
   satisfiesProperty NotATile i = not (i `elem` [0,1,2])
   satisfiesProperty IsValidTile i = i `elem` [0,1,2]
 
-instance HasPermutationGenerator TileProperty Integer where
+instance HasPermutationGenerator TileProperty Int where
   generators =
     [ PermutationEdge
       { name = "MakeTileEmpty"
@@ -60,19 +60,19 @@ instance HasPermutationGenerator TileProperty Integer where
       { name = "MakeNotATile"
       , match = Not $ Var NotATile
       , contract = clear >> add NotATile
-      , permuteGen = liftGenPA $ fromIntegral <$> (Gen.choice [Gen.int (linear minBound (-1))
-                                                           ,Gen.int (linear 3 maxBound)])
+      , permuteGen = liftGenPA $ (Gen.choice [Gen.int (linear minBound (-1))
+                                             ,Gen.int (linear 3 maxBound)])
       }
 
     ]
 
-instance HasParameterisedGenerator TileProperty Integer where
+instance HasParameterisedGenerator TileProperty Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen Integer
-baseGen = liftGenP (fromIntegral <$> Gen.int (linear minBound maxBound))
+baseGen :: PGen Int
+baseGen = liftGenP (Gen.int (linear minBound maxBound))
 
 ticTacToeTileGenSelfTests :: TestTree
 ticTacToeTileGenSelfTests = testGroup "TicTacToe Tile permutationGeneratorSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge TileProperty Integer) -> True) baseGen
+  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge TileProperty Int) -> True) baseGen
 

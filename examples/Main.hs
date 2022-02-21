@@ -5,8 +5,8 @@ import Spec.IntPermutationGen
 import Spec.IntPair
 --import Spec.TicTacToe.Player
 --import Spec.TicTacToe.Tile
---import Spec.TicTacToe.Board
-import Spec.TicTacToe
+import Spec.TicTacToe.Board
+--import Spec.TicTacToe
 
 main :: IO ()
 main = defaultMain tests
@@ -35,8 +35,8 @@ tests =
     , testGroup "TicTacToe"
         [ -- ticTacToePlayerGenSelfTests
           -- , ticTacToeTileGenSelfTests
---        ticTacToeBoardGenSelfTests
+        ticTacToeBoardGenSelfTests
 --        , ticTacToeGenTests
-          ticTacToeGenSelfTests
+--          ticTacToeGenSelfTests
         ]
     ]

@@ -6,7 +6,7 @@ import Proper.LogicalModel
 import Proper.HasLogicalModel
 import Proper.HasParameterisedGenerator
 import Proper.HasPermutationGenerator
---import Proper.HasPermutationGenerator.Contract
+import Proper.HasPermutationGenerator.Contract
 import Proper.HasPermutationGenerator.Gen
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
@@ -18,9 +18,9 @@ import Control.Monad (join)
 
 data TicTacToeMove =
   TicTacToeMove {
-    from :: [Integer]
-  , to   :: [Integer]
-  , player :: Integer
+    from :: [Int]
+  , to   :: [Int]
+  , player :: Int
   , declare :: Bool
   } deriving stock (Show)
 
@@ -53,59 +53,21 @@ data TicTacToeProperty =
     | IsPlayersTurn
     | WinDeclared
     | IsValidWinDeclaration
+    | PlacementValid
     | IsValidMove
     deriving stock (Eq,Ord,Show)
 
 $(gen_enumerable ''TicTacToeProperty)
 
 instance LogicalModel TicTacToeProperty where
-  logic = All [
---              , Var PlayerIsX :->: (Not $ Var PlayerIsO)
---              , Var PlayerIsO :->: (Not $ Var PlayerIsX)
---
---              -- X can only play when the number of pieces are equal
---              -- O can only play when there is one more X than O
---              , Var IsPlayersTurn :<->:
---                   ((Var PlayerIsX :&&: (Var $ FromBoardProperty BoardHasEqualNumberOfXsAndOs))
---                 :||: ((Var PlayerIsO) :&&: (Var $ FromBoardProperty BoardHasOneMoreXThanO)))
---              -- a win declaration is not valid if it is not the player's turn
---              , ((Not $ Var IsPlayersTurn) :&&: (Var WinDeclared))
---                       :->: (Not $ Var IsValidWinDeclaration)
---
---              -- a win decleration is not valid if the game is already won
---              , (Some [Var $ FromBoardProperty BoardContainsWinForX
---                      ,Var $ FromBoardProperty BoardContainsWinForO]
---                  :&&: Var WinDeclared) :->: (Not $ Var IsValidWinDeclaration)
---
---              -- if player X places a winning move they must declare it
---              , All (Var <$> [PlayerIsX
---                             ,ToBoardProperty BoardContainsWinForX
---                             ,IsPlayersTurn
---                             ]) :->: (Var WinDeclared :<->: Var IsValidWinDeclaration)
---
---              -- if player O places a winning move they must declare it
---              , All ([Var PlayerIsO
---                     ,Var $ ToBoardProperty BoardContainsWinForO
---                     ,Var IsPlayersTurn
---                     ]) :->: (Var WinDeclared :<->: Var IsValidWinDeclaration)
---
---              -- Player X must place an X
---              , Var PlayerIsX :->:
---                  (All [Var IsPlayersTurn
---                       ,Var $ FromBoardProperty BoardHasEqualNumberOfXsAndOs
---                       ,Var $ ToBoardProperty BoardHasOneMoreXThanO
---                       ] :<->: Var IsValidMove)
---              -- Player O must place an O
---              , (Not $ Var PlayerIsX) :->:
---                  (All [Var IsPlayersTurn
---                       ,Var $ FromBoardProperty BoardHasOneMoreXThanO
---                       ,Var $ ToBoardProperty BoardHasEqualNumberOfXsAndOs
---                       ] :<->: Var IsValidMove)
+  logic = All [ Var PlayerIsX :->: (Not $ Var PlayerIsO)
+              , Var PlayerIsO :->: (Not $ Var PlayerIsX)
+              , Var IsValidMove :->: (All $ Var <$> [PlacementValid,IsPlayersTurn])
+              , (Not $ Var PlacementValid) :->: (Not $ Var IsValidMove)
+              , (Not $ Var IsPlayersTurn) :->: (Not $ Var IsValidMove)
               ]
 
 instance HasLogicalModel TicTacToeProperty TicTacToeMove where
---  satisfiesProperty (FromBoardProperty p) m = satisfiesProperty p (from m)
---  satisfiesProperty (ToBoardProperty p) m = satisfiesProperty p (from m)
   satisfiesProperty PlayerIsX m = 1 == player m
   satisfiesProperty PlayerIsO m = 2 == player m
   satisfiesProperty IsPlayersTurn m =
@@ -114,16 +76,141 @@ instance HasLogicalModel TicTacToeProperty TicTacToeMove where
       2 -> satisfiesProperty BoardHasOneMoreXThanO (from m)
       _ -> False
   satisfiesProperty WinDeclared m = declare m
-  satisfiesProperty _ _ = False --TODO
+  satisfiesProperty IsValidWinDeclaration m =
+    if satisfiesProperty BoardContainsWinForX (from m)
+       || satisfiesProperty BoardContainsWinForO (from m)
+       then False
+       else if satisfiesProperty BoardContainsWinForX (to m)
+              then satisfiesProperty PlayerIsX m && satisfiesProperty WinDeclared m
+              else if satisfiesProperty BoardContainsWinForO (to m)
+                     then satisfiesProperty PlayerIsO m && satisfiesProperty WinDeclared m
+                     else False
+  satisfiesProperty IsValidMove  m =
+    satisfiesProperty IsPlayersTurn m &&
+      if satisfiesProperty PlayerIsX m
+         then satisfiesProperty BoardHasOneMoreXThanO (to m)
+           && satisfiesProperty PlacementValid m
+         else if satisfiesProperty PlayerIsO m
+                then satisfiesProperty BoardHasEqualNumberOfXsAndOs (to m)
+                  && satisfiesProperty PlacementValid m
+                else False
+  satisfiesProperty PlacementValid m =
+    validDiff (from m) (to m)
+    && satisfiesFormula ((None $ Var <$> [BoardContainsWinForX
+                                         ,BoardContainsWinForO
+                                         ,BoardFull
+                                         ])
+                    :&&: (All $ Var <$> [BoardIsCorrectSize
+                                        ,BoardAllTilesValid
+                                        ])) (properties $ from m)
+    && satisfiesFormula (All $ Var <$> [BoardIsCorrectSize
+                                       ,BoardAllTilesValid
+                                       ]) (properties $ to m)
+
+validDiff :: [Int] -> [Int] -> Bool
+validDiff f t = 
+  let diffs = filter (\(l,r) -> l /= r) $ zip f t
+      adds = filter added diffs
+   in ((length diffs) == 1) && ((length adds) == 1)
+  where
+    added :: (Int,Int) -> Bool
+    added (0,i) | i /= 0 = True
+    added _ = False
 
 instance HasPermutationGenerator TicTacToeProperty TicTacToeMove where
   generators =
     [ PermutationEdge
-      { name = ""
-      , match = Yes
-      , contract = pure ()
-      , permuteGen = ask
+      { name = "SetPlayerX"
+      , match = Not $ Var PlayerIsX
+      , contract = remove PlayerIsO >> add PlayerIsX
+      , permuteGen = do
+          m <- ask
+          pure $ m { player = 1 }
       }
+    , PermutationEdge
+      { name = "SetPlayerO"
+      , match = Not $ Var PlayerIsO
+      , contract = remove PlayerIsX >> add PlayerIsO
+      , permuteGen = do
+          m <- ask
+          pure $ m { player = 2 }
+      }
+    , PermutationEdge
+      { name = "SetInvalidPlayer"
+      , match = Var PlayerIsO :||: Var PlayerIsX
+      , contract = remove PlayerIsX >> remove PlayerIsO
+      , permuteGen = do
+          m <- ask
+          i <- liftGenPA $ Gen.choice $ (Gen.int <$> [ (linear minBound 0)
+                                                     , (linear 3 maxBound)
+                                                     ])
+          pure $ m { player = i }
+      }
+    , PermutationEdge
+      { name = "SetWinDeclared"
+      , match = Not $ Var WinDeclared
+      , contract = add WinDeclared
+      , permuteGen = do
+          m <- ask
+          pure $ m { declare = True }
+      }
+    , PermutationEdge
+      { name = "UnsetWinDeclared"
+      , match = Var WinDeclared
+      , contract = remove WinDeclared
+      , permuteGen = do
+          m <- ask
+          pure $ m { declare = False }
+      }
+    , PermutationEdge
+      { name = "SetIsPlayersTurn"
+      , match = Not $ Var IsPlayersTurn
+      , contract = add IsPlayersTurn
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "UnsetIsPlayersTurn"
+      , match = Var IsPlayersTurn
+      , contract = remove IsPlayersTurn
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "SetIsValidWinDeclaration"
+      , match = Not $ Var IsValidWinDeclaration
+      , contract = add IsValidWinDeclaration
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "UnsetIsValidWinDeclaration"
+      , match = Var IsValidWinDeclaration
+      , contract = remove IsValidWinDeclaration
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "SetPlacementValid"
+      , match = Not $ Var PlacementValid
+      , contract = add PlacementValid
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "UnsetPlacementValid"
+      , match = Var PlacementValid
+      , contract = remove PlacementValid
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "SetIsValidMove"
+      , match = Not $ Var IsValidMove
+      , contract = add IsValidMove
+      , permuteGen = ask --TODO
+      }
+    , PermutationEdge
+      { name = "UnsetIsValidMove"
+      , match = Var IsValidMove
+      , contract = remove IsValidMove
+      , permuteGen = ask --TODO
+      }
+
     ]
 
 instance HasParameterisedGenerator TicTacToeProperty TicTacToeMove where
@@ -131,10 +218,7 @@ instance HasParameterisedGenerator TicTacToeProperty TicTacToeMove where
 
 baseGen :: PGen TicTacToeMove
 baseGen = do
-    let genTile = liftGenP (fromIntegral <$> Gen.int (linear minBound maxBound))
-        -- using genSatisfying like this will generate all boards allowed by the
-        -- Board model - this means we will get a model error in the TicTacToe model
-        -- if we do not capture all allowed boards in its model.
+    let genTile = liftGenP (Gen.int (linear minBound maxBound))
         genBoard = genSatisfying (Yes :: Formula BoardProperty)
         genPlayer = genTile
         genDeclare = liftGenP $ Gen.bool

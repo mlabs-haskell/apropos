@@ -82,10 +82,6 @@ test-suite examples
     Spec.Int
     Spec.IntPermutationGen
     Spec.IntPair
-    Spec.TicTacToe
-    Spec.TicTacToe.Player
-    Spec.TicTacToe.Tile
-    Spec.TicTacToe.Board
   build-depends:
     base,
     apropos-tx,

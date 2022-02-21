@@ -36,7 +36,13 @@ instance HasLogicalModel IntPairProp (Int,Int) where
 
 instance HasPermutationGenerator IntPairProp (Int,Int) where
   generators =
- --TODO liftEdges could be prettier - something functor like? e.g. L <$> generators
+ --TODO liftEdges could be prettier - we could use lenses to
+ --                                 -            get and set a substructure in the model
+ --                                 -            Maybe extract a subproperty from a property
+ --
+ --                                 - we could derive the prefix string from the property constructor
+ --
+ --                                 - then we would have a 4 argument function instead of a 6 argument function
     let l = liftEdges L
                       fst
                       (\f (_,r') -> (f,r'))

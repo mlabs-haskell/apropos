@@ -73,7 +73,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                -> Group
       testEdge testRequired ns pem mGen pe =
         Group (fromString (name pe)) $ addRequiredTest testRequired
-          [ (edgeTestName f t, property $ runEdgeTest 100 f t)
+          [ (edgeTestName f t, property $ runEdgeTest f t)
           | (f,t) <- matchesEdges
           ]
         where
@@ -90,19 +90,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                else failWithFootnote $ renderStyle ourStyle $
                       (fromString $ "PermutationEdge " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest limit f t = do
+          runEdgeTest f t = do
             om <- mGen (lut ns f)
             nm <- runGenPA (permuteGen pe) om
-            case nm of
-              Nothing -> if (limit :: Int) == 0
-                            then error "retry limit reached"
-                            else runEdgeTest (limit - 1) f t
-              Just so -> do
-                let expected = lut ns t
-                    observed = properties so
-                if expected == observed
-                  then pure ()
-                  else edgeFailsContract pe om so expected observed
+            let expected = lut ns t
+                observed = properties nm
+            if expected == observed
+              then pure ()
+              else edgeFailsContract pe om nm expected observed
 
   buildGen :: PropertyT IO m -> Set p -> PropertyT IO m
   buildGen g = do
@@ -112,7 +107,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
-        go limit targetProperties = do
+        go targetProperties = do
           m <- g
           if length pedges == 0
              then failWithFootnote "no PermutationEdges defined"
@@ -125,13 +120,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                       "PermutationEdges do not form a strongly connected graph."
                       $+$ hang "No Edge Between here:" 4 (ppDoc a)
                       $+$ hang "            and here:" 4 (ppDoc b)
-          nm <- transformModel sn pedges edges distmap m targetProperties
-          case nm of
-            Nothing -> if (limit :: Int) == 0
-                          then error "retry limit of 100 reached"
-                          else go (limit -1) targetProperties
-            Just so -> pure so
-       in go 100
+          transformModel sn pedges edges distmap m targetProperties
+       in go
 
   findNoPath :: Proxy m
              -> Map Int (Set p)
@@ -149,14 +139,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                  -> Map Int (Map Int Int)
                  -> m
                  -> Set p
-                 -> PropertyT IO (Maybe m)
+                 -> PropertyT IO m
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
   traversePath :: Map (Int,Int) [PermutationEdge p m]
-                 -> [(Int,Int)] -> m -> PropertyT IO (Maybe m)
-  traversePath _ [] m = pure $ Just m
+                 -> [(Int,Int)] -> m -> PropertyT IO m
+  traversePath _ [] m = pure m
   traversePath edges (h:r) m = do
     pe <- case Map.lookup h edges of
             Nothing -> failWithFootnote "this should never happen"
@@ -178,14 +168,11 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   $+$ hang "Input:" 4 (ppDoc inprops)
                   $+$ hang "Output:" 4 (ppDoc expected)
         nm <- runGenPA (permuteGen tr) m
-        case nm of
-          Nothing -> pure Nothing
-          Just so -> do
-            let observed = properties so
-            if expected == observed
-              then pure ()
-              else edgeFailsContract tr m so expected observed
-            traversePath edges r so
+        let observed = properties nm
+        if expected == observed
+          then pure ()
+          else edgeFailsContract tr m nm expected observed
+        traversePath edges r nm
 
   findPathOptions ::  forall t . Monad t => (Proxy m)
                   -> [(Int,Int)]

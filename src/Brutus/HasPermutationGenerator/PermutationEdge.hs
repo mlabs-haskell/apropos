@@ -28,15 +28,9 @@ composeEdges a b =
   , match = match a :&&: match b
   , contract = contract a >> contract b
   , permuteGen = do
-      m <- lift ask
-      ma <- lift $ lift $ runGenPA (permuteGen a) m
-      case ma of
-        Nothing -> fail "retry"
-        Just oh -> do
-          mb <- lift $ lift $ runGenPA (permuteGen b) oh
-          case mb of
-            Nothing -> fail "retry" --TODO remove - I don't think we want retries
-            Just so -> pure so
+      m <- ask
+      ma <- lift $ runGenPA (permuteGen a) m
+      lift $ runGenPA (permuteGen b) ma
   }
 
 --TODO use the lens library?
@@ -78,12 +72,10 @@ liftEdge liftProp getSubmodel putSubmodel matchSub prefix edge =
         Right (Just upd) ->
           output (subx `Set.union` (Set.map liftProp upd))
   , permuteGen = do
-     m <- lift ask
+     m <- ask
      let n = getSubmodel m
-     nn <- lift $ lift $ runGenPA (permuteGen edge) n
-     case nn of
-       Nothing -> fail "retry"
-       Just so -> pure $ putSubmodel so m
+     nn <- lift $ runGenPA (permuteGen edge) n
+     pure $ putSubmodel nn m
   }
 
 extractSubmodel :: Ord p => (q -> Maybe p) -> Set q -> Set p

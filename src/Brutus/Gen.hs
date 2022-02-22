@@ -1,7 +1,6 @@
 module Brutus.Gen (
   PAGen,
   PGen,
-  retry,
   source,
   runGenPA,
   liftGenPA,
@@ -14,22 +13,18 @@ import Hedgehog (Gen,Range,PropertyT,forAll)
 import Control.Monad.Trans (lift)
 import qualified Hedgehog.Gen as Gen
 import Control.Monad.Trans.Reader (ReaderT,runReaderT,ask)
-import Control.Monad.Trans.Maybe (MaybeT,runMaybeT)
 
-type PAGen m r = MaybeT (ReaderT m (PropertyT IO)) r
+type PAGen m r = ReaderT m (PropertyT IO) r
 type PGen r = PropertyT IO r
 
-retry :: PAGen m r
-retry = fail "retry"
-
 source :: PAGen m m
-source = lift ask
+source = ask
 
-runGenPA :: forall m r . PAGen m r -> m -> PGen (Maybe r)
-runGenPA g m = runReaderT (runMaybeT g) m
+runGenPA :: forall m r . PAGen m r -> m -> PGen r
+runGenPA g m = runReaderT g m
 
 liftGenPA :: Show r => Gen r -> PAGen m r
-liftGenPA = lift . lift . forAll
+liftGenPA = lift . forAll
 
 liftGenP :: Show r => Gen r -> PGen r
 liftGenP = forAll
@@ -37,7 +32,7 @@ liftGenP = forAll
 list :: Range Int -> PGen r -> PAGen m [r]
 list range gen = do
   l <- liftGenPA $ Gen.int range
-  sequence $ replicate l (lift $ lift gen)
+  sequence $ replicate l (lift gen)
 
 
 listPA :: Range Int -> PAGen m r -> PAGen m [r]

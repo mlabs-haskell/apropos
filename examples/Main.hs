@@ -10,6 +10,7 @@ import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.Move
 import Spec.TicTacToe.MoveSequence
+import Spec.Plutarch.MagicNumber
 
 main :: IO ()
 main = defaultMain tests
@@ -43,5 +44,8 @@ tests =
         , locationSequencePermutationGenSelfTest
         , playerLocationSequencePairPermutationGenSelfTest
         , moveSequenceGenTests
+        ]
+    , testGroup "Script As Object"
+        [ magicNumberPropGenTests
         ]
     ]

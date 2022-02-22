@@ -14,10 +14,10 @@ This is the thing you are hooking your test equipment up to.
 It's a function.
 
 ### And how do you write this logical model?
-Good question. First you start with a model. Then you describe it's properties.
+Good question. First you start with a model. Then you describe its properties.
 
 ### What's a model?
-It's any datatype of your choosing... For example it could be this thing
+It's any datatype of your choosing... For example it could be this thing:
 
 ```Haskell
 data MyModel =
@@ -40,7 +40,7 @@ It satisfies the constraints required for these terms to be used as Propositions
 
 This means we can write logical statements in terms of them.
 
-For Example.
+For example:
 
 ```Haskell
 term = (Var DoesThis :->: Var DoesThat)
@@ -48,7 +48,7 @@ term = (Var DoesThis :->: Var DoesThat)
 
 ```
 
-Neat! Terms like these are used to encode Three aspects of our model.
+Neat! Terms like these are used to encode three aspects of our model:
 1. Model Internal Logic
 2. Expected Device Response
 3. Generator Transformation Matches
@@ -67,7 +67,7 @@ For example if This implies That then whenever This is true That must also be tr
 This tells the test runner when to expect Passing/Failing of the device.
 
 ```Haskell
-instance IsPlutusModel MyModel MyProperty where
+instance HasScriptRunner MyModel MyProperty where
   expect = Var VALIDATES
 
 ```
@@ -77,7 +77,7 @@ You could use the idiom of including PASS/FAIL or VALIDATE/ERROR in the Properti
 This lets you fold the logic into the one expression. Or you could write a logical expression here and keep the logic separate.
 
 ```Haskell
-instace HasPlutusTestRunner Model MyProperty where
+instance HasPlutusTestRunner Model MyProperty where
   expect =  All $ Var <$> [ This
                           , That
                           , TheOther
@@ -88,7 +88,7 @@ instace HasPlutusTestRunner Model MyProperty where
 Through the satisfiesProperty function we can define any meaning we like.
 
 ```Haskell
-instance HasProperties MyModel MyProperty where
+instance HasLogicalModel MyModel MyProperty where
   satisfiesProperty :: Model MyModel -> Property MyModel -> Bool
 ```
 
@@ -137,7 +137,8 @@ Since our generator is parameterised by a set of properties this allows us to te
 If we are using the PermutingGenerator to build our parameterised generator each edge must obey its contract. This provides additional testing of our assumptions about the model.
 
 ### How do we run a device test?
-We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Proper.IsDeviceModel`. To test a Plutus script use `Proper.IsPlutusModel`.
+module Brutus.Plutus.HasScriptRunner (HasScriptRunner(..)) where
+We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Brutus.Pure.HasRunner`. To test a Plutus script use `Brutus.Plutus.HasScriptRunner`.
 
 ## Read the examples.
 For a minimal example see `examples/Spec/Int.hs`

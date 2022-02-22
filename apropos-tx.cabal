@@ -79,6 +79,7 @@ test-suite examples
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs: examples
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   other-modules:
     Spec.Int
     Spec.IntPermutationGen
@@ -102,6 +103,3 @@ test-suite examples
     text,
     containers,
     mtl,
-
-
-

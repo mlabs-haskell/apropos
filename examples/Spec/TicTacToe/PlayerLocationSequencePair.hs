@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Spec.TicTacToe.PlayerLocationSequencePair (
-  playerLocationSequencePairPermutationGenSelfTest
+  PlayerLocationSequencePairProperty(..),
+  playerLocationSequencePairPermutationGenSelfTest,
   ) where
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
@@ -69,7 +70,7 @@ instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int],[In
 
 baseGen :: PGen ([Int],[Int])
 baseGen = do
-  l <- liftGenP $ Gen.int (linear 0 9)
+  l <- liftGenP $ Gen.int (linear 0 10)
   l1 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
   l2 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
   pure (l1,l2)

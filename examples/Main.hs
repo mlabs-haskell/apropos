@@ -7,8 +7,9 @@ import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerSequence
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
-import Spec.TicTacToe.Move
 import Spec.TicTacToe.PlayerLocationSequencePair
+import Spec.TicTacToe.Move
+import Spec.TicTacToe.MoveSequence
 
 main :: IO ()
 main = defaultMain tests
@@ -41,5 +42,6 @@ tests =
         , playerSequencePermutationGenSelfTest
         , locationSequencePermutationGenSelfTest
         , playerLocationSequencePairPermutationGenSelfTest
+        , moveSequenceGenTests
         ]
     ]

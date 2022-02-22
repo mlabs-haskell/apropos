@@ -21,6 +21,7 @@ data LocationSequenceProperty =
   | SomeLocationIsOccupiedTwice
   | LocationSequenceIsNull
   | LocationSequenceIsSingleton
+  | LocationSequenceIsLongerThanGame
   deriving stock (Eq,Ord,Enum,Show,Bounded)
 
 instance Enumerable LocationSequenceProperty where
@@ -31,8 +32,12 @@ instance LogicalModel LocationSequenceProperty where
        :&&: (Var LocationSequenceIsNull :->: Var AllLocationsAreInBounds)
        :&&: (Var LocationSequenceIsNull :->: (Not $ Var SomeLocationIsOutOfBounds))
        :&&: (Var LocationSequenceIsNull :->: (Not  $ Var SomeLocationIsOccupiedTwice))
+       :&&: (Var LocationSequenceIsNull :->: (Not  $ Var LocationSequenceIsLongerThanGame))
        :&&: (Var LocationSequenceIsSingleton :->: (Not $ Var SomeLocationIsOccupiedTwice))
+       :&&: (Var LocationSequenceIsSingleton :->: (Not $ Var LocationSequenceIsLongerThanGame))
        :&&: (AtMostOne [Var LocationSequenceIsNull,Var LocationSequenceIsSingleton])
+       :&&: ((Var LocationSequenceIsLongerThanGame :&&: Var AllLocationsAreInBounds)
+              :->: Var SomeLocationIsOccupiedTwice)
 
 
 someLocationIsOccupiedTwice :: [Int] -> Bool
@@ -47,6 +52,7 @@ instance HasLogicalModel LocationSequenceProperty [Int] where
   satisfiesProperty SomeLocationIsOccupiedTwice m = someLocationIsOccupiedTwice m
   satisfiesProperty LocationSequenceIsNull m = length m == 0
   satisfiesProperty LocationSequenceIsSingleton m = length m == 1
+  satisfiesProperty LocationSequenceIsLongerThanGame m = length m > 9
 
 instance HasPermutationGenerator LocationSequenceProperty [Int] where
   generators =
@@ -55,7 +61,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
       , match = Yes
       , contract = removeAll [SomeLocationIsOutOfBounds
                              ,SomeLocationIsOccupiedTwice
-                             ,LocationSequenceIsSingleton]
+                             ,LocationSequenceIsSingleton
+                             ,LocationSequenceIsLongerThanGame
+                             ]
                 >> addAll [AllLocationsAreInBounds,LocationSequenceIsNull]
       , permuteGen = pure []
       }
@@ -64,6 +72,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
       , match = Not $ Var LocationSequenceIsNull
       , contract = removeAll [SomeLocationIsOutOfBounds
                              ,SomeLocationIsOccupiedTwice
+                             ,LocationSequenceIsLongerThanGame
                              ]
                 >> add AllLocationsAreInBounds
       , permuteGen = do
@@ -93,7 +102,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
       , match = Yes
       , contract = removeAll [AllLocationsAreInBounds
                              ,SomeLocationIsOccupiedTwice
-                             ,LocationSequenceIsNull]
+                             ,LocationSequenceIsNull
+                             ,LocationSequenceIsLongerThanGame
+                             ]
                 >> addAll [SomeLocationIsOutOfBounds,LocationSequenceIsSingleton]
       , permuteGen =
           liftGenPA $ Gen.list (singleton 1)
@@ -106,7 +117,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
       , match = Yes
       , contract =  removeAll [SomeLocationIsOutOfBounds
                              ,SomeLocationIsOccupiedTwice
-                             ,LocationSequenceIsNull]
+                             ,LocationSequenceIsNull
+                             ,LocationSequenceIsLongerThanGame
+                              ]
                 >> addAll [AllLocationsAreInBounds,LocationSequenceIsSingleton]
       , permuteGen =
           liftGenPA $ Gen.list (singleton 1)
@@ -128,6 +141,23 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                  liftGenPA $ Gen.filter f
                            $ Gen.list (singleton locationsLen)
                            $ Gen.int (linear minBound maxBound)
+      }
+    , PermutationEdge
+      { name = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
+      , match = Not (Var LocationSequenceIsNull :||: Var LocationSequenceIsSingleton)
+      , contract = removeAll [AllLocationsAreInBounds
+                             ,LocationSequenceIsNull
+                             ,LocationSequenceIsSingleton
+                             ]
+                >> addAll [SomeLocationIsOccupiedTwice
+                          ,SomeLocationIsOutOfBounds
+                          ,LocationSequenceIsLongerThanGame
+                          ]
+      , permuteGen = filterPA (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+          let locationsLen = 10
+          locations' <- liftGenPA $ Gen.list (singleton (locationsLen - 1))
+                      $ Gen.int (linear minBound maxBound)
+          liftGenPA $ Gen.list (singleton locationsLen) $ Gen.element locations'
       }
     , PermutationEdge
       { name = "MakeSomeLocationIsOccupiedTwice"

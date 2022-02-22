@@ -18,6 +18,7 @@ data PlayerSequenceProperty =
   | Don'tTakeTurns
   | PlayerSequenceNull
   | PlayerSequenceSingleton
+  | PlayerSequenceIsLongerThanGame
   deriving stock (Eq,Ord,Enum,Show,Bounded)
 
 instance Enumerable PlayerSequenceProperty where
@@ -26,7 +27,7 @@ instance Enumerable PlayerSequenceProperty where
 instance LogicalModel PlayerSequenceProperty where
   logic = (ExactlyOne $ Var <$> [TakeTurns,Don'tTakeTurns])
        :&&: (Var PlayerSequenceNull :->: Var TakeTurns)
-       :&&: (AtMostOne [Var PlayerSequenceNull,Var PlayerSequenceSingleton])
+       :&&: (AtMostOne [Var PlayerSequenceNull,Var PlayerSequenceSingleton,Var PlayerSequenceIsLongerThanGame])
 
 
 playersTakeTurns :: [Int] -> Bool
@@ -45,16 +46,34 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
     not (satisfiesProperty TakeTurns m)
   satisfiesProperty PlayerSequenceNull m = length m == 0
   satisfiesProperty PlayerSequenceSingleton m = length m == 1
+  satisfiesProperty PlayerSequenceIsLongerThanGame m = length m > 9
 
 instance HasPermutationGenerator PlayerSequenceProperty [Int] where
   generators =
     [ PermutationEdge
-      { name = "MakeTakeTurns"
+      { name = "MakeTakeTurnsNotLongerThanGame"
       , match = Yes
-      , contract = removeAll [Don'tTakeTurns,PlayerSequenceSingleton,PlayerSequenceNull] >> add TakeTurns
+      , contract = removeAll [Don'tTakeTurns
+                             ,PlayerSequenceSingleton
+                             ,PlayerSequenceNull
+                             ,PlayerSequenceIsLongerThanGame
+                             ] >> add TakeTurns
       , permuteGen = do
           s <- source
-          let numMoves = max 2 (length s)
+          let numMoves = min 9 (max 2 (length s))
+          pattern <- liftGenPA $ Gen.element [[0,1],[1,0]]
+          pure $ take numMoves (cycle pattern)
+      }
+    , PermutationEdge
+      { name = "MakeTakeTurnsLongerThanGame"
+      , match = Yes
+      , contract = removeAll [Don'tTakeTurns
+                             ,PlayerSequenceSingleton
+                             ,PlayerSequenceNull]
+                   >> addAll [TakeTurns
+                             ,PlayerSequenceIsLongerThanGame]
+      , permuteGen = do
+          let numMoves = 10
           pattern <- liftGenPA $ Gen.element [[0,1],[1,0]]
           pure $ take numMoves (cycle pattern)
       }

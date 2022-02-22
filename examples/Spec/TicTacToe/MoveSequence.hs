@@ -33,6 +33,8 @@ instance LogicalModel MoveSequenceProperty where
                     :<->: Var (MoveSequencePlayer PlayerSequenceNull)
                  ,Var (MoveSequenceLocation LocationSequenceIsSingleton)
                     :<->: Var (MoveSequencePlayer PlayerSequenceSingleton)
+                 ,Var (MoveSequenceLocation LocationSequenceIsLongerThanGame)
+                    :<->: Var (MoveSequencePlayer PlayerSequenceIsLongerThanGame)
                  ])
 
 instance HasLogicalModel MoveSequenceProperty ([Int],[Int]) where
@@ -67,9 +69,9 @@ instance HasParameterisedGenerator MoveSequenceProperty ([Int],[Int]) where
 
 baseGen :: PGen ([Int],[Int])
 baseGen = do
-  l <- liftGenP $ Gen.int (linear 2 9)
-  l1 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound) 
-  l2 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound) 
+  l <- liftGenP $ Gen.int (linear 0 9)
+  l1 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
+  l2 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
   pure (l1,l2)
 
 moveSequencePermutationGenSelfTest :: TestTree
@@ -77,5 +79,4 @@ moveSequencePermutationGenSelfTest = testGroup "movePermutationGenSelfTest" $
   fromGroup <$> permutationGeneratorSelfTest False
              (\(_ :: PermutationEdge MoveSequenceProperty ([Int],[Int])) -> True)
              baseGen
-
 

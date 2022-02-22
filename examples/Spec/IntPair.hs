@@ -105,6 +105,7 @@ intPairGenPlutarchTests = testGroup "Plutarch.IntPair" $
 
 intPairGenSelfTests :: TestTree
 intPairGenSelfTests = testGroup "(Int,Int) HasPermutationGenerator permutationGeneratorSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge IntPairProp (Int,Int)) -> True) baseGen
+  fromGroup <$> permutationGeneratorSelfTest True
+               (\(_ :: PermutationEdge IntPairProp (Int,Int)) -> True) baseGen
 
 

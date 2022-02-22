@@ -83,6 +83,12 @@ test-suite examples
     Spec.Int
     Spec.IntPermutationGen
     Spec.IntPair
+    Spec.TicTacToe.Player
+    Spec.TicTacToe.PlayerSequence
+    Spec.TicTacToe.Location
+    Spec.TicTacToe.LocationSequence
+    Spec.TicTacToe.Move
+    Spec.TicTacToe.MoveSequence
   build-depends:
     base,
     apropos-tx,

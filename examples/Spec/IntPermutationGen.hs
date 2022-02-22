@@ -20,7 +20,6 @@ import Hedgehog.Range (linear)
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Control.Monad.Trans.Reader (ask)
 import Plutarch (compile)
 import Plutarch.Prelude
 
@@ -92,7 +91,7 @@ instance HasPermutationGenerator IntProp Int where
                             ,has IsPositive >> remove IsPositive >> add IsNegative
                             ]
       , permuteGen = do
-          i <- ask
+          i <- source
           pure (-i)
       }
     ]
@@ -104,8 +103,7 @@ baseGen :: PGen Int
 baseGen = liftGenP $ Gen.int (linear minBound maxBound)
 
 intPermutationGenTests :: TestTree
-intPermutationGenTests = testGroup "Spec.IntPermutationGen" $
-    fromGroup <$> [
+intPermutationGenTests = testGroup "Spec.IntPermutationGen" $ fromGroup <$> [
       runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
     ]
 
@@ -134,6 +132,7 @@ intPermutationGenPlutarchTests = testGroup "Plutarch.AcceptsSmallNegativeInts" $
 
 intPermutationGenSelfTests :: TestTree
 intPermutationGenSelfTests = testGroup "Int HasPermutationGenerator permutationGeneratorSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest (\(_ :: PermutationEdge IntProp Int) -> True) baseGen
+  fromGroup <$> permutationGeneratorSelfTest True
+                    (\(_ :: PermutationEdge IntProp Int) -> True) baseGen
 
 

@@ -2,8 +2,10 @@ module Brutus.HasPermutationGenerator (
   HasPermutationGenerator(..),
   PermutationEdge(..),
   liftEdges,
+  composeEdges,
   ) where
 import Debug.Trace
+import Brutus.Gen
 import Brutus.HasLogicalModel
 import Brutus.LogicalModel
 import Brutus.HasPermutationGenerator.Contract
@@ -26,14 +28,13 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Control.Monad (join)
-import Control.Monad.Trans.Reader (runReaderT)
 import Data.String (fromString)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [PermutationEdge p m]
 
-  permutationGeneratorSelfTest :: (PermutationEdge p m -> Bool) -> PropertyT IO m -> [Group]
-  permutationGeneratorSelfTest pefilter bgen =
+  permutationGeneratorSelfTest :: Bool -> (PermutationEdge p m -> Bool) -> PropertyT IO m -> [Group]
+  permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
     let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
         (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         mGen = buildGen bgen
@@ -46,7 +47,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                  )]]
           else if isco
                  then case findDupEdgeNames of
-                        [] -> testEdge ns pedges mGen <$> filter pefilter generators
+                        [] -> testEdge testForSuperfluousEdges ns pedges mGen
+                                 <$> filter pefilter generators
                         dups -> [Group "HasPermutationGenerator edge names must be unique." $
                                  [(fromString $ dup <> " not unique", property $ failure)
                                  | dup <- dups]
@@ -63,17 +65,20 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                $+$ hang "            and here:" 4 (ppDoc b)
       findDupEdgeNames = [ name g | g <- generators :: [PermutationEdge p m]
                                   , length (filter (==g) generators) > 1 ]
-      testEdge :: Map Int (Set p)
+      testEdge :: Bool
+               -> Map Int (Set p)
                -> Map (Int,Int) [PermutationEdge p m]
                -> (Set p -> PropertyT IO m)
                -> PermutationEdge p m
                -> Group
-      testEdge ns pem mGen pe =
-        Group (fromString (name pe)) $ (fromString "Is Required", runRequiredTest):
-          [ (edgeTestName f t, runEdgeTest f t)
+      testEdge testRequired ns pem mGen pe =
+        Group (fromString (name pe)) $ addRequiredTest testRequired
+          [ (edgeTestName f t, property $ runEdgeTest 100 f t)
           | (f,t) <- matchesEdges
           ]
         where
+          addRequiredTest False l = l
+          addRequiredTest True l = (fromString "Is Required", runRequiredTest):l
           matchesEdges = [ e | (e,v) <- Map.toList pem, pe `elem` v ]
           edgeTestName f t = fromString $ name pe <> " : " <> (show $ Set.toList (lut ns f)) <> " -> " <> (show $ Set.toList (lut ns t))
           isRequired =
@@ -85,19 +90,19 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                else failWithFootnote $ renderStyle ourStyle $
                       (fromString $ "PermutationEdge " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = property $ do
+          runEdgeTest limit f t = do
             om <- mGen (lut ns f)
-            nm <- runReaderT (permuteGen pe) om
-            let expected = lut ns t
-                observed = properties nm
-            if expected == observed
-              then pure ()
-              else failWithFootnote $ renderStyle ourStyle $
-                     "PermutationEdge fails its contract."
-                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-                       $+$ hang "Expected:" 4 (ppDoc expected)
-                       $+$ hang "Observed:" 4 (ppDoc observed)
-
+            nm <- runGenPA (permuteGen pe) om
+            case nm of
+              Nothing -> if (limit :: Int) == 0
+                            then error "retry limit reached"
+                            else runEdgeTest (limit - 1) f t
+              Just so -> do
+                let expected = lut ns t
+                    observed = properties so
+                if expected == observed
+                  then pure ()
+                  else edgeFailsContract pe om so expected observed
 
   buildGen :: PropertyT IO m -> Set p -> PropertyT IO m
   buildGen g = do
@@ -107,7 +112,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
-     in \targetProperties -> do
+        go limit targetProperties = do
           m <- g
           if length pedges == 0
              then failWithFootnote "no PermutationEdges defined"
@@ -120,7 +125,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                       "PermutationEdges do not form a strongly connected graph."
                       $+$ hang "No Edge Between here:" 4 (ppDoc a)
                       $+$ hang "            and here:" 4 (ppDoc b)
-          transformModel sn pedges edges distmap m targetProperties
+          nm <- transformModel sn pedges edges distmap m targetProperties
+          case nm of
+            Nothing -> if (limit :: Int) == 0
+                          then error "retry limit of 100 reached"
+                          else go (limit -1) targetProperties
+            Just so -> pure so
+       in go 100
 
   findNoPath :: Proxy m
              -> Map Int (Set p)
@@ -138,14 +149,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                  -> Map Int (Map Int Int)
                  -> m
                  -> Set p
-                 -> PropertyT IO m
+                 -> PropertyT IO (Maybe m)
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
   traversePath :: Map (Int,Int) [PermutationEdge p m]
-                 -> [(Int,Int)] -> m -> PropertyT IO m
-  traversePath _ [] m = pure m
+                 -> [(Int,Int)] -> m -> PropertyT IO (Maybe m)
+  traversePath _ [] m = pure $ Just m
   traversePath edges (h:r) m = do
     pe <- case Map.lookup h edges of
             Nothing -> failWithFootnote "this should never happen"
@@ -166,16 +177,15 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   $+$ hang "Edge:" 4 (ppDoc $ name tr)
                   $+$ hang "Input:" 4 (ppDoc inprops)
                   $+$ hang "Output:" 4 (ppDoc expected)
-        nm <- runReaderT (permuteGen tr) m
-        let observed = properties nm
-        if expected == observed
-          then pure ()
-          else failWithFootnote $ renderStyle ourStyle $
-                 "PermutationEdge fails its contract."
-                   $+$ hang "Edge:" 4 (ppDoc $ name tr)
-                   $+$ hang "Expected:" 4 (ppDoc expected)
-                   $+$ hang "Observed:" 4 (ppDoc observed)
-        traversePath edges r nm
+        nm <- runGenPA (permuteGen tr) m
+        case nm of
+          Nothing -> pure Nothing
+          Just so -> do
+            let observed = properties so
+            if expected == observed
+              then pure ()
+              else edgeFailsContract tr m so expected observed
+            traversePath edges r so
 
   findPathOptions ::  forall t . Monad t => (Proxy m)
                   -> [(Int,Int)]
@@ -307,4 +317,18 @@ distanceMap edges =
                     Nothing -> Map.insert node (Map.insert t d curdists) ma
                     Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
                     _ -> ma
+
+edgeFailsContract :: forall m p .
+                     HasLogicalModel p m
+                  => Show m
+                  => PermutationEdge p m -> m -> m -> Set p -> Set p -> PropertyT IO ()
+edgeFailsContract tr m nm expected observed =
+  failWithFootnote $ renderStyle ourStyle $
+    "PermutationEdge fails its contract."
+          $+$ hang "Edge:" 4 (ppDoc $ name tr)
+          $+$ hang "InputModel:" 4 (ppDoc (ppDoc m))
+          $+$ hang "InputProperties" 4 (ppDoc $ Set.toList (properties m :: Set p))
+          $+$ hang "OutputModel:" 4 (ppDoc (ppDoc nm))
+          $+$ hang "ExpectedProperties:" 4 (ppDoc (Set.toList expected))
+          $+$ hang "ObservedProperties:" 4 (ppDoc (Set.toList observed))
 

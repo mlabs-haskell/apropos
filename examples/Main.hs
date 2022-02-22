@@ -3,6 +3,12 @@ import Test.Tasty
 import Spec.Int
 import Spec.IntPermutationGen
 import Spec.IntPair
+import Spec.TicTacToe.Player
+import Spec.TicTacToe.PlayerSequence
+import Spec.TicTacToe.Location
+import Spec.TicTacToe.LocationSequence
+import Spec.TicTacToe.Move
+import Spec.TicTacToe.MoveSequence
 
 main :: IO ()
 main = defaultMain tests
@@ -27,5 +33,13 @@ tests =
         , intPairGenSelfTests
         , intPairGenPureTests
         , intPairGenPlutarchTests
+        ]
+    , testGroup "TicTacToe"
+        [ playerPermutationGenSelfTest
+        , locationPermutationGenSelfTest
+        , movePermutationGenSelfTest
+        , playerSequencePermutationGenSelfTest
+        , locationSequencePermutationGenSelfTest
+        , moveSequencePermutationGenSelfTest
         ]
     ]

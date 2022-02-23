@@ -49,10 +49,15 @@ instance LogicalModel MagicNumberProp where
   logic = (ExactlyOne $ Var <$> enumerated)
      :&&: (Some $ Var <$> enumerated)
 
+-- running the scripts in satisfiesProperty is possible
+-- we could also have used Script equality here
 instance HasLogicalModel MagicNumberProp Script where
   satisfiesProperty (HalfWidth hw) p = runMagicNumber p hw
   satisfiesProperty OutOfRange p = all not [ runMagicNumber p i | i <- [0..numMagicNumbers] ]
 
+-- Now we can generate scripts satsfying some property.
+-- It would be more interesting if these were composable terms
+-- then we could generate compositions of them in a parent model.
 instance HasParameterisedGenerator MagicNumberProp Script where
   parameterisedGenerator s =
     case Set.toList s of

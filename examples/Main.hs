@@ -11,6 +11,7 @@ import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.Move
 import Spec.TicTacToe.MoveSequence
 import Spec.Plutarch.MagicNumber
+import Spec.Plutarch.CostModel
 
 main :: IO ()
 main = defaultMain tests
@@ -47,5 +48,7 @@ tests =
         ]
     , testGroup "Script As Object"
         [ magicNumberPropGenTests
+        , addCostPropGenTests
+        , addCostModelPlutarchTests
         ]
     ]

@@ -92,6 +92,7 @@ test-suite examples
     Spec.TicTacToe.Move
     Spec.TicTacToe.MoveSequence
     Spec.Plutarch.MagicNumber
+    Spec.Plutarch.CostModel
   build-depends:
     base,
     apropos-tx,

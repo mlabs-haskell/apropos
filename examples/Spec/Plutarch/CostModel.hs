@@ -7,15 +7,10 @@ import Brutus.HasLogicalModel
 import Brutus.LogicalModel
 import Brutus.HasParameterisedGenerator
 import Brutus.Plutus.HasScriptRunner
---import Brutus.Gen
-
---import qualified Hedgehog.Gen as Gen
---import Hedgehog.Range (linear)
 
 import qualified Data.Set as Set
 
---import Plutus.V1.Ledger.Api (Data(..))
-import Plutus.V1.Ledger.Scripts (Script) --, applyArguments, evaluateScript)
+import Plutus.V1.Ledger.Scripts (Script)
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 
 import Plutarch (compile)
@@ -50,6 +45,7 @@ instance HasLogicalModel CostModelProp Integer where
   satisfiesProperty (ThisManyAdditions i) s = i == s
 
 -- there is no randomness here
+-- HasParameterisedEnumerator would make more sense for this.
 instance HasParameterisedGenerator CostModelProp Integer where
   parameterisedGenerator s =
     case Set.toList s of
@@ -67,6 +63,8 @@ addCostPropGenTests = testGroup "Spec.Plutarch.CostModel" $
 instance HasScriptRunner CostModelProp Integer where
   script _ i = addCost i
   expect _ _ = Yes :: Formula CostModelProp
+  -- This is the cool bit. We can model the cost exactly. Neato.
+  -- If we build a higherarchichal model we can compose these.
   modelMemoryBounds _ i = let cost = fromIntegral $ 200 + i*702
                             in (ExMemory cost,ExMemory cost)
   modelCPUBounds _ i = let cost = fromIntegral $ 29873 + i*405620

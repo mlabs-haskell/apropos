@@ -53,7 +53,7 @@ instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int],[Int]
                       (\p -> case p of
                                (PlayerLocationSequencePairPlayer q) -> Just q
                                _ -> Nothing)
-                      "PlayerLocationSequencePairPlayer"
+                      ""
                       generators
         r = liftEdges PlayerLocationSequencePairLocation
                       snd
@@ -61,7 +61,7 @@ instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int],[Int]
                       (\p -> case p of
                                (PlayerLocationSequencePairLocation q) -> Just q
                                _ -> Nothing)
-                      "PlayerLocationSequencePairLocation"
+                      ""
                       generators
      in [ composeEdges l' r' | l' <- l, r' <- r ]
 

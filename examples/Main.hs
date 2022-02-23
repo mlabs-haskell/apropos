@@ -44,7 +44,7 @@ tests =
         , playerSequencePermutationGenSelfTest
         , locationSequencePermutationGenSelfTest
         , playerLocationSequencePairPermutationGenSelfTest
-        , moveSequenceGenTests
+        , moveSequencePermutationGenSelfTest
         ]
     , testGroup "Script As Object"
         [ magicNumberPropGenTests

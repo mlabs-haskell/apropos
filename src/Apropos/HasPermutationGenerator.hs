@@ -12,7 +12,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.PermutationEdge
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)
+import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property,label)
 import qualified Hedgehog.Gen as Gen
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -31,6 +31,7 @@ import Control.Monad (join)
 import Data.String (fromString)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+
   generators :: [PermutationEdge p m]
 
   permutationGeneratorSelfTest :: Bool -> (PermutationEdge p m -> Bool) -> PropertyT IO m -> [Group]
@@ -167,6 +168,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   $+$ hang "Edge:" 4 (ppDoc $ name tr)
                   $+$ hang "Input:" 4 (ppDoc inprops)
                   $+$ hang "Output:" 4 (ppDoc expected)
+        label $ fromString $ name tr
         nm <- runGenPA (permuteGen tr) m
         let observed = properties nm
         if expected == observed

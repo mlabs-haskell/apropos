@@ -1,4 +1,4 @@
-module Brutus.Gen (
+module Apropos.Gen (
   PAGen,
   PGen,
   source,

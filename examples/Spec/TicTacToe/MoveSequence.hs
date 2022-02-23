@@ -6,9 +6,9 @@ module Spec.TicTacToe.MoveSequence (
 import Spec.TicTacToe.PlayerSequence
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerLocationSequencePair
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 import Control.Monad (join)

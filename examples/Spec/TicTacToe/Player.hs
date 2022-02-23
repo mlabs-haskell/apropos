@@ -2,12 +2,12 @@ module Spec.TicTacToe.Player (
   PlayerProperty(..),
   playerPermutationGenSelfTest,
   ) where
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
-import Brutus.HasPermutationGenerator
-import Brutus.HasPermutationGenerator.Contract
-import Brutus.Gen
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.HasPermutationGenerator
+import Apropos.HasPermutationGenerator.Contract
+import Apropos.Gen
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Test.Tasty (TestTree,testGroup)

@@ -1,7 +1,7 @@
-module Brutus.HasLogicalModel
+module Apropos.HasLogicalModel
   ( HasLogicalModel(..)
   ) where
-import Brutus.LogicalModel
+import Apropos.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
 

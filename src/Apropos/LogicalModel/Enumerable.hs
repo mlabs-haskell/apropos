@@ -1,4 +1,4 @@
-module Brutus.LogicalModel.Enumerable
+module Apropos.LogicalModel.Enumerable
   ( Enumerable(..),
   ) where
 

@@ -1,7 +1,7 @@
-module Brutus.Plutus.HasScriptRunner (HasScriptRunner(..)) where
-import Brutus.LogicalModel
-import Brutus.HasLogicalModel
-import Brutus.HasParameterisedGenerator
+module Apropos.Script (HasScriptRunner(..)) where
+import Apropos.LogicalModel
+import Apropos.HasLogicalModel
+import Apropos.HasParameterisedGenerator
 
 import Data.Set (Set)
 import qualified Data.Set as Set

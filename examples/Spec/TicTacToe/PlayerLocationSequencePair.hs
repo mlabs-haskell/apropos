@@ -6,11 +6,11 @@ module Spec.TicTacToe.PlayerLocationSequencePair (
   ) where
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
-import Brutus.HasPermutationGenerator
-import Brutus.Gen
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.HasPermutationGenerator
+import Apropos.Gen
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (singleton,linear)
 import Test.Tasty (TestTree,testGroup)

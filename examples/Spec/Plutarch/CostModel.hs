@@ -3,10 +3,10 @@ module Spec.Plutarch.CostModel (
   addCostPropGenTests,
   addCostModelPlutarchTests,
   ) where
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
-import Brutus.Plutus.HasScriptRunner
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.Script
 
 import qualified Data.Set as Set
 

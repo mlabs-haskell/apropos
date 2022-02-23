@@ -1,15 +1,15 @@
-module Brutus.HasPermutationGenerator (
+module Apropos.HasPermutationGenerator (
   HasPermutationGenerator(..),
   PermutationEdge(..),
   liftEdges,
   composeEdges,
   ) where
 import Debug.Trace
-import Brutus.Gen
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasPermutationGenerator.Contract
-import Brutus.HasPermutationGenerator.PermutationEdge
+import Apropos.Gen
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasPermutationGenerator.Contract
+import Apropos.HasPermutationGenerator.PermutationEdge
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property)

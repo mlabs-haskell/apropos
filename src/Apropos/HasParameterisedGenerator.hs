@@ -1,12 +1,12 @@
-module Brutus.HasParameterisedGenerator (
+module Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator(..),
   ) where
-import Brutus.Gen
+import Apropos.Gen
 import Hedgehog (Property,Group(..),property,(===),forAll)
 import qualified Hedgehog.Gen as Gen
 import Data.String (fromString)
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Proxy (Proxy)

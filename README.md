@@ -137,8 +137,8 @@ Since our generator is parameterised by a set of properties this allows us to te
 If we are using the PermutingGenerator to build our parameterised generator each edge must obey its contract. This provides additional testing of our assumptions about the model.
 
 ### How do we run a device test?
-module Brutus.Plutus.HasScriptRunner (HasScriptRunner(..)) where
-We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Brutus.Pure.HasRunner`. To test a Plutus script use `Brutus.Plutus.HasScriptRunner`.
+module Apropos.Script (HasScriptRunner(..)) where
+We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Apropos.Pure.HasRunner`. To test a Plutus script use `Apropos.Script`.
 
 ## Read the examples.
 For a minimal example see `examples/Spec/Int.hs`

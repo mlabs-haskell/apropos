@@ -7,13 +7,13 @@ module Spec.IntPair (
   intPairGenPlutarchTests,
   ) where
 import Spec.IntPermutationGen
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
-import Brutus.HasPermutationGenerator
-import Brutus.Gen
-import Brutus.Pure.HasRunner
-import Brutus.Plutus.HasScriptRunner
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.HasPermutationGenerator
+import Apropos.Gen
+import Apropos.Pure
+import Apropos.Script
 import Data.Proxy (Proxy(..))
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -75,7 +75,7 @@ intPairGenTests = testGroup "Spec.IntPermutationGen" $
       runGeneratorTestsWhere (Proxy :: Proxy (Int,Int)) "(Int,Int) Generator" (Yes :: Formula IntPairProp)
     ]
 
-instance HasRunner IntPairProp (Int,Int) where
+instance HasPureRunner IntPairProp (Int,Int) where
   expect _ = All $ Var <$> (join [L <$> [IsSmall,IsNegative]
                                  ,R <$> [IsSmall,IsPositive]
                                  ])

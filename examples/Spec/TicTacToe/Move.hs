@@ -6,11 +6,11 @@ module Spec.TicTacToe.Move (
   ) where
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.Location
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
-import Brutus.HasPermutationGenerator
-import Brutus.Gen
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.HasPermutationGenerator
+import Apropos.Gen
 import qualified Hedgehog.Gen as Gen
 import Hedgehog.Range (linear)
 import Test.Tasty (TestTree,testGroup)

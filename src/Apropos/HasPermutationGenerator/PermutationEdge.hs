@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
-module Brutus.HasPermutationGenerator.PermutationEdge (
+module Apropos.HasPermutationGenerator.PermutationEdge (
   PermutationEdge(..),
   liftEdges,
   composeEdges,
   ) where
-import Brutus.LogicalModel.Formula
-import Brutus.HasPermutationGenerator.Contract
-import Brutus.Gen
+import Apropos.LogicalModel.Formula
+import Apropos.HasPermutationGenerator.Contract
+import Apropos.Gen
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.Trans.Reader (ask)

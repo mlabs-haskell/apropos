@@ -59,19 +59,19 @@ common lang
 
 library
   import:          lang
-  exposed-modules: Brutus.LogicalModel
-                 , Brutus.LogicalModel.Formula
-                 , Brutus.LogicalModel.Enumerable
-                 , Brutus.LogicalModel.Enumerable.TH
-                 , Brutus.HasLogicalModel
-                 , Brutus.HasParameterisedGenerator
-                 , Brutus.HasPermutationGenerator
-                 , Brutus.HasPermutationGenerator.Contract
-                 , Brutus.HasPermutationGenerator.PermutationEdge
-                 , Brutus.Gen
-                 , Brutus.Pure.HasRunner
-                 , Brutus.Plutus.HasScriptRunner
-                 , Brutus.Plutus.HasTxRunner
+  exposed-modules: Apropos.LogicalModel
+                 , Apropos.LogicalModel.Formula
+                 , Apropos.LogicalModel.Enumerable
+                 , Apropos.LogicalModel.Enumerable.TH
+                 , Apropos.HasLogicalModel
+                 , Apropos.HasParameterisedGenerator
+                 , Apropos.HasPermutationGenerator
+                 , Apropos.HasPermutationGenerator.Contract
+                 , Apropos.HasPermutationGenerator.PermutationEdge
+                 , Apropos.Gen
+                 , Apropos.Pure
+                 , Apropos.Script
+                 , Apropos.Tx
   hs-source-dirs:  src
 
 test-suite examples

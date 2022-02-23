@@ -2,9 +2,9 @@
 module Spec.Plutarch.MagicNumber (
   magicNumberPropGenTests
   ) where
-import Brutus.HasLogicalModel
-import Brutus.LogicalModel
-import Brutus.HasParameterisedGenerator
+import Apropos.HasLogicalModel
+import Apropos.LogicalModel
+import Apropos.HasParameterisedGenerator
 
 import qualified Data.Set as Set
 

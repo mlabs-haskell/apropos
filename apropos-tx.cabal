@@ -41,22 +41,67 @@ common lang
                     , containers
                     , hedgehog
                     , minisat-solver
+                    , mtl
+                    , plutarch
+                    , plutus-core
+                    , plutus-ledger-api
                     , pretty
                     , pretty-show
-                    , plutus-core
-                    , plutus-tx
-                    , plutus-ledger
-                    , plutus-ledger-api
                     , safe
+                    , template-haskell
                     , text
+                    , transformers
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
     -Wmissing-deriving-strategies
+    -ddump-splices
 
 library
   import:          lang
-  exposed-modules: Test
-                 , Proper.Plutus
-                 , Proper.Minimal
+  exposed-modules: Apropos.LogicalModel
+                 , Apropos.LogicalModel.Formula
+                 , Apropos.LogicalModel.Enumerable
+                 , Apropos.LogicalModel.Enumerable.TH
+                 , Apropos.HasLogicalModel
+                 , Apropos.HasParameterisedGenerator
+                 , Apropos.HasPermutationGenerator
+                 , Apropos.HasPermutationGenerator.Contract
+                 , Apropos.HasPermutationGenerator.PermutationEdge
+                 , Apropos.Gen
+                 , Apropos.Pure
+                 , Apropos.Script
+                 , Apropos.Tx
   hs-source-dirs:  src
+
+test-suite examples
+  import: lang
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: examples
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  other-modules:
+    Spec.Int
+    Spec.IntPermutationGen
+    Spec.IntPair
+    Spec.TicTacToe.Player
+    Spec.TicTacToe.PlayerSequence
+    Spec.TicTacToe.Location
+    Spec.TicTacToe.LocationSequence
+    Spec.TicTacToe.PlayerLocationSequencePair
+    Spec.TicTacToe.Move
+    Spec.TicTacToe.MoveSequence
+    Spec.Plutarch.MagicNumber
+    Spec.Plutarch.CostModel
+  build-depends:
+    base,
+    apropos-tx,
+    plutarch,
+    tasty,
+    tasty-hedgehog,
+    hedgehog,
+    plutus-ledger-api,
+    plutus-core,
+    text,
+    containers,
+    mtl,

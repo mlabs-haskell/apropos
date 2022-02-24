@@ -55,7 +55,7 @@ instance (Ord v) => Ord (Formula v) where
   compare a b = compare (translateToSAT a) (translateToSAT b)
 
 instance (Show v) => Show (Formula v) where
-  showsPrec d a = showsPrec d (translateToSAT a)
+  show a = show (translateToSAT a)
 
 satisfiable :: Ord v => Formula v -> Bool
 satisfiable = S.satisfiable . translateToSAT

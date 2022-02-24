@@ -4,6 +4,7 @@ module Apropos.HasPermutationGenerator.Contract
     readContractInput,
     readContractEdgeName,
     readContractOutput,
+    setContractOutput,
     branches,
     branchIf,
     has,

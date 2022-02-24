@@ -12,21 +12,25 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasParameterisedGenerator
 import Apropos.Gen
+--import qualified Hedgehog.Gen as Gen
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Control.Monad (join)
+--import Control.Monad (join)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.Trans.Reader (ask)
-import Control.Monad.Trans (lift)
+--import Control.Monad.Trans (lift)
 
 data MoveSequenceProperty =
     MoveSequenceValid
   | MoveSequenceContainsWinForX
   | MoveSequenceContainsWinForO
+  | MoveSequenceLength Int
   deriving stock (Eq,Ord,Show)
 
-$(gen_enumerable ''MoveSequenceProperty)
+instance Enumerable MoveSequenceProperty where
+  enumerated = [MoveSequenceValid,MoveSequenceContainsWinForX,MoveSequenceContainsWinForO]
+            <> [MoveSequenceLength l | l <- [0..10]]
 
 isWinFor :: Int -> [(Int,Int)] -> Bool
 isWinFor p ms =
@@ -40,8 +44,23 @@ winTileSets = Set.fromList <$> [[0,1,2],[3,4,5],[6,7,8]
                                ]
 
 instance LogicalModel MoveSequenceProperty where
-  logic = Var MoveSequenceValid :->: (AtMostOne $ Var <$> [MoveSequenceContainsWinForX
-                                                          ,MoveSequenceContainsWinForO])
+  logic = All
+    [ Var MoveSequenceValid :->: (AtMostOne $ Var <$> [MoveSequenceContainsWinForX
+                                                      ,MoveSequenceContainsWinForO])
+    , Some (Var <$> [MoveSequenceLength l | l <- [0..4]])
+         :->: Not (Var MoveSequenceContainsWinForX :||: Var MoveSequenceContainsWinForO)
+    , ExactlyOne (Var <$> [MoveSequenceLength l | l <- [0..10]])
+    , Var (MoveSequenceLength 10) :->: (All $ Not <$> [Var MoveSequenceValid
+                                                      ,Var MoveSequenceContainsWinForX
+                                                      ,Var MoveSequenceContainsWinForO
+                                                      ])
+    , Var (MoveSequenceLength 0) :->: Var MoveSequenceValid
+    ]
+
+playPiece :: Contract MoveSequenceProperty ()
+playPiece = (Set.map incrementLength <$> readContractOutput) >>= setContractOutput
+  where incrementLength (MoveSequenceLength i) = MoveSequenceLength (i + 1)
+        incrementLength p = p
 
 playerSequenceIsValid :: Formula PlayerSequenceProperty
 playerSequenceIsValid = Var TakeTurns :&&: (Not $ Var PlayerSequenceIsLongerThanGame)
@@ -57,60 +76,71 @@ instance HasLogicalModel MoveSequenceProperty [(Int,Int)] where
     (not (isWinFor 1 ms && isWinFor 0 ms))
       && satisfiesExpression playerSequenceIsValid (fst <$> ms)
       && satisfiesExpression locationSequenceIsValid (snd <$> ms)
+  satisfiesProperty (MoveSequenceLength l) ms = length ms == l
 
 baseGen :: PGen [(Int,Int)]
 baseGen = do
   pl <- genSatisfying (Var PlayerLocationSequencePairLengthsAreEqual)
   pure $ (uncurry zip) pl
 
---
---
---        > [MoveSequenceContainsWinForO]
---       /
---      /
--- * []
---     \
---      \
---       > [MoveSequenceContainsWinForX]
---
---
---
---                        > [MoveSequenceValid
---                       /  ,MoveSequenceContainsWinForO]
---                      /                                \
--- * [MoveSequenceValid]                                  \-- > [MoveSequenceValid
---                      \                                 /   ,MoveSequenceContainsWinForO]
---                       \                               /
---                        > [MoveSequenceValid          /
---                          ,MoveSequenceContainsWinForX 
---
-
 instance HasPermutationGenerator MoveSequenceProperty [(Int,Int)] where
   generators =
     [ PermutationEdge
-      { name = "InvalidateNoWin"
+      { name = "Empty"
       , match = Yes
-      , contract = clear
-      , permuteGen = do
-        filterPA (\s -> not (isWinFor 0 s || isWinFor 1 s))
-                    $ lift
-                    $ (uncurry zip) <$>
-                          (genSatisfying (AtMostOne [
-                             PlayerLocationSequencePairPlayer <$> playerSequenceIsValid
-                           , PlayerLocationSequencePairLocation <$> locationSequenceIsValid
-                           ]))
+      , contract = clear >> addAll [ MoveSequenceValid, MoveSequenceLength 0]
+      , permuteGen = pure []
       }
     , PermutationEdge
-      { name = "InvalidateMakeWinForO"
-      , match = None (Var <$> enumerated)
-      , contract = add MoveSequenceContainsWinForO
+      { name = "PlaceInvalidLocation"
+      , match = Yes
+      , contract = playPiece >> remove MoveSequenceValid
       , permuteGen = do
           moves <- ask
-          pure moves
---          if length moves < 3
---             lseq <- filterPA ((>1) . length) $ lift $ genSatisfying (not playerSequenceIsValid)
-
-     }
+          --TODO randomly generate random location
+          --TODO use valid player
+          pure $ (0,-100):moves
+      }
+    , PermutationEdge
+      { name = "PlaceInvalidPlayer"
+      , match = Yes
+      , contract = playPiece >> remove MoveSequenceValid
+      , permuteGen = do
+          moves <- ask
+          --TODO find valid location
+          --TODO generate invalid player
+          pure $ (0,-100):moves
+      }
+    , PermutationEdge
+      { name = "PlaceValidNoWin"
+      , match = Yes
+      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece
+      , permuteGen = do
+          moves <- ask
+          --TODO find valid location
+          --TODO use valid player
+          pure $ (0,0):moves
+      }
+    , PermutationEdge
+      { name = "PlaceWinPlayerO"
+      , match = None $ Var <$> [MoveSequenceLength l | l <- [0..3]]
+      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece >> add MoveSequenceContainsWinForO
+      , permuteGen = do
+          moves <- ask
+          --TODO find valid location
+          --TODO use valid player
+          pure $ (0,0):moves
+      }
+    , PermutationEdge
+      { name = "PlaceWinPlayerX"
+      , match = None $ Var <$> [MoveSequenceLength l | l <- [0..3]]
+      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece >> add MoveSequenceContainsWinForX
+      , permuteGen = do
+          moves <- ask
+          --TODO find valid location
+          --TODO use valid player
+          pure $ (0,0):moves
+      }
     ]
 
 instance HasParameterisedGenerator MoveSequenceProperty [(Int,Int)] where

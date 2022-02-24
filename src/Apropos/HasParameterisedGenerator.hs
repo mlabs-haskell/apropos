@@ -2,7 +2,7 @@ module Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator(..),
   ) where
 import Apropos.Gen
-import Hedgehog (Property,Group(..),property,(===),forAll)
+import Hedgehog (Property,Group(..),label,property,(===),forAll)
 import qualified Hedgehog.Gen as Gen
 import Data.String (fromString)
 import Apropos.HasLogicalModel
@@ -16,6 +16,7 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   --TODO caching calls to the solver in genSatisfying would probably be worth it
   genSatisfying :: Formula p -> PGen m
   genSatisfying f = do
+    label $ fromString $ show f
     s <- forAll $ Gen.element (enumerateScenariosWhere f)
     parameterisedGenerator s
   runGeneratorTest :: Proxy m -> Set p -> Property

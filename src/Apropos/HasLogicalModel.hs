@@ -1,6 +1,7 @@
-module Apropos.HasLogicalModel
-  ( HasLogicalModel(..)
-  ) where
+module Apropos.HasLogicalModel (
+  HasLogicalModel (..),
+) where
+
 import Apropos.LogicalModel
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -15,5 +16,3 @@ class (LogicalModel p) => HasLogicalModel p m where
   satisfiesExpression f m = satisfiesFormula f (properties m)
   properties :: m -> Set p
   properties x = Set.fromList $ filter ((flip satisfiesProperty) x) enumerated
-
-

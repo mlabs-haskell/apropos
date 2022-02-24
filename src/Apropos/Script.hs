@@ -1,22 +1,24 @@
-module Apropos.Script (HasScriptRunner(..)) where
-import Apropos.LogicalModel
+module Apropos.Script (HasScriptRunner (..)) where
+
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
+import Apropos.LogicalModel
 
+import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.String (fromString)
 import Data.Text (Text)
 import Hedgehog (
-  Property,
+  Group (..),
   MonadTest,
-  Group(..),
+  Property,
   failure,
   footnote,
   footnoteShow,
-  success,
   property,
+  success,
  )
-import Data.String (fromString)
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 import Plutus.V1.Ledger.Scripts (Script, ScriptError (..), evaluateScript)
 import PlutusCore.Evaluation.Machine.ExBudget (ExBudget (..))
@@ -50,11 +52,10 @@ import Prelude (
   (&&),
   (.),
   (<=),
-  (>=),
   (<>),
+  (>=),
   (>>),
  )
-import Data.Proxy (Proxy(..))
 
 class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p m where
   script :: Proxy p -> m -> Script
@@ -105,8 +106,9 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
         if inInterval cpu (modelCPUBounds pprox model) && inInterval mem (modelMemoryBounds pprox model)
           then success
           else failWithFootnote $ budgetCheckFailure cost
-            where inInterval :: Ord a => a -> (a,a) -> Bool
-                  inInterval a (l,u) = a >= l && a <= u
+        where
+          inInterval :: Ord a => a -> (a, a) -> Bool
+          inInterval a (l, u) = a >= l && a <= u
       budgetCheckFailure :: ExBudget -> String
       budgetCheckFailure cost =
         renderStyle ourStyle $
@@ -137,7 +139,6 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       dumpLogs logs = vcat . fmap go . zip [1 ..] $ logs
       go :: (Int, Text) -> Doc
       go (ix, line) = (int ix <> colon) <+> (text . show $ line)
-
 
 failWithFootnote :: MonadTest m => String -> m a
 failWithFootnote s = footnote s >> failure

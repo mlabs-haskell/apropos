@@ -1,10 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
+
 module Spec.Plutarch.MagicNumber (
-  magicNumberPropGenTests
-  ) where
+  magicNumberPropGenTests,
+) where
+
 import Apropos.HasLogicalModel
-import Apropos.LogicalModel
 import Apropos.HasParameterisedGenerator
+import Apropos.LogicalModel
 
 import qualified Data.Set as Set
 
@@ -13,9 +15,8 @@ import Plutus.V1.Ledger.Scripts (Script)
 import Plutarch (compile)
 import Plutarch.Prelude
 
-
-import Data.Proxy (Proxy(..))
-import Test.Tasty (TestTree,testGroup)
+import Data.Proxy (Proxy (..))
+import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 -- README : This is an interesting thing - this is not investment advice.
@@ -30,13 +31,13 @@ numMagicNumbers = 4
 
 -- accepts a range of numbers determined by a Magic Number
 magicNumber :: Integer -> Script
-magicNumber i = compile $ plam $ \ii -> (pif (((pfromData ii) #<= ((fromInteger i) :: Term s PInteger)) #&& (((fromInteger (-i)) :: Term s PInteger) #<= (pfromData ii))) (pcon PUnit) perror)
+magicNumber i = compile $ plam $ \ii -> (pif (((pfromData ii) #<= ((fromInteger i) :: Term s PInteger)) #&& (((fromInteger (- i)) :: Term s PInteger) #<= (pfromData ii))) (pcon PUnit) perror)
 
 data MagicNumberProp = HalfWidth Integer
-  deriving stock (Eq,Ord,Show)
+  deriving stock (Eq, Ord, Show)
 
 instance Enumerable MagicNumberProp where
-  enumerated = [ HalfWidth hw | hw <- [0..numMagicNumbers] ]
+  enumerated = [HalfWidth hw | hw <- [0 .. numMagicNumbers]]
 
 instance LogicalModel MagicNumberProp where
   logic = (ExactlyOne $ Var <$> enumerated)
@@ -56,10 +57,11 @@ instance HasParameterisedGenerator MagicNumberProp Script where
       _ -> error "the impossible happened"
 
 magicNumberPropGenTests :: TestTree
-magicNumberPropGenTests = testGroup "Spec.Plutarch.MagicNumber" $
-    fromGroup <$> [
-      runGeneratorTestsWhere (Proxy :: Proxy Script)
-                             "Magic Number Script Generator"
-                             (Yes :: Formula MagicNumberProp)
-    ]
-
+magicNumberPropGenTests =
+  testGroup "Spec.Plutarch.MagicNumber" $
+    fromGroup
+      <$> [ runGeneratorTestsWhere
+              (Proxy :: Proxy Script)
+              "Magic Number Script Generator"
+              (Yes :: Formula MagicNumberProp)
+          ]

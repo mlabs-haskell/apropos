@@ -1,34 +1,35 @@
 module Spec.TicTacToe.PlayerSequence (
-  PlayerSequenceProperty(..),
+  PlayerSequenceProperty (..),
   playerSequencePermutationGenSelfTest,
-  ) where
+) where
+
+import Apropos.Gen
 import Apropos.HasLogicalModel
-import Apropos.LogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.Gen
+import Apropos.LogicalModel
 import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear,singleton)
-import Test.Tasty (TestTree,testGroup)
+import Hedgehog.Range (linear, singleton)
+import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
-data PlayerSequenceProperty =
-    TakeTurns
+data PlayerSequenceProperty
+  = TakeTurns
   | Don'tTakeTurns
   | PlayerSequenceNull
   | PlayerSequenceSingleton
   | PlayerSequenceIsLongerThanGame
-  deriving stock (Eq,Ord,Enum,Show,Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded)
 
 instance Enumerable PlayerSequenceProperty where
-  enumerated = [minBound..maxBound]
+  enumerated = [minBound .. maxBound]
 
 instance LogicalModel PlayerSequenceProperty where
-  logic = (ExactlyOne $ Var <$> [TakeTurns,Don'tTakeTurns])
-       :&&: (Var PlayerSequenceNull :->: Var TakeTurns)
-       :&&: (AtMostOne [Var PlayerSequenceNull,Var PlayerSequenceSingleton,Var PlayerSequenceIsLongerThanGame])
-
+  logic =
+    (ExactlyOne $ Var <$> [TakeTurns, Don'tTakeTurns])
+      :&&: (Var PlayerSequenceNull :->: Var TakeTurns)
+      :&&: (AtMostOne [Var PlayerSequenceNull, Var PlayerSequenceSingleton, Var PlayerSequenceIsLongerThanGame])
 
 playersTakeTurns :: [Int] -> Bool
 playersTakeTurns playerSeq =
@@ -36,9 +37,9 @@ playersTakeTurns playerSeq =
       turn 0 1 = True
       turn _ _ = False
       go [] = True
-      go [p] = p `elem` [0,1]
-      go (m0:m1:mrest) = turn m0 m1 && go (m1:mrest)
-    in go playerSeq
+      go [p] = p `elem` [0, 1]
+      go (m0 : m1 : mrest) = turn m0 m1 && go (m1 : mrest)
+   in go playerSeq
 
 instance HasLogicalModel PlayerSequenceProperty [Int] where
   satisfiesProperty TakeTurns m = playersTakeTurns m
@@ -51,77 +52,90 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
 instance HasPermutationGenerator PlayerSequenceProperty [Int] where
   generators =
     [ PermutationEdge
-      { name = "MakeTakeTurnsNotLongerThanGame"
-      , match = Yes
-      , contract = removeAll [Don'tTakeTurns
-                             ,PlayerSequenceSingleton
-                             ,PlayerSequenceNull
-                             ,PlayerSequenceIsLongerThanGame
-                             ] >> add TakeTurns
-      , permuteGen = do
-          s <- source
-          let numMoves = min 9 (max 2 (length s))
-          pattern <- liftGenPA $ Gen.element [[0,1],[1,0]]
-          pure $ take numMoves (cycle pattern)
-      }
+        { name = "MakeTakeTurnsNotLongerThanGame"
+        , match = Yes
+        , contract =
+            removeAll
+              [ Don'tTakeTurns
+              , PlayerSequenceSingleton
+              , PlayerSequenceNull
+              , PlayerSequenceIsLongerThanGame
+              ]
+              >> add TakeTurns
+        , permuteGen = do
+            s <- source
+            let numMoves = min 9 (max 2 (length s))
+            pattern <- liftGenPA $ Gen.element [[0, 1], [1, 0]]
+            pure $ take numMoves (cycle pattern)
+        }
     , PermutationEdge
-      { name = "MakeTakeTurnsLongerThanGame"
-      , match = Yes
-      , contract = removeAll [Don'tTakeTurns
-                             ,PlayerSequenceSingleton
-                             ,PlayerSequenceNull]
-                   >> addAll [TakeTurns
-                             ,PlayerSequenceIsLongerThanGame]
-      , permuteGen = do
-          let numMoves = 10
-          pattern <- liftGenPA $ Gen.element [[0,1],[1,0]]
-          pure $ take numMoves (cycle pattern)
-      }
+        { name = "MakeTakeTurnsLongerThanGame"
+        , match = Yes
+        , contract =
+            removeAll
+              [ Don'tTakeTurns
+              , PlayerSequenceSingleton
+              , PlayerSequenceNull
+              ]
+              >> addAll
+                [ TakeTurns
+                , PlayerSequenceIsLongerThanGame
+                ]
+        , permuteGen = do
+            let numMoves = 10
+            pattern <- liftGenPA $ Gen.element [[0, 1], [1, 0]]
+            pure $ take numMoves (cycle pattern)
+        }
     , PermutationEdge
-      { name = "MakePlayerSequenceNull"
-      , match = Yes
-      , contract = removeAll [Don'tTakeTurns,PlayerSequenceSingleton]
-                 >> addAll [TakeTurns,PlayerSequenceNull]
-      , permuteGen = pure []
-      }
+        { name = "MakePlayerSequenceNull"
+        , match = Yes
+        , contract =
+            removeAll [Don'tTakeTurns, PlayerSequenceSingleton]
+              >> addAll [TakeTurns, PlayerSequenceNull]
+        , permuteGen = pure []
+        }
     , PermutationEdge
-      { name = "MakePlayerSingletonDon'tTakeTurns"
-      , match = Yes
-      , contract = removeAll [TakeTurns,PlayerSequenceNull]
-             >> addAll [Don'tTakeTurns,PlayerSequenceSingleton]
-      , permuteGen = do
-          liftGenPA $ Gen.list (singleton 1)
-                    $ Gen.choice [Gen.int (linear minBound (-1))
-                                 ,Gen.int (linear 2 maxBound)
-                                 ]
-      }
+        { name = "MakePlayerSingletonDon'tTakeTurns"
+        , match = Yes
+        , contract =
+            removeAll [TakeTurns, PlayerSequenceNull]
+              >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
+        , permuteGen = do
+            liftGenPA $
+              Gen.list (singleton 1) $
+                Gen.choice
+                  [ Gen.int (linear minBound (-1))
+                  , Gen.int (linear 2 maxBound)
+                  ]
+        }
     , PermutationEdge
-      { name = "MakePlayerSingletonTakeTurns"
-      , match = Yes
-      , contract = removeAll [Don'tTakeTurns,PlayerSequenceNull]
-               >> addAll [TakeTurns,PlayerSequenceSingleton]
-      , permuteGen = do
-          liftGenPA $ Gen.list (singleton 1) $ Gen.int (linear 0 1)
-      }
+        { name = "MakePlayerSingletonTakeTurns"
+        , match = Yes
+        , contract =
+            removeAll [Don'tTakeTurns, PlayerSequenceNull]
+              >> addAll [TakeTurns, PlayerSequenceSingleton]
+        , permuteGen = do
+            liftGenPA $ Gen.list (singleton 1) $ Gen.int (linear 0 1)
+        }
     , PermutationEdge
-      { name = "MakeDon'tTakeTurns"
-      , match = Yes
-      , contract = add Don'tTakeTurns
-            >> removeAll [TakeTurns,PlayerSequenceSingleton,PlayerSequenceNull]
-      , permuteGen = do
-          s <- source
-          let numMoves = max 2 (length s)
-          let genFoulPlay = do
-                Gen.filter (satisfiesProperty Don'tTakeTurns)
-                         $ Gen.list (singleton numMoves)
-                         $ Gen.int (linear 0 1)
-              genInvalid = do
-                Gen.filter (satisfiesProperty Don'tTakeTurns)
-                         $ Gen.list (singleton numMoves)
-                         $ Gen.int (linear minBound maxBound)
-          liftGenPA $ Gen.choice [genFoulPlay,genInvalid]
-
-      }
+        { name = "MakeDon'tTakeTurns"
+        , match = Yes
+        , contract =
+            add Don'tTakeTurns
+              >> removeAll [TakeTurns, PlayerSequenceSingleton, PlayerSequenceNull]
+        , permuteGen = do
+            s <- source
+            let numMoves = max 2 (length s)
+            let genFoulPlay = do
+                  Gen.filter (satisfiesProperty Don'tTakeTurns) $
+                    Gen.list (singleton numMoves) $
+                      Gen.int (linear 0 1)
+                genInvalid = do
+                  Gen.filter (satisfiesProperty Don'tTakeTurns) $
+                    Gen.list (singleton numMoves) $
+                      Gen.int (linear minBound maxBound)
+            liftGenPA $ Gen.choice [genFoulPlay, genInvalid]
+        }
     ]
 
 instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
@@ -131,9 +145,10 @@ baseGen :: PGen [Int]
 baseGen = liftGenP $ Gen.list (linear 0 10) $ Gen.int (linear minBound maxBound)
 
 playerSequencePermutationGenSelfTest :: TestTree
-playerSequencePermutationGenSelfTest = testGroup "movePermutationGenSelfTest" $
-  fromGroup <$> permutationGeneratorSelfTest True
-             (\(_ :: PermutationEdge PlayerSequenceProperty [Int]) -> True)
-             baseGen
-
-
+playerSequencePermutationGenSelfTest =
+  testGroup "playerSequencePermutationGenSelfTest" $
+    fromGroup
+      <$> permutationGeneratorSelfTest
+        True
+        (\(_ :: PermutationEdge PlayerSequenceProperty [Int]) -> True)
+        baseGen

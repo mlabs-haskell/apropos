@@ -4,7 +4,6 @@ module Apropos.HasPermutationGenerator (
   liftEdges,
   composeEdges,
   ) where
-import Debug.Trace
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
@@ -40,7 +39,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
         mGen = buildGen bgen
         graph = buildGraph pedges
-        isco = trace ("enumerated:::" <> show (length (Map.keys ns))) $ isStronglyConnected graph
+        isco = isStronglyConnected graph
      in if length (Map.keys pedges) == 0
           then [Group "No permutation edges defined."
                 [(fromString "no edges defined"
@@ -222,7 +221,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               -> Proxy p
               -> (Map (Set p) Int, Map Int (Set p))
   numberNodes _ (Proxy :: Proxy p) =
-    let scenarios = enumerateScenariosWhere (trace "enumerating" (logic :: Formula p))
+    let scenarios = enumerateScenariosWhere (logic :: Formula p)
         scennums = Map.fromList $ zip scenarios [0..]
         numsscen = Map.fromList $ zip [0..] scenarios
     in (scennums,numsscen)

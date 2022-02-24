@@ -3,39 +3,41 @@
 module Spec.TicTacToe.MoveSequence (
   moveSequencePermutationGenSelfTest
   ) where
-import Spec.TicTacToe.PlayerSequence
 import Spec.TicTacToe.LocationSequence
-import Spec.TicTacToe.PlayerLocationSequencePair
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasParameterisedGenerator
 import Apropos.Gen
---import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Gen as Gen
 import Test.Tasty (TestTree,testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
---import Control.Monad (join)
+import Control.Monad (join)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Control.Monad.Trans.Reader (ask)
---import Control.Monad.Trans (lift)
+import Control.Monad.Trans (lift)
+import Data.List (transpose)
 
 data MoveSequenceProperty =
     MoveSequenceValid
-  | MoveSequenceContainsWinForX
-  | MoveSequenceContainsWinForO
-  | MoveSequenceLength Int
+  | MoveSequenceContainsWin
   deriving stock (Eq,Ord,Show)
 
-instance Enumerable MoveSequenceProperty where
-  enumerated = [MoveSequenceValid,MoveSequenceContainsWinForX,MoveSequenceContainsWinForO]
-            <> [MoveSequenceLength l | l <- [0..10]]
+$(gen_enumerable ''MoveSequenceProperty)
 
-isWinFor :: Int -> [(Int,Int)] -> Bool
-isWinFor p ms =
-  let locations = Set.fromList (snd <$> (filter ((==p) . fst) ms))
-   in any (`Set.isSubsetOf` locations) winTileSets
+splitPlayers :: [Int] -> ([Int],[Int])
+splitPlayers locationSeq = go locationSeq ([],[])
+  where
+    go [] p = p
+    go [s] (a,b) = (s:a,b)
+    go (h:i:j) (a,b) = go j (h:a,i:b)
+
+containsWin :: [Int] -> Bool
+containsWin locationSeq =
+  let (x,o) = splitPlayers locationSeq
+    in any (all (`elem` x)) winTileSets || any (all (`elem` o)) winTileSets
 
 winTileSets :: [Set Int]
 winTileSets = Set.fromList <$> [[0,1,2],[3,4,5],[6,7,8]
@@ -44,112 +46,74 @@ winTileSets = Set.fromList <$> [[0,1,2],[3,4,5],[6,7,8]
                                ]
 
 instance LogicalModel MoveSequenceProperty where
-  logic = All
-    [ Var MoveSequenceValid :->: (AtMostOne $ Var <$> [MoveSequenceContainsWinForX
-                                                      ,MoveSequenceContainsWinForO])
-    , Some (Var <$> [MoveSequenceLength l | l <- [0..4]])
-         :->: Not (Var MoveSequenceContainsWinForX :||: Var MoveSequenceContainsWinForO)
-    , ExactlyOne (Var <$> [MoveSequenceLength l | l <- [0..10]])
-    , Var (MoveSequenceLength 10) :->: (All $ Not <$> [Var MoveSequenceValid
-                                                      ,Var MoveSequenceContainsWinForX
-                                                      ,Var MoveSequenceContainsWinForO
-                                                      ])
-    , Var (MoveSequenceLength 0) :->: Var MoveSequenceValid
-    ]
-
-playPiece :: Contract MoveSequenceProperty ()
-playPiece = (Set.map incrementLength <$> readContractOutput) >>= setContractOutput
-  where incrementLength (MoveSequenceLength i) = MoveSequenceLength (i + 1)
-        incrementLength p = p
-
-playerSequenceIsValid :: Formula PlayerSequenceProperty
-playerSequenceIsValid = Var TakeTurns :&&: (Not $ Var PlayerSequenceIsLongerThanGame)
+  logic = Yes
 
 locationSequenceIsValid :: Formula LocationSequenceProperty
 locationSequenceIsValid = Var AllLocationsAreInBounds
                      :&&: (Not $ Var SomeLocationIsOccupiedTwice)
 
-instance HasLogicalModel MoveSequenceProperty [(Int,Int)] where
-  satisfiesProperty MoveSequenceContainsWinForX ms = isWinFor 1 ms
-  satisfiesProperty MoveSequenceContainsWinForO ms = isWinFor 0 ms
-  satisfiesProperty MoveSequenceValid ms =
-    (not (isWinFor 1 ms && isWinFor 0 ms))
-      && satisfiesExpression playerSequenceIsValid (fst <$> ms)
-      && satisfiesExpression locationSequenceIsValid (snd <$> ms)
-  satisfiesProperty (MoveSequenceLength l) ms = length ms == l
+instance HasLogicalModel MoveSequenceProperty [Int] where
+  satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
+  satisfiesProperty MoveSequenceContainsWin ms = containsWin ms
 
-baseGen :: PGen [(Int,Int)]
-baseGen = do
-  pl <- genSatisfying (Var PlayerLocationSequencePairLengthsAreEqual)
-  pure $ (uncurry zip) pl
+baseGen :: PGen [Int]
+baseGen = genSatisfying (Yes :: Formula LocationSequenceProperty)
 
-instance HasPermutationGenerator MoveSequenceProperty [(Int,Int)] where
+instance HasPermutationGenerator MoveSequenceProperty [Int] where
   generators =
     [ PermutationEdge
-      { name = "Empty"
+      { name = "InvalidNoWin"
       , match = Yes
-      , contract = clear >> addAll [ MoveSequenceValid, MoveSequenceLength 0]
-      , permuteGen = pure []
+      , contract = clear
+      , permuteGen = filterPA (not . containsWin) $ lift $ genSatisfying $ Not locationSequenceIsValid
       }
     , PermutationEdge
-      { name = "PlaceInvalidLocation"
+      { name = "ValidNoWin"
       , match = Yes
-      , contract = playPiece >> remove MoveSequenceValid
-      , permuteGen = do
-          moves <- ask
-          --TODO randomly generate random location
-          --TODO use valid player
-          pure $ (0,-100):moves
+      , contract = clear >> add MoveSequenceValid
+      , permuteGen = filterPA (not . containsWin) $ lift $ genSatisfying locationSequenceIsValid
       }
     , PermutationEdge
-      { name = "PlaceInvalidPlayer"
-      , match = Yes
-      , contract = playPiece >> remove MoveSequenceValid
+      { name = "InvalidWin"
+      , match = Not $ Var MoveSequenceValid
+      , contract = add MoveSequenceContainsWin
       , permuteGen = do
           moves <- ask
-          --TODO find valid location
-          --TODO generate invalid player
-          pure $ (0,-100):moves
+          winlocs <- Set.toList <$> (liftGenPA $ Gen.element winTileSets)
+          whofirst <- liftGenPA $ Gen.element [[moves,winlocs],[winlocs,moves]]
+          let win = join $ transpose whofirst
+          if containsWin win && satisfiesExpression (Not locationSequenceIsValid) win
+             then pure win
+             -- in general rejection sampling is to be avoided but if you feel like you need it
+             -- this will "retry" the permutationGenerator from the top
+             -- there is no path length limit at the moment so something like this might never terminate
+             else lift $ genSatisfying ((Not $ Var MoveSequenceValid) :&&: Var MoveSequenceContainsWin)
       }
     , PermutationEdge
-      { name = "PlaceValidNoWin"
-      , match = Yes
-      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece
+      { name = "ValidWin"
+      , match = Var MoveSequenceValid
+      , contract = add MoveSequenceContainsWin
       , permuteGen = do
           moves <- ask
-          --TODO find valid location
-          --TODO use valid player
-          pure $ (0,0):moves
-      }
-    , PermutationEdge
-      { name = "PlaceWinPlayerO"
-      , match = None $ Var <$> [MoveSequenceLength l | l <- [0..3]]
-      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece >> add MoveSequenceContainsWinForO
-      , permuteGen = do
-          moves <- ask
-          --TODO find valid location
-          --TODO use valid player
-          pure $ (0,0):moves
-      }
-    , PermutationEdge
-      { name = "PlaceWinPlayerX"
-      , match = None $ Var <$> [MoveSequenceLength l | l <- [0..3]]
-      , contract = removeIf (MoveSequenceLength 9) MoveSequenceValid >> playPiece >> add MoveSequenceContainsWinForX
-      , permuteGen = do
-          moves <- ask
-          --TODO find valid location
-          --TODO use valid player
-          pure $ (0,0):moves
+          winlocs <- Set.toList <$> (liftGenPA $ Gen.element winTileSets)
+          whofirst <- liftGenPA $ Gen.element [[moves,winlocs],[winlocs,moves]]
+          let win = join $ transpose whofirst
+          if containsWin win && satisfiesExpression locationSequenceIsValid win
+             then pure win
+             -- in general rejection sampling is to be avoided but if you feel like you need it
+             -- this will "retry" the permutationGenerator from the top
+             -- there is no path length limit at the moment so something like this might never terminate
+             else lift $ genSatisfying (Var MoveSequenceValid :&&: Var MoveSequenceContainsWin)
       }
     ]
 
-instance HasParameterisedGenerator MoveSequenceProperty [(Int,Int)] where
+instance HasParameterisedGenerator MoveSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
 moveSequencePermutationGenSelfTest :: TestTree
 moveSequencePermutationGenSelfTest = testGroup "moveSequencePermutationGenSelfTest" $
   fromGroup <$> permutationGeneratorSelfTest
                  True
-                 (\(_ :: PermutationEdge MoveSequenceProperty [(Int,Int)]) -> True)
+                 (\(_ :: PermutationEdge MoveSequenceProperty [Int]) -> True)
                  baseGen
 

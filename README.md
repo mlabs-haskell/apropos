@@ -1,176 +1,166 @@
 # `apropos`
-Propositional logic apropos arbitrary types.
+Propositional logic apropos types.
 
-Generate a suite of property tests from a logical specification of program behaviour.
+Generate a suite of property tests from a logical specification.
 
-Types are specifications for the properties of a program but they can't encapsulate everything.
+
   - Enrich your types with propositional logic over an associated property type.
+
   - Write generators parameterised by this logic.
+
   - Generate test suites that search the space of expected behaviours looking for counterexamples.
 
-`apropos` gives you a tool set for employing this specification strategy in a hierarchichal way. Specifications can be composed to build a detailed specification of a complex program.
 
 ## What is this?
-It's a thing that generates property tests for you from a specification.
+`apropos` specifications are composable stochastic search directives. The search is orchestrated by a SAT solver. This approach to testing can be viewed as Satisfiability Modulo Theories (SMT) where the theories are property tests run against code and satisfiability is whether the tested code behaves in the correct way for every test created by the model.
 
-### What kind of specification?
+While we may not be able to run every property test that the model can generate we can achieve a probabilistic notion of satisfiability that allows us to say that it is very likely that the tested code exactly meets the specification.
+
+### How to write a specification
 Specifications are encoded as logical models associated with a type.
 
-### And how do you write this logical model?
-Good question. First you start with a type. Then you describe its properties.
+```Haskell
+data IntProp
+  = IsNegative
+  | IsPositive
+  | IsZero
+  | IsLarge
+  | IsSmall
+  | IsMaxBound
+  | IsMinBound
+  deriving stock (Eq, Ord, Enum, Show, Bounded)
+
+instance Enumerable IntProp where
+  enumerated = [minBound .. maxBound]
+```
+Here is a model for integers. We have partitioned the space of integers into a smaller easier to manage space. This will be a sufficient description to test the example function defined later. It is sufficient since the function should return true/false according to a formula defined in terms of the above propositions. By modelling integers like this we also make sure that we test some specific extremal values in the space.
+
+Some of these propositions don't make sense in combination. For example an integer can't be both positive and negative. To express this we use a logical expression to define the space of valid property sets under this model.
 
 ```Haskell
-data MyModel =
-  This | That | TheOther { things :: [Thing] }
+instance LogicalModel IntProp where
+  logic =
+    ExactlyOne [Var IsNegative, Var IsPositive, Var IsZero]
+      :&&: ExactlyOne [Var IsLarge, Var IsSmall]
+      :&&: (Var IsZero :->: Var IsSmall)
+      :&&: (Var IsMaxBound :->: (Var IsLarge :&&: Var IsPositive))
+      :&&: (Var IsMinBound :->: (Var IsLarge :&&: Var IsNegative))
 ```
+
+In order for this to be a model of a type we need to specify what each proposition means in terms of that type. We do this by associating the propositions and the type with the class `HasLogicalModel` which requires us to implement `satisfiesProperty`.
 
 ```Haskell
-data MyProperty =
-    DoesThis
-  | DoesThat
-  | DoesTheNextThing
-  deriving (Bounded,Eq,Ord,Enum,Show)
-
-instance Enumerable MyProperty where
-  enumerated = [minBound..maxBound]
+instance HasLogicalModel IntProp Int where
+  satisfiesProperty IsNegative i = i < 0
+  satisfiesProperty IsPositive i = i > 0
+  satisfiesProperty IsMaxBound i = i == maxBound
+  satisfiesProperty IsMinBound i = i == minBound
+  satisfiesProperty IsZero i = i == 0
+  satisfiesProperty IsLarge i = i > 10 || i < -10
+  satisfiesProperty IsSmall i = i <= 10 && i >= -10
 ```
 
-(The Enumerable class and some template haskell makes it easy to embed these Properties into a containing model. More on that later.)
+To generate our test suites we require a generator that is parameterised by the logical model for this enriched type. This will allow us to efficiently sample from random spaces defined by logical formulas. We can use this generator to exhaustively enumerate all scenarios encoded by the model as property tests. We can also use it compositionally in specifications that depend on this model. For example `genSatisfying (Var IsNegative :: Formula IntProp) must generate negative integers for us.
 
-
-We can now write Formulas in propositional logic over the property type.
-
-
-For example:
+This generator implements the class `HasParameterisedGenerator`.
 
 ```Haskell
-term = (Var DoesThis :->: Var DoesThat)
-    :&&: (Var DoesThat :->: Var DoesTheNextThing)
+instance HasParameterisedGenerator IntProp Int where
+  parameterisedGenerator = buildGen baseGen
 
+baseGen :: PGen Int
+baseGen = liftGenP $ Gen.int (linear minBound maxBound)
 ```
 
-Terms like these are used to build our specification.
+Here we are using a generator construction method that allows us to build such a generator.
 
-#### Model Internal Logic
-This is a term you define to constrain which properties of the model can be true at the same time.
+This construction method gives us the function `buildGen` which we can compose with a base generator for integers to build a parameterised generator.
+
+
+Each PermutationEdge must have a unique name. It can match on a subset of the property space with the match clause. The contract specifies how the morphism acts on a property set. The permuteGen is a random morphism on the type.
 
 ```Haskell
-instance LogicalModel MyProperty where
-  logic = Var This :->: Var That
+instance HasPermutationGenerator IntProp Int where
+  generators =
+    [ PermutationEdge
+        { name = "MakeZero"
+        , match = Not $ Var IsZero
+        , contract = clear >> addAll [IsZero, IsSmall]
+        , permuteGen = pure 0
+        }
+    , PermutationEdge
+        { name = "MakeMaxBound"
+        , match = Not $ Var IsMaxBound
+        , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
+        , permuteGen = pure maxBound
+        }
+    , PermutationEdge
+        { name = "MakeMinBound"
+        , match = Not $ Var IsMinBound
+        , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
+        , permuteGen = pure minBound
+        }
+    , PermutationEdge
+        { name = "MakeLarge"
+        , match = Not $ Var IsLarge
+        , contract = clear >> addAll [IsLarge, IsPositive]
+        , permuteGen = liftGenPA $ Gen.int (linear 11 (maxBound -1))
+        }
+    , PermutationEdge
+        { name = "MakeSmall"
+        , match = Not $ Var IsSmall
+        , contract = clear >> addAll [IsSmall, IsPositive]
+        , permuteGen = liftGenPA $ Gen.int (linear 1 10)
+        }
+    , PermutationEdge
+        { name = "Negate"
+        , match = Not $ Var IsZero
+        , contract =
+            branches
+              [ has IsNegative >> remove IsNegative >> add IsPositive
+              , has IsPositive >> remove IsPositive >> add IsNegative
+              ]
+        , permuteGen = do
+            i <- source
+            pure (- i)
+        }
+    ]
+
 ```
 
-For example if This implies That then whenever This is true That must also be true.
+The construction method involves building a directed graph of random morphisms on the type. The nodes of this graph are sets of properties. Since the functions state their type as a transformation on these sets we can check that the graph is reachable from every vertex. If we have built such a fully connected graph we can compute a transformation between any logical description of the type in terms of the associated propositions. This lets us lift a general non parameterised generator to a parameterised generator by a graph traversal. These traversals are found via a random shortest path algorithm.
 
-#### When we expect the device under test to PASS or FAIL
-This tells the test runner when to expect Passing/Failing of the device.
+### How to run tests
+
+Given thse generators we can now perform a model consistency test. We can define this test suite in terms of a logical formula over the propositions. This lets us for example only run tests that deal with negative integers by specifying `Var IsNegative` in place of `Yes :: Formula IntProp` which enumerates the whole space.
+
+This test will check that every edge defined above behaves according to its contract. It will also provide helpful errors if the generators do not behave as specified.
 
 ```Haskell
-instance HasPureRunner MyModel MyProperty where
-  expect = Var VALIDATES
-
+intPermutationGenTests :: TestTree
+intPermutationGenTests =
+  testGroup "intPermutationGenTests" $
+    fromGroup
+      <$> [ runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
+          ]
 ```
 
-You could use the idiom of including PASS/FAIL or VALIDATE/ERROR in the Properties.
-
-Or you could write a logical expression here and keep the behaviour specification separate.
+We can now run the test suite against some pure function that returns `Bool`. It must return `Bool` in accordance with the definition of `expect` otherwise tests will fail.
 
 ```Haskell
-instance HasPlutusTestRunner Model MyProperty where
-  expect =  All $ Var <$> [ This
-                          , That
-                          , TheOther
-                          ]
+
+instance HasPureRunner IntProp Int where
+  expect _ = Var IsSmall :&&: Var IsNegative
+  script _ i = i < 0 && i >= -10
+
+intPermutationGenPureTests :: TestTree
+intPermutationGenPureTests =
+  testGroup "intPermutationGenPureTests" $
+    fromGroup
+      <$> [ runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+          ]
 ```
 
-### How do we give meaning to the Properties?
-Through the satisfiesProperty function we can define any meaning we like.
-
-```Haskell
-instance HasLogicalModel MyModel MyProperty where
-  satisfiesProperty :: Model MyModel -> Property MyModel -> Bool
-```
-
-### Where do the property tests come from?
-We have to construct a random generator that is parameterised by a set of properties.
-
-```Haskell
-instance HasParameterisedGenerator MyModel MyProperty where
-  parameterisedGenerator :: Set MyProperty -> Gen MyModel
-```
-
-This lets us enumerate the space of property sets and create a property test for each set.
-
-### We can write this in a different way
-By defining a collection of random generators that can transform a model satisfying some properties to a model satisfying a different set of properties.
-
-These generators must obey a contract such that the effect they have on the properties of a model is deterministic. If this is true we can precompute a graph of edges between models. If this graph is strongly connected then we can get to any model from any model along a path that connects them in the graph.
-
-These edges are like dependently typed (with respect to properties) random morphisms on the type we are modelling.
-
-```Haskell
-data PermutationEdge p m =
-  PermutationEdge {
-    name :: String
-  , match :: Formula p
-  , contract :: Contract p ()
-  , permuteGen :: m -> Gen m
-  }
-```
-
-These edges have a name, match on a set of properties with a Formula, obey a property set transformation contract, and perform a random permutation of the model.
-
-
-If you can provide a set of these that form a strongly connected graph then you'll have something you can plug into HasParameterisedGenerator. All the graph building, path traversal, and contract checking is done for you. The selfTest generated test suite will give you compiler like feedback on errors in the graph.
-
-```Haskell
-class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
-  generators :: [PermutationEdge p m]
-  buildGen :: forall t . Monad t => Gen m -> Set p -> PropertyT t m
-  buildGen g = ... -- you get the rest for free!
-```
-
-See `examples/Spec/IntPermutationGen.hs` for a simple example.
-
-### What's a model consistency error?
-This is a very powerful feature of this approach to testing. When making a complex model so wouldn't it be nice to be able to test that it makes sense?
-
-Since our generator is parameterised by a set of properties this allows us to test that it returns a model that satisfies this set of properties. This consistency test checks that the logic encoded by the generator matches the logic encoded by the properties.
-
-If we are using the PermutingGenerator to build our parameterised generator each edge must obey its contract. This provides additional testing of our assumptions about the model. The contracts are checked whenever an edge is traversed during generation.
-
-### How do we hook up some code to test?
-
-We need to define a translation of the Model into an encoding that can be input into the device test runner. This may require some wrapper code. To test an arbitrary pure function you can use `Apropos.Pure`.
-
-```Haskell
-instance HasPureRunner MyProperty MyModel where
-  expect _ = Var This :||: Var That
-  script _ m = myScript m
-```
-
-## Read the examples.
-For a minimal example see `examples/Spec/Int.hs`
-
-For the same example but using the PermutingGenerator see `examples/Spec/IntPermutingGen.hs`
-
-## What are the goals of this project?
-To test code extremely thoroughly by generating test suites instead of constructing them by hand.
-
-This has a number of advantages over the traditional hand written approach.
-1. Exhaustiveness
-We can be sure that we are exploring the entire space of properties we have defined. The definition of this space is the `logic` expression which we exhaustively enumerate solutions to with a SAT solver.
-2. Compositionality
-We can compose models and hide details of the submodels. This is easy to do with `genSatisfying (someExpression :: Formula SomeProperties)`
-3. Separation of specification from implementation
-By constructing and testing a model before writing the device code we can take a principled specification approach to developing complex software.
-4. Perspective and visibility
-The specification is encoded not just in the properties: it is co-representated by the Generator Transformations which must be consistent with Properties. This gives us three points of perspective from which we can view the device behaviour (Properties, Transformations, and the device implementation itself). This triangulation of perspective increases the chance of spotting logical errors in an audit or review - it is recommended that each component of the model and implementation logic be independently authored for this reason.
-
-
-## How do I use this?
-Start by looking at the examples.
-
-## What can I do with this?
-You can test all the things in all the ways you can think of without having to write individual tests for each permutation by hand. If your model is complex enough I expect you will generate many more property tests than you write lines of code for the model. If you find you are generating too many tests then you can filter them using a logical expression. You can also use these logical expressions to subdivide your test suite into long (exhaustive) and short (subset) tests.
+For more information please see the `examples` directory.
 
 The code is licensed under Apache 2.0; check the LICENSE.md file for details.

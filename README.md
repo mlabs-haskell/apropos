@@ -1,5 +1,5 @@
 # `apropos`
-The hierarchichal type-driven stochastic specification tool.
+Generate a suite of property tests from a specification.
 
 Types are specifications for the properties of a program but they can't encapsulate everything.
   - Enrich your types with propositional logic over an associated property type.

@@ -1,8 +1,9 @@
 module Apropos.HasPermutationGenerator (
   HasPermutationGenerator(..),
   PermutationEdge(..),
-  liftEdges,
-  composeEdges,
+  ModelAbstraction(..),
+  (<$$>),
+  (<*>>),
   ) where
 import Apropos.Gen
 import Apropos.HasLogicalModel

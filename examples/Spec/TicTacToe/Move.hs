@@ -34,29 +34,23 @@ instance HasLogicalModel MoveProperty (Int, Int) where
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
   generators =
-    let l =
-          liftEdges
-            MovePlayer
-            fst
-            (\f (_, r') -> (f, r'))
-            ( \p -> case p of
-                (MovePlayer q) -> Just q
-                _ -> Nothing
-            )
-            "MovePlayer "
-            generators
-        r =
-          liftEdges
-            MoveLocation
-            snd
-            (\f (l', _) -> (l', f))
-            ( \p -> case p of
-                (MoveLocation q) -> Just q
-                _ -> Nothing
-            )
-            "MoveLocation "
-            generators
-     in join [l, r]
+    let l = ModelAbstraction { abstractionName = "MovePlayer"
+                             , projectProperty =  \p -> case p of
+                                                          (MovePlayer q) -> Just q
+                                                          _ -> Nothing
+                             , injectProperty = MovePlayer
+                             , projectSubmodel = fst
+                             , injectSubmodel = \f (_, r') -> (f, r')
+                             }
+        r = ModelAbstraction { abstractionName = "MoveLocation"
+                             , projectProperty =  \p -> case p of
+                                                          (MoveLocation q) -> Just q
+                                                          _ -> Nothing
+                             , injectProperty = MoveLocation
+                             , projectSubmodel = snd
+                             , injectSubmodel = \f (l', _) -> (l', f)
+                             }
+     in join [l <$$> generators, r <$$> generators]
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen

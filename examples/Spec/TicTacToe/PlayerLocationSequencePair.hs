@@ -51,29 +51,31 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   generators =
-    let l =
-          liftEdges
-            PlayerLocationSequencePairPlayer
-            fst
-            (\f moves -> (f, snd moves))
-            ( \p -> case p of
-                (PlayerLocationSequencePairPlayer q) -> Just q
-                _ -> Nothing
-            )
-            ""
-            generators
-        r =
-          liftEdges
-            PlayerLocationSequencePairLocation
-            snd
-            (\f moves -> (fst moves, f))
-            ( \p -> case p of
-                (PlayerLocationSequencePairLocation q) -> Just q
-                _ -> Nothing
-            )
-            ""
-            generators
-     in [composeEdges l' r' | l' <- l, r' <- r]
+    let l = ModelAbstraction { abstractionName = ""
+                             , projectProperty =  \p ->
+                                 case p of
+                                   (PlayerLocationSequencePairPlayer q) -> Just q
+                                   _ -> Nothing
+                             , injectProperty = PlayerLocationSequencePairPlayer
+                             , projectSubmodel = fst
+                             , injectSubmodel = \f moves -> (f, snd moves)
+
+                             }
+        r = ModelAbstraction { abstractionName = ""
+                             , projectProperty =  \p ->
+                                 case p of
+                                   (PlayerLocationSequencePairLocation q) -> Just q
+                                   _ -> Nothing
+                             , injectProperty = PlayerLocationSequencePairLocation
+                             , projectSubmodel = snd
+                             , injectSubmodel = \f moves -> (fst moves, f)
+                             }
+     in (l <$$> generators) <*>> (r <$$> generators)
+
+--   how can we make this look like applicative where we have
+--     PairProp IntProp IntProp
+--   in pairPropAbstraction <$$> generators <**> generators
+--   ?
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen

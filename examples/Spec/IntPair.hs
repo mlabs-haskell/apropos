@@ -38,36 +38,23 @@ instance HasLogicalModel IntPairProp (Int, Int) where
 
 instance HasPermutationGenerator IntPairProp (Int, Int) where
   generators =
-    --TODO liftEdges could be prettier - we could use lenses to
-    --                                 -            get and set a substructure in the model
-    --                                 -            Maybe extract a subproperty from a property
-    --
-    --                                 - we could derive the prefix string from the property constructor
-    --
-    --                                 - then we would have a 4 argument function instead of a 6 argument function
-    let l =
-          liftEdges
-            L
-            fst
-            (\f (_, r') -> (f, r'))
-            ( \p -> case p of
-                (L q) -> Just q
-                _ -> Nothing
-            )
-            "L"
-            generators
-        r =
-          liftEdges
-            R
-            snd
-            (\f (l', _) -> (l', f))
-            ( \p -> case p of
-                (R q) -> Just q
-                _ -> Nothing
-            )
-            "R"
-            generators
-     in join [l, r]
+    let l = ModelAbstraction { abstractionName = "L"
+                             , projectProperty =  \p -> case p of
+                                                          (L q) -> Just q
+                                                          _ -> Nothing
+                             , injectProperty = L
+                             , projectSubmodel = fst
+                             , injectSubmodel = \f (_, r') -> (f, r')
+                             }
+        r = ModelAbstraction { abstractionName = "R"
+                             , projectProperty =  \p -> case p of
+                                                          (R q) -> Just q
+                                                          _ -> Nothing
+                             , injectProperty = R
+                             , projectSubmodel = snd
+                             , injectSubmodel = \f (l', _) -> (l', f)
+                             }
+     in join [l <$$> generators, r <$$> generators]
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen

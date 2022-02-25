@@ -1,7 +1,7 @@
 module Apropos.HasPermutationGenerator.Contract (
   Contract,
-  PropertyProjection(..),
-  projection,
+  ModelAbstraction(..),
+  propertyAbstraction,
   runContract,
   readContractInput,
   readContractEdgeName,
@@ -59,24 +59,28 @@ instance Functor (FreeContract p) where
   fmap f (ContractError err next) = ContractError err (f next)
   fmap f (Terminal next) = Terminal (f next)
 
-data PropertyProjection b a = PropertyProjection {
-    projectionName :: String
-  , projectionFunction :: b -> Maybe a
-  , injectionFunction :: a -> b
+data ModelAbstraction b m a n =
+  ModelAbstraction {
+    abstractionName  :: String
+  , projectProperty :: b -> Maybe a
+  , injectProperty  :: a -> b
+  , projectSubmodel :: m -> n
+  , injectSubmodel  :: n -> m -> m
   }
 
-projection :: Ord a => Ord b => PropertyProjection b a -> Contract a () -> Contract b ()
-projection p c = do
+
+propertyAbstraction :: Ord a => Ord b => ModelAbstraction b m a n -> Contract a () -> Contract b ()
+propertyAbstraction p c = do
   i <- readContractOutput
   n <- readContractEdgeName
-  let subm = extractSubmodel (projectionFunction p) i
-      subx = exciseSubmodel (projectionFunction p) i
-      res = runContract c ((projectionName p) <> n) subm
+  let subm = extractSubmodel (projectProperty p) i
+      subx = exciseSubmodel (projectProperty p) i
+      res = runContract c ((abstractionName p) <> n) subm
   case res of
     Left err -> contractError err
     Right Nothing -> terminal
     Right (Just upd) ->
-      output (subx `Set.union` (Set.map (injectionFunction p) upd))
+      output (subx `Set.union` (Set.map (injectProperty p) upd))
   where
     extractSubmodel :: Ord p => (q -> Maybe p) -> Set q -> Set p
     extractSubmodel f q = Set.fromList $ catMaybes (f <$> Set.toList q)

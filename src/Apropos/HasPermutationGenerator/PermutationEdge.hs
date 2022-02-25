@@ -2,8 +2,8 @@
 
 module Apropos.HasPermutationGenerator.PermutationEdge (
   PermutationEdge (..),
-  liftEdges,
-  composeEdges,
+  (<$$>),
+  (<*>>),
 ) where
 
 import Apropos.Gen
@@ -19,6 +19,9 @@ data PermutationEdge p m = PermutationEdge
   , permuteGen :: PAGen m m
   }
 
+(<*>>) :: [PermutationEdge p m] -> [PermutationEdge p m] -> [PermutationEdge p m]
+(<*>>) as bs = [composeEdges a b | a <- as, b <- bs]
+
 composeEdges :: PermutationEdge p m -> PermutationEdge p m -> PermutationEdge p m
 composeEdges a b =
   PermutationEdge
@@ -31,39 +34,28 @@ composeEdges a b =
         lift $ runGenPA (permuteGen b) ma
     }
 
---TODO use the lens library?
-
-liftEdges ::
+(<$$>) ::
   (Ord p, Ord q) =>
-  (p -> q) -> -- The constructor we are lifting into
-  (m -> n) -> -- A lens to extract from the parent model
-  (n -> m -> m) -> -- A lens to insert into the parent model
-  (q -> Maybe p) -> -- A lens to extract from the parent property
-  String -> -- A prefix string for the lifted edges
+  ModelAbstraction q m p n ->
   [PermutationEdge p n] ->
   [PermutationEdge q m]
-liftEdges liftProp getSubmodel putSubmodel matchSub prefix edges =
-  liftEdge liftProp getSubmodel putSubmodel matchSub prefix <$> edges
+(<$$>) abstraction edges = liftEdge abstraction <$> edges
 
 liftEdge ::
   (Ord p, Ord q) =>
-  (p -> q) -> -- The constructor we are lifting into
-  (m -> n) -> -- A lens to extract from the parent model
-  (n -> m -> m) -> -- A lens to insert into the parent model
-  (q -> Maybe p) -> -- A lens to extract from the parent property
-  String -> -- A prefix string for the lifted edge
+  ModelAbstraction q m p n ->
   PermutationEdge p n ->
   PermutationEdge q m
-liftEdge liftProp getSubmodel putSubmodel matchSub prefix edge =
+liftEdge abstraction edge =
   PermutationEdge
-    { name = (prefix <> name edge)
-    , match = liftProp <$> match edge
-    , contract = projection (PropertyProjection prefix matchSub liftProp) $ contract edge
+    { name = ((abstractionName abstraction) <> name edge)
+    , match = (injectProperty abstraction) <$> match edge
+    , contract = propertyAbstraction abstraction $ contract edge
     , permuteGen = do
         m <- ask
-        let n = getSubmodel m
+        let n = (projectSubmodel abstraction) m
         nn <- lift $ runGenPA (permuteGen edge) n
-        pure $ putSubmodel nn m
+        pure $ (injectSubmodel abstraction) nn m
     }
 
 instance Eq (PermutationEdge p m) where

@@ -1,5 +1,7 @@
 # `apropos`
-Generate a suite of property tests from a specification.
+Propositional logic apropos arbitrary types.
+
+Generate a suite of property tests from a logical specification of program behaviour.
 
 Types are specifications for the properties of a program but they can't encapsulate everything.
   - Enrich your types with propositional logic over an associated property type.

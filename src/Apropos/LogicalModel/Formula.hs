@@ -11,6 +11,12 @@ import Data.Map
 import GHC.Generics (Generic)
 import qualified SAT.MiniSat as S
 
+infixr 6 :&&:
+infixr 5 :||:
+infixr 4 :++:
+infixr 2 :->:
+infix 1 :<->:
+
 data Formula v
   = Var v
   | Yes
@@ -27,12 +33,6 @@ data Formula v
   | ExactlyOne [Formula v]
   | AtMostOne [Formula v]
   deriving stock (Generic, Functor)
-
-infixr 6 :&&:
-infixr 5 :||:
-infixr 4 :++:
-infixr 2 :->:
-infix 1 :<->:
 
 translateToSAT :: Formula v -> S.Formula v
 translateToSAT (Var v) = S.Var v

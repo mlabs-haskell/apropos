@@ -17,6 +17,8 @@ import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Control.Lens.Tuple(_1,_2)
+
 
 data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
@@ -51,29 +53,15 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   generators =
-    let l =
-          liftEdges
-            PlayerLocationSequencePairPlayer
-            fst
-            (\f moves -> (f, snd moves))
-            ( \p -> case p of
-                (PlayerLocationSequencePairPlayer q) -> Just q
-                _ -> Nothing
-            )
-            ""
-            generators
-        r =
-          liftEdges
-            PlayerLocationSequencePairLocation
-            snd
-            (\f moves -> (fst moves, f))
-            ( \p -> case p of
-                (PlayerLocationSequencePairLocation q) -> Just q
-                _ -> Nothing
-            )
-            ""
-            generators
-     in [composeEdges l' r' | l' <- l, r' <- r]
+    let l = Abstraction { abstractionName = ""
+                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+                        , modelAbstraction = _1
+                        }
+        r = Abstraction { abstractionName = ""
+                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+                        , modelAbstraction = _2
+                        }
+     in (abstract l <$> generators) |:-> (abstract r <$> generators)
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen

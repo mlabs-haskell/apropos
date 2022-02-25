@@ -1,14 +1,17 @@
 module Apropos.HasPermutationGenerator (
   HasPermutationGenerator(..),
   PermutationEdge(..),
-  liftEdges,
-  composeEdges,
+  Abstraction(..),
+  abstract,
+  abstractsProperties,
+  (|:->),
   ) where
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.PermutationEdge
+import Apropos.HasPermutationGenerator.Abstraction
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Gen,PropertyT,MonadTest,Group(..),forAll,failure,footnote,property,label)

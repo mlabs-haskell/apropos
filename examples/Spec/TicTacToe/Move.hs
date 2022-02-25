@@ -17,6 +17,8 @@ import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Control.Lens.Tuple(_1,_2)
+
 
 data MoveProperty
   = MoveLocation LocationProperty
@@ -34,29 +36,15 @@ instance HasLogicalModel MoveProperty (Int, Int) where
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
   generators =
-    let l =
-          liftEdges
-            MovePlayer
-            fst
-            (\f (_, r') -> (f, r'))
-            ( \p -> case p of
-                (MovePlayer q) -> Just q
-                _ -> Nothing
-            )
-            "MovePlayer "
-            generators
-        r =
-          liftEdges
-            MoveLocation
-            snd
-            (\f (l', _) -> (l', f))
-            ( \p -> case p of
-                (MoveLocation q) -> Just q
-                _ -> Nothing
-            )
-            "MoveLocation "
-            generators
-     in join [l, r]
+    let l = Abstraction { abstractionName = "MovePlayer"
+                        , propertyAbstraction = abstractsProperties MovePlayer
+                        , modelAbstraction = _1
+                        }
+        r = Abstraction { abstractionName = "MoveLocation"
+                        , propertyAbstraction = abstractsProperties MoveLocation
+                        , modelAbstraction = _2
+                             }
+     in join [abstract l <$> generators, abstract r <$> generators]
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen

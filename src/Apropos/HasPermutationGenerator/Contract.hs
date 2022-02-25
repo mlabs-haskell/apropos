@@ -1,7 +1,6 @@
 module Apropos.HasPermutationGenerator.Contract (
   Contract,
-  ModelAbstraction(..),
-  propertyAbstraction,
+  FreeContract(..),
   runContract,
   readContractInput,
   readContractEdgeName,
@@ -23,14 +22,15 @@ module Apropos.HasPermutationGenerator.Contract (
   removeAllIf,
   clear,
   output,
+  contractError,
+  terminal,
 ) where
-
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State (StateT, get, put, runStateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
 import Control.Monad.Free
-import Data.Maybe (catMaybes,isNothing)
+import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String (fromString)
@@ -58,34 +58,6 @@ instance Functor (FreeContract p) where
   fmap f (WriteContractOutput r next) = WriteContractOutput r (f next)
   fmap f (ContractError err next) = ContractError err (f next)
   fmap f (Terminal next) = Terminal (f next)
-
-data ModelAbstraction b m a n =
-  ModelAbstraction {
-    abstractionName  :: String
-  , projectProperty :: b -> Maybe a
-  , injectProperty  :: a -> b
-  , projectSubmodel :: m -> n
-  , injectSubmodel  :: n -> m -> m
-  }
-
-
-propertyAbstraction :: Ord a => Ord b => ModelAbstraction b m a n -> Contract a () -> Contract b ()
-propertyAbstraction p c = do
-  i <- readContractOutput
-  n <- readContractEdgeName
-  let subm = extractSubmodel (projectProperty p) i
-      subx = exciseSubmodel (projectProperty p) i
-      res = runContract c ((abstractionName p) <> n) subm
-  case res of
-    Left err -> contractError err
-    Right Nothing -> terminal
-    Right (Just upd) ->
-      output (subx `Set.union` (Set.map (injectProperty p) upd))
-  where
-    extractSubmodel :: Ord p => (q -> Maybe p) -> Set q -> Set p
-    extractSubmodel f q = Set.fromList $ catMaybes (f <$> Set.toList q)
-    exciseSubmodel :: (q -> Maybe p) -> Set q -> Set q
-    exciseSubmodel f q = Set.filter (isNothing . f) q
 
 type Contract p = Free (FreeContract p)
 

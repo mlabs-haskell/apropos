@@ -17,6 +17,8 @@ import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Control.Lens.Tuple(_1,_2)
+
 
 data MoveProperty
   = MoveLocation LocationProperty
@@ -34,23 +36,15 @@ instance HasLogicalModel MoveProperty (Int, Int) where
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
   generators =
-    let l = ModelAbstraction { abstractionName = "MovePlayer"
-                             , projectProperty =  \p -> case p of
-                                                          (MovePlayer q) -> Just q
-                                                          _ -> Nothing
-                             , injectProperty = MovePlayer
-                             , projectSubmodel = fst
-                             , injectSubmodel = \f (_, r') -> (f, r')
+    let l = Abstraction { abstractionName = "MovePlayer"
+                        , propertyAbstraction = abstractsProperties MovePlayer
+                        , modelAbstraction = _1
+                        }
+        r = Abstraction { abstractionName = "MoveLocation"
+                        , propertyAbstraction = abstractsProperties MoveLocation
+                        , modelAbstraction = _2
                              }
-        r = ModelAbstraction { abstractionName = "MoveLocation"
-                             , projectProperty =  \p -> case p of
-                                                          (MoveLocation q) -> Just q
-                                                          _ -> Nothing
-                             , injectProperty = MoveLocation
-                             , projectSubmodel = snd
-                             , injectSubmodel = \f (l', _) -> (l', f)
-                             }
-     in join [l <$$> generators, r <$$> generators]
+     in join [abstract l <$> generators, abstract r <$> generators]
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen

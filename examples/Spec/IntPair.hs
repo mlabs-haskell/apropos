@@ -21,6 +21,7 @@ import Plutarch.Prelude
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Control.Lens.Tuple(_1,_2)
 
 data IntPairProp
   = L IntProp
@@ -38,23 +39,15 @@ instance HasLogicalModel IntPairProp (Int, Int) where
 
 instance HasPermutationGenerator IntPairProp (Int, Int) where
   generators =
-    let l = ModelAbstraction { abstractionName = "L"
-                             , projectProperty =  \p -> case p of
-                                                          (L q) -> Just q
-                                                          _ -> Nothing
-                             , injectProperty = L
-                             , projectSubmodel = fst
-                             , injectSubmodel = \f (_, r') -> (f, r')
-                             }
-        r = ModelAbstraction { abstractionName = "R"
-                             , projectProperty =  \p -> case p of
-                                                          (R q) -> Just q
-                                                          _ -> Nothing
-                             , injectProperty = R
-                             , projectSubmodel = snd
-                             , injectSubmodel = \f (l', _) -> (l', f)
-                             }
-     in join [l <$$> generators, r <$$> generators]
+    let l = Abstraction { abstractionName = "L"
+                        , propertyAbstraction = abstractsProperties L
+                        , modelAbstraction = _1
+                        }
+        r = Abstraction { abstractionName = "R"
+                        , propertyAbstraction = abstractsProperties R
+                        , modelAbstraction = _2
+                        }
+     in join [abstract l <$> generators, abstract r <$> generators]
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen

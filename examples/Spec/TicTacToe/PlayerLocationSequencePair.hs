@@ -17,6 +17,8 @@ import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Control.Lens.Tuple(_1,_2)
+
 
 data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
@@ -51,31 +53,15 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   generators =
-    let l = ModelAbstraction { abstractionName = ""
-                             , projectProperty =  \p ->
-                                 case p of
-                                   (PlayerLocationSequencePairPlayer q) -> Just q
-                                   _ -> Nothing
-                             , injectProperty = PlayerLocationSequencePairPlayer
-                             , projectSubmodel = fst
-                             , injectSubmodel = \f moves -> (f, snd moves)
-
-                             }
-        r = ModelAbstraction { abstractionName = ""
-                             , projectProperty =  \p ->
-                                 case p of
-                                   (PlayerLocationSequencePairLocation q) -> Just q
-                                   _ -> Nothing
-                             , injectProperty = PlayerLocationSequencePairLocation
-                             , projectSubmodel = snd
-                             , injectSubmodel = \f moves -> (fst moves, f)
-                             }
-     in (l <$$> generators) <*>> (r <$$> generators)
-
---   how can we make this look like applicative where we have
---     PairProp IntProp IntProp
---   in pairPropAbstraction <$$> generators <**> generators
---   ?
+    let l = Abstraction { abstractionName = ""
+                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+                        , modelAbstraction = _1
+                        }
+        r = Abstraction { abstractionName = ""
+                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+                        , modelAbstraction = _2
+                        }
+     in (abstract l <$> generators) |:-> (abstract r <$> generators)
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen

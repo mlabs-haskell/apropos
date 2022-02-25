@@ -34,23 +34,6 @@ data Formula v
   | AtMostOne [Formula v]
   deriving stock (Generic, Functor)
 
-instance Applicative Formula where
-  pure a = Var a
-  (<*>) (Var aTob) (Var a) = Var (aTob a)
-  (<*>) (Var aTob) a = aTob <$> a
-  (<*>) Yes Yes = Yes
-  (<*>) (aTobL :&&:  aTobR) a = (aTobL <*> a) :&&:  (aTobR <*> a)
-  (<*>) (aTobL :||:  aTobR) a = (aTobL <*> a) :||:  (aTobR <*> a)
-  (<*>) (aTobL :++:  aTobR) a = (aTobL <*> a) :++:  (aTobR <*> a)
-  (<*>) (aTobL :->:  aTobR) a = (aTobL <*> a) :->:  (aTobR <*> a)
-  (<*>) (aTobL :<->: aTobR) a = (aTobL <*> a) :<->: (aTobR <*> a)
-  (<*>) (All        aTobs) a = All         [ aTob <*> a | aTob <- aTobs ]
-  (<*>) (Some       aTobs) a = Some        [ aTob <*> a | aTob <- aTobs ]
-  (<*>) (None       aTobs) a = None        [ aTob <*> a | aTob <- aTobs ]
-  (<*>) (ExactlyOne aTobs) a = ExactlyOne  [ aTob <*> a | aTob <- aTobs ]
-  (<*>) (AtMostOne  aTobs) a = AtMostOne   [ aTob <*> a | aTob <- aTobs ]
-  (<*>) _ _ = No
-
 translateToSAT :: Formula v -> S.Formula v
 translateToSAT (Var v) = S.Var v
 translateToSAT Yes = S.Yes

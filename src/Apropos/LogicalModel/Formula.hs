@@ -11,6 +11,12 @@ import Data.Map
 import GHC.Generics (Generic)
 import qualified SAT.MiniSat as S
 
+infixr 6 :&&:
+infixr 5 :||:
+infixr 4 :++:
+infixr 2 :->:
+infix 1 :<->:
+
 data Formula v
   = Var v
   | Yes
@@ -28,11 +34,22 @@ data Formula v
   | AtMostOne [Formula v]
   deriving stock (Generic, Functor)
 
-infixr 6 :&&:
-infixr 5 :||:
-infixr 4 :++:
-infixr 2 :->:
-infix 1 :<->:
+instance Applicative Formula where
+  pure a = Var a
+  (<*>) (Var aTob) (Var a) = Var (aTob a)
+  (<*>) (Var aTob) a = aTob <$> a
+  (<*>) Yes Yes = Yes
+  (<*>) (aTobL :&&:  aTobR) a = (aTobL <*> a) :&&:  (aTobR <*> a)
+  (<*>) (aTobL :||:  aTobR) a = (aTobL <*> a) :||:  (aTobR <*> a)
+  (<*>) (aTobL :++:  aTobR) a = (aTobL <*> a) :++:  (aTobR <*> a)
+  (<*>) (aTobL :->:  aTobR) a = (aTobL <*> a) :->:  (aTobR <*> a)
+  (<*>) (aTobL :<->: aTobR) a = (aTobL <*> a) :<->: (aTobR <*> a)
+  (<*>) (All        aTobs) a = All         [ aTob <*> a | aTob <- aTobs ]
+  (<*>) (Some       aTobs) a = Some        [ aTob <*> a | aTob <- aTobs ]
+  (<*>) (None       aTobs) a = None        [ aTob <*> a | aTob <- aTobs ]
+  (<*>) (ExactlyOne aTobs) a = ExactlyOne  [ aTob <*> a | aTob <- aTobs ]
+  (<*>) (AtMostOne  aTobs) a = AtMostOne   [ aTob <*> a | aTob <- aTobs ]
+  (<*>) _ _ = No
 
 translateToSAT :: Formula v -> S.Formula v
 translateToSAT (Var v) = S.Var v

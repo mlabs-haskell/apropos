@@ -11,9 +11,6 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel.Formula
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Reader (ask)
-import Data.Maybe (catMaybes, isNothing)
-import Data.Set (Set)
-import qualified Data.Set as Set
 
 data PermutationEdge p m = PermutationEdge
   { name :: String
@@ -61,34 +58,13 @@ liftEdge liftProp getSubmodel putSubmodel matchSub prefix edge =
   PermutationEdge
     { name = (prefix <> name edge)
     , match = liftProp <$> match edge
-    , --TODO should we make contract a Free Monad AST?
-      -- then we could fmap over it to achieve this
-      contract = do
-        i <- readContractOutput
-        let subm = extractSubmodel matchSub i
-            subx = exciseSubmodel matchSub i
-            res =
-              runContract
-                (contract edge)
-                (prefix <> name edge)
-                subm
-        case res of
-          Left err -> lift $ lift $ lift $ Left err
-          Right Nothing -> fail "Nothing"
-          Right (Just upd) ->
-            output (subx `Set.union` (Set.map liftProp upd))
+    , contract = projection (PropertyProjection prefix matchSub liftProp) $ contract edge
     , permuteGen = do
         m <- ask
         let n = getSubmodel m
         nn <- lift $ runGenPA (permuteGen edge) n
         pure $ putSubmodel nn m
     }
-
-extractSubmodel :: Ord p => (q -> Maybe p) -> Set q -> Set p
-extractSubmodel f q = Set.fromList $ catMaybes (f <$> Set.toList q)
-
-exciseSubmodel :: (q -> Maybe p) -> Set q -> Set q
-exciseSubmodel f q = Set.filter (isNothing . f) q
 
 instance Eq (PermutationEdge p m) where
   (==) a b = name a == name b

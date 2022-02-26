@@ -11,8 +11,6 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Monad (join)
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear, singleton)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
@@ -66,11 +64,11 @@ instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen ([Int], [Int])
+baseGen :: Gen' ([Int], [Int])
 baseGen = do
-  l <- liftGenP $ Gen.int (linear 0 10)
-  l1 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
-  l2 <- liftGenP $ Gen.list (singleton l) $ Gen.int (linear minBound maxBound)
+  l <- int (linear 0 10)
+  l1 <- list (singleton l) $ int (linear minBound maxBound)
+  l2 <- list (singleton l) $ int (linear minBound maxBound)
   pure (l1, l2)
 
 playerLocationSequencePairPermutationGenSelfTest :: TestTree

@@ -11,12 +11,9 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Control.Monad (join)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Reader (ask)
 import Data.List (transpose)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Hedgehog.Gen as Gen
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -65,8 +62,8 @@ instance HasLogicalModel MoveSequenceProperty [Int] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
   satisfiesProperty MoveSequenceContainsWin ms = containsWin ms
 
-baseGen :: PGen [Int]
-baseGen = genSatisfying (Yes :: Formula LocationSequenceProperty)
+baseGen :: Gen' [Int]
+baseGen = liftGen $ genSatisfying (Yes :: Formula LocationSequenceProperty)
 
 instance HasPermutationGenerator MoveSequenceProperty [Int] where
   generators =
@@ -74,45 +71,43 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "InvalidNoWin"
         , match = Yes
         , contract = clear
-        , permuteGen = filterPA (not . containsWin) $ lift $ genSatisfying $ Not locationSequenceIsValid
+        , permuteGen = do
+            genFilter (not . containsWin) $ liftGen
+               $ genSatisfying $ Not locationSequenceIsValid
         }
     , PermutationEdge
         { name = "ValidNoWin"
         , match = Yes
         , contract = clear >> add MoveSequenceValid
-        , permuteGen = filterPA (not . containsWin) $ lift $ genSatisfying locationSequenceIsValid
+        , permuteGen = do
+           genFilter (not . containsWin) $ liftGen
+               $ genSatisfying locationSequenceIsValid
         }
     , PermutationEdge
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , permuteGen = do
-            moves <- ask
-            winlocs <- Set.toList <$> (liftGenPA $ Gen.element winTileSets)
-            whofirst <- liftGenPA $ Gen.element [[moves, winlocs], [winlocs, moves]]
+            moves <- source
+            winlocs <- Set.toList <$> (element winTileSets)
+            whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
             if containsWin win && satisfiesExpression (Not locationSequenceIsValid) win
               then pure win
-              else -- in general rejection sampling is to be avoided but if you feel like you need it
-              -- this will "retry" the permutationGenerator from the top
-              -- there is no path length limit at the moment so something like this might never terminate
-                lift $ genSatisfying ((Not $ Var MoveSequenceValid) :&&: Var MoveSequenceContainsWin)
+              else retry
         }
     , PermutationEdge
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , permuteGen = do
-            moves <- ask
-            winlocs <- Set.toList <$> (liftGenPA $ Gen.element winTileSets)
-            whofirst <- liftGenPA $ Gen.element [[moves, winlocs], [winlocs, moves]]
+            moves <- source
+            winlocs <- Set.toList <$> (element winTileSets)
+            whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
             if containsWin win && satisfiesExpression locationSequenceIsValid win
               then pure win
-              else -- in general rejection sampling is to be avoided but if you feel like you need it
-              -- this will "retry" the permutationGenerator from the top
-              -- there is no path length limit at the moment so something like this might never terminate
-                lift $ genSatisfying (Var MoveSequenceValid :&&: Var MoveSequenceContainsWin)
+              else retry
         }
     ]
 

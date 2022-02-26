@@ -13,8 +13,6 @@ import Apropos.Gen
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Either (rights)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Reader (ask) --TODO refactor gen monad abstraction
 import Control.Lens
 
 data Abstraction ap am bp bm =
@@ -34,9 +32,9 @@ abstract abstraction edge =
   , contract = abstractContract (abstractionName abstraction)
                                 (propertyAbstraction abstraction) $ contract edge
   , permuteGen = do
-        m <- ask
+        m <- source
         let n = m ^. (modelAbstraction abstraction)
-        nn <- lift $ runGenPA (permuteGen edge) n
+        nn <- liftEdge (permuteGen edge) n --TODO make retry limit configurable
         pure $ (modelAbstraction abstraction) .~ nn $ m
   }
 
@@ -77,9 +75,9 @@ composeEdges a b =
     , match = match a :&&: match b
     , contract = contract a >> contract b
     , permuteGen = do
-        m <- ask
-        ma <- lift $ runGenPA (permuteGen a) m
-        lift $ runGenPA (permuteGen b) ma
+        m <- source
+        ma <- liftEdge (permuteGen a) m
+        liftEdge (permuteGen b) ma
     }
 
 

@@ -10,8 +10,6 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import qualified Data.Set as Set
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear, singleton)
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -84,7 +82,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
         , permuteGen = do
             locations <- source
             let locationsLen = min 9 (length locations)
-            locations' <- liftGenPA $ Gen.shuffle [0 .. 8]
+            locations' <- shuffle [0 .. 8]
             pure $ take locationsLen locations'
         }
     , PermutationEdge
@@ -102,9 +100,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
         , permuteGen = do
             locations <- source
             let locationsLen = max 2 (length locations)
-            locations' <- liftGenPA $ Gen.shuffle [0 .. 8]
+            locations' <- shuffle [0 .. 8]
             let locations'' = take (locationsLen - 1) locations'
-            liftGenPA $ Gen.list (singleton locationsLen) $ Gen.element locations''
+            list (singleton locationsLen) $ element locations''
         }
     , PermutationEdge
         { name = "MakeOutOfBoundsSingleton"
@@ -118,11 +116,10 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               ]
               >> addAll [SomeLocationIsOutOfBounds, LocationSequenceIsSingleton]
         , permuteGen =
-            liftGenPA $
-              Gen.list (singleton 1) $
-                Gen.choice
-                  [ Gen.int (linear minBound (-1))
-                  , Gen.int (linear 9 maxBound)
+            list (singleton 1) $
+              choice
+                  [ int (linear minBound (-1))
+                  , int (linear 9 maxBound)
                   ]
         }
     , PermutationEdge
@@ -137,9 +134,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsSingleton]
         , permuteGen =
-            liftGenPA $
-              Gen.list (singleton 1) $
-                Gen.int (linear 0 8)
+            list (singleton 1) $ int (linear 0 8)
         }
     , PermutationEdge
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
@@ -162,10 +157,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
              in do
                   locations <- source
                   let locationsLen = length locations
-                  liftGenPA $
-                    Gen.filter f $
-                      Gen.list (singleton locationsLen) $
-                        Gen.int (linear minBound maxBound)
+                  genFilter f $
+                      list (singleton locationsLen) $
+                        int (linear minBound maxBound)
         }
     , PermutationEdge
         { name = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
@@ -181,13 +175,11 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 , SomeLocationIsOutOfBounds
                 , LocationSequenceIsLongerThanGame
                 ]
-        , permuteGen = filterPA (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+        , permuteGen = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
             let locationsLen = 10
-            locations' <-
-              liftGenPA $
-                Gen.list (singleton (locationsLen - 1)) $
-                  Gen.int (linear minBound maxBound)
-            liftGenPA $ Gen.list (singleton locationsLen) $ Gen.element locations'
+            locations' <- list (singleton (locationsLen - 1)) $
+                  int (linear minBound maxBound)
+            list (singleton locationsLen) $ element locations'
         }
     , PermutationEdge
         { name = "MakeSomeLocationIsOccupiedTwice"
@@ -202,24 +194,22 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 [ SomeLocationIsOccupiedTwice
                 , SomeLocationIsOutOfBounds
                 ]
-        , permuteGen = filterPA (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+        , permuteGen = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
             locations <- source
             let locationsLen = length locations
-            locations' <-
-              liftGenPA $
-                Gen.list (singleton (locationsLen - 1)) $
-                  Gen.int (linear minBound maxBound)
-            liftGenPA $ Gen.list (singleton locationsLen) $ Gen.element locations'
+            locations' <- list (singleton (locationsLen - 1)) $
+                  int (linear minBound maxBound)
+            list (singleton locationsLen) $ element locations'
         }
     ]
 
 instance HasParameterisedGenerator LocationSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen [Int]
+baseGen :: Gen' [Int]
 baseGen =
-  let g = Gen.int (linear minBound maxBound)
-   in liftGenP $ Gen.list (linear 0 10) g
+  let g = int (linear minBound maxBound)
+   in list (linear 0 10) g
 
 locationSequencePermutationGenSelfTest :: TestTree
 locationSequencePermutationGenSelfTest =

@@ -9,8 +9,6 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear, singleton)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -65,7 +63,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , permuteGen = do
             s <- source
             let numMoves = min 9 (max 2 (length s))
-            pattern <- liftGenPA $ Gen.element [[0, 1], [1, 0]]
+            pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
         }
     , PermutationEdge
@@ -83,7 +81,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
                 ]
         , permuteGen = do
             let numMoves = 10
-            pattern <- liftGenPA $ Gen.element [[0, 1], [1, 0]]
+            pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
         }
     , PermutationEdge
@@ -101,11 +99,10 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
             removeAll [TakeTurns, PlayerSequenceNull]
               >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
         , permuteGen = do
-            liftGenPA $
-              Gen.list (singleton 1) $
-                Gen.choice
-                  [ Gen.int (linear minBound (-1))
-                  , Gen.int (linear 2 maxBound)
+            list (singleton 1) $
+                choice
+                  [ int (linear minBound (-1))
+                  , int (linear 2 maxBound)
                   ]
         }
     , PermutationEdge
@@ -115,7 +112,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
             removeAll [Don'tTakeTurns, PlayerSequenceNull]
               >> addAll [TakeTurns, PlayerSequenceSingleton]
         , permuteGen = do
-            liftGenPA $ Gen.list (singleton 1) $ Gen.int (linear 0 1)
+            list (singleton 1) $ int (linear 0 1)
         }
     , PermutationEdge
         { name = "MakeDon'tTakeTurns"
@@ -127,22 +124,22 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
             s <- source
             let numMoves = max 2 (length s)
             let genFoulPlay = do
-                  Gen.filter (satisfiesProperty Don'tTakeTurns) $
-                    Gen.list (singleton numMoves) $
-                      Gen.int (linear 0 1)
+                  genFilter (satisfiesProperty Don'tTakeTurns) $
+                    list (singleton numMoves) $
+                      int (linear 0 1)
                 genInvalid = do
-                  Gen.filter (satisfiesProperty Don'tTakeTurns) $
-                    Gen.list (singleton numMoves) $
-                      Gen.int (linear minBound maxBound)
-            liftGenPA $ Gen.choice [genFoulPlay, genInvalid]
+                  genFilter (satisfiesProperty Don'tTakeTurns) $
+                    list (singleton numMoves) $
+                      int (linear minBound maxBound)
+            choice [genFoulPlay, genInvalid]
         }
     ]
 
 instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen [Int]
-baseGen = liftGenP $ Gen.list (linear 0 10) $ Gen.int (linear minBound maxBound)
+baseGen :: Gen' [Int]
+baseGen = list (linear 0 10) $ int (linear minBound maxBound)
 
 playerSequencePermutationGenSelfTest :: TestTree
 playerSequencePermutationGenSelfTest =

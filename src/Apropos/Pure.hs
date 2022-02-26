@@ -3,6 +3,7 @@ module Apropos.Pure (HasPureRunner (..)) where
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
+import Apropos.Gen
 import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -15,10 +16,14 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
 
   runPureTest :: Proxy m -> Set p -> Property
   runPureTest pm s = property $ do
-    (m :: m) <- parameterisedGenerator s
+    (m :: m) <- handleRootRetries numRetries $ genRoot $ parameterisedGenerator s
     let expect' = expect pm
         script' = script (Proxy :: Proxy p)
     satisfiesFormula expect' s === script' m
+    where
+      numRetries :: Int
+      numRetries = rootRetryLimit (Proxy :: Proxy (m,p))
+
   runPureTestsWhere :: Proxy m -> String -> Formula p -> Group
   runPureTestsWhere pm name condition =
     Group (fromString name) $

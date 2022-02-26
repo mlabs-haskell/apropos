@@ -7,10 +7,8 @@ import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Script
+import Apropos.Gen
 import Data.Proxy (Proxy (..))
-import Hedgehog (forAll)
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -48,17 +46,17 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 
 instance HasParameterisedGenerator IntProp Int where
-  parameterisedGenerator s = forAll $ do
+  parameterisedGenerator s = do
     i <-
       if IsZero `elem` s
         then pure 0
         else
           if IsSmall `elem` s
-            then Gen.int (linear 1 10)
+            then int (linear 1 10)
             else
               if IsMaxBound `elem` s
                 then pure maxBound
-                else Gen.int (linear 11 (maxBound -1))
+                else int (linear 11 (maxBound -1))
     if IsNegative `elem` s
       then
         if IsMinBound `elem` s

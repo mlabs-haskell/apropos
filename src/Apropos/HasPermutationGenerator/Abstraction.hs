@@ -3,10 +3,8 @@ module Apropos.HasPermutationGenerator.Abstraction (
   Abstraction(..),
   abstract,
   abstractsProperties,
-  (|:->),
   ) where
 import Apropos.LogicalModel.Enumerable
-import Apropos.LogicalModel.Formula
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.Gen
@@ -23,8 +21,8 @@ data Abstraction ap am bp bm =
   }
 
 abstract :: Enumerable ap
-             => Enumerable bp
-             => Abstraction ap am bp bm -> Morphism ap am -> Morphism bp bm
+         => Enumerable bp
+         => Abstraction ap am bp bm -> Morphism ap am -> Morphism bp bm
 abstract abstraction edge =
   Morphism {
     name = (abstractionName abstraction) <> name edge
@@ -64,20 +62,4 @@ abstractContract prefix a c = do
     projectProperties pa s = Set.fromList $ rights ((matching pa) <$> Set.toList s)
     maskProperties :: Prism' b a -> Set b -> Set b
     maskProperties pa = Set.filter (isn't pa)
-
-(|:->) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
-(|:->) as bs = [composeMorphisms a b | a <- as, b <- bs]
-
-composeMorphisms :: Morphism p m -> Morphism p m -> Morphism p m
-composeMorphisms a b =
-  Morphism
-    { name = name a <> name b
-    , match = match a :&&: match b
-    , contract = contract a >> contract b
-    , morphism = do
-        m <- source
-        ma <- liftMorphism (morphism a) m
-        liftMorphism (morphism b) ma
-    }
-
 

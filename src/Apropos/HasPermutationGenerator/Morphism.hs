@@ -2,6 +2,7 @@
 
 module Apropos.HasPermutationGenerator.Morphism (
   Morphism (..),
+  (|:->),
 ) where
 
 import Apropos.Gen
@@ -20,3 +21,20 @@ instance Eq (Morphism p m) where
 
 instance Show (Morphism p m) where
   show = name
+
+(|:->) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
+(|:->) as bs = [composeMorphisms a b | a <- as, b <- bs]
+
+composeMorphisms :: Morphism p m -> Morphism p m -> Morphism p m
+composeMorphisms a b =
+  Morphism
+    { name = name a <> name b
+    , match = match a :&&: match b
+    , contract = contract a >> contract b
+    , morphism = do
+        m <- source
+        ma <- liftMorphism (morphism a) m
+        liftMorphism (morphism b) ma
+    }
+
+

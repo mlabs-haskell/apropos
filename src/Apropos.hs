@@ -18,10 +18,6 @@ module Apropos (
 
   -- Apropos.Gen
   Gen,
-  Gen',
-  liftGen,
-  source,
-  sink,
   label,
   failWithFootnote,
   bool,

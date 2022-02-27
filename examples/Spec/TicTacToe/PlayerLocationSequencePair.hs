@@ -64,7 +64,7 @@ instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' ([Int], [Int])
+baseGen :: Gen ([Int], [Int])
 baseGen = do
   l <- int (linear 0 10)
   l1 <- list (singleton l) $ int (linear minBound maxBound)

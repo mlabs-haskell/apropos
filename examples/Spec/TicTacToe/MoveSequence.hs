@@ -62,8 +62,8 @@ instance HasLogicalModel MoveSequenceProperty [Int] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
   satisfiesProperty MoveSequenceContainsWin ms = containsWin ms
 
-baseGen :: Gen' [Int]
-baseGen = liftGen $ genSatisfying (Yes :: Formula LocationSequenceProperty)
+baseGen :: Gen [Int]
+baseGen = genSatisfying (Yes :: Formula LocationSequenceProperty)
 
 instance HasPermutationGenerator MoveSequenceProperty [Int] where
   generators =
@@ -71,24 +71,21 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "InvalidNoWin"
         , match = Yes
         , contract = clear
-        , morphism = do
-            genFilter (not . containsWin) $ liftGen
-               $ genSatisfying $ Not locationSequenceIsValid
+        , morphism = \_ -> genFilter (not . containsWin) 
+                             $ genSatisfying $ Not locationSequenceIsValid
         }
     , Morphism
         { name = "ValidNoWin"
         , match = Yes
         , contract = clear >> add MoveSequenceValid
-        , morphism = do
-           genFilter (not . containsWin) $ liftGen
-               $ genSatisfying locationSequenceIsValid
+        , morphism = \_ -> genFilter (not . containsWin)
+                             $ genSatisfying locationSequenceIsValid
         }
     , Morphism
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = do
-            moves <- source
+        , morphism = \moves -> do
             winlocs <- Set.toList <$> (element winTileSets)
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
@@ -100,8 +97,7 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = do
-            moves <- source
+        , morphism = \moves -> do
             winlocs <- Set.toList <$> (element winTileSets)
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst

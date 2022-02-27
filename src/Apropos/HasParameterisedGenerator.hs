@@ -14,7 +14,7 @@ import Data.String (fromString)
 import Hedgehog (Group (..), Property, property, (===))
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: Set p -> Gen m m
+  parameterisedGenerator :: Set p -> Gen m
   rootRetryLimit :: m :+ p -> Int
   rootRetryLimit _ = 100
 
@@ -22,7 +22,7 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
 runGeneratorTest :: forall p m . HasParameterisedGenerator p m
                  => m :+ p -> Set p -> Property
 runGeneratorTest _ s = property $ do
-  (m :: m) <- handleRootRetries numRetries $ genRoot $ parameterisedGenerator s
+  (m :: m) <- handleRootRetries numRetries $ gen $ parameterisedGenerator s
   properties m === s
     where
       numRetries :: Int
@@ -36,9 +36,9 @@ runGeneratorTestsWhere proxy name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen' m
+genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  liftGen $ parameterisedGenerator s
+  parameterisedGenerator s
 

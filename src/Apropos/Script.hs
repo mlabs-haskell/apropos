@@ -79,7 +79,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
     m :+ p ->
     m ->
     Either ([Text], String) (ExBudget, [Text]) ->
-    Gen m ()
+    Gen ()
   deliverResult apropos model res =
     case (shouldPass, res) of
       (False, Left _) -> pure ()
@@ -89,7 +89,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
     where
       shouldPass :: Bool
       shouldPass = satisfiesFormula (expect apropos) $ properties model
-      successWithBudgetCheck :: ExBudget -> Gen m ()
+      successWithBudgetCheck :: ExBudget -> Gen ()
       successWithBudgetCheck cost@(ExBudget cpu mem) =
         if inInterval cpu (modelCPUBounds apropos model) && inInterval mem (modelMemoryBounds apropos model)
           then pure ()

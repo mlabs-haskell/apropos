@@ -47,7 +47,7 @@ instance HasPermutationGenerator MoveProperty (Int, Int) where
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' (Int, Int)
+baseGen :: Gen (Int, Int)
 baseGen =
   let g = int (linear minBound maxBound)
    in (,) <$> g <*> g

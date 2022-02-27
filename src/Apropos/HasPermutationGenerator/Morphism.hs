@@ -13,7 +13,7 @@ data Morphism p m = Morphism
   { name :: String
   , match :: Formula p
   , contract :: Contract p ()
-  , morphism :: Gen m m
+  , morphism :: m -> Gen m
   }
 
 instance Eq (Morphism p m) where
@@ -31,10 +31,7 @@ composeMorphisms a b =
     { name = name a <> name b
     , match = match a :&&: match b
     , contract = contract a >> contract b
-    , morphism = do
-        m <- source
-        ma <- liftMorphism (morphism a) m
-        liftMorphism (morphism b) ma
+    , morphism = \m -> (morphism a) m >>= morphism b
     }
 
 

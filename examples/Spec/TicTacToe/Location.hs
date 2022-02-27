@@ -34,13 +34,13 @@ instance HasPermutationGenerator LocationProperty Int where
         { name = "MakeLocationIsWithinBounds"
         , match = Var LocationIsOutOfBounds
         , contract = remove LocationIsOutOfBounds >> add LocationIsWithinBounds
-        , morphism = int (linear 0 8)
+        , morphism = \_ -> int (linear 0 8)
         }
     , Morphism
         { name = "MakeLocationIsOutOfBounds"
         , match = Var LocationIsWithinBounds
         , contract = remove LocationIsWithinBounds >> add LocationIsOutOfBounds
-        , morphism =
+        , morphism = \_ ->
             choice $
                 [ int (linear minBound (-1))
                 , int (linear 9 maxBound)
@@ -51,7 +51,7 @@ instance HasPermutationGenerator LocationProperty Int where
 instance HasParameterisedGenerator LocationProperty Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' Int
+baseGen :: Gen Int
 baseGen = int (linear minBound maxBound)
 
 locationPermutationGenSelfTest :: TestTree

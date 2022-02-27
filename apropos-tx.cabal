@@ -74,6 +74,8 @@ library
                  , Apropos.HasPermutationGenerator.Contract
                  , Apropos.HasPermutationGenerator.Morphism
                  , Apropos.Gen
+                 , Apropos.Gen.Range
+                 , Apropos.Gen.Cardinality
                  , Apropos.Pure
                  , Apropos.Script
                  , Apropos.Tx

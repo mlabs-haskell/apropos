@@ -67,7 +67,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsNull]
-        , morphism = pure []
+        , morphism = \_ -> pure []
         }
     , Morphism
         { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
@@ -79,8 +79,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> add AllLocationsAreInBounds
-        , morphism = do
-            locations <- source
+        , morphism = \locations -> do
             let locationsLen = min 9 (length locations)
             locations' <- shuffle [0 .. 8]
             pure $ take locationsLen locations'
@@ -97,8 +96,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 [ AllLocationsAreInBounds
                 , SomeLocationIsOccupiedTwice
                 ]
-        , morphism = do
-            locations <- source
+        , morphism = \locations -> do
             let locationsLen = max 2 (length locations)
             locations' <- shuffle [0 .. 8]
             let locations'' = take (locationsLen - 1) locations'
@@ -115,7 +113,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [SomeLocationIsOutOfBounds, LocationSequenceIsSingleton]
-        , morphism =
+        , morphism = \_ ->
             list (singleton 1) $
               choice
                   [ int (linear minBound (-1))
@@ -133,8 +131,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsSingleton]
-        , morphism =
-            list (singleton 1) $ int (linear 0 8)
+        , morphism = \_ -> list (singleton 1) $ int (linear 0 8)
         }
     , Morphism
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
@@ -145,7 +142,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , SomeLocationIsOccupiedTwice
               ]
               >> add SomeLocationIsOutOfBounds
-        , morphism =
+        , morphism = \locations ->
             let f =
                   ( \m ->
                       satisfiesFormula
@@ -155,7 +152,6 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                         (properties m)
                   )
              in do
-                  locations <- source
                   let locationsLen = length locations
                   genFilter f $
                       list (singleton locationsLen) $
@@ -175,11 +171,11 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 , SomeLocationIsOutOfBounds
                 , LocationSequenceIsLongerThanGame
                 ]
-        , morphism = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-            let locationsLen = 10
-            locations' <- list (singleton (locationsLen - 1)) $
-                  int (linear minBound maxBound)
-            list (singleton locationsLen) $ element locations'
+        , morphism = \_ -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+                             let locationsLen = 10
+                             locations' <- list (singleton (locationsLen - 1)) $
+                                   int (linear minBound maxBound)
+                             list (singleton locationsLen) $ element locations'
         }
     , Morphism
         { name = "MakeSomeLocationIsOccupiedTwice"
@@ -194,19 +190,18 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 [ SomeLocationIsOccupiedTwice
                 , SomeLocationIsOutOfBounds
                 ]
-        , morphism = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-            locations <- source
-            let locationsLen = length locations
-            locations' <- list (singleton (locationsLen - 1)) $
-                  int (linear minBound maxBound)
-            list (singleton locationsLen) $ element locations'
+        , morphism = \locations -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+                             let locationsLen = length locations
+                             locations' <- list (singleton (locationsLen - 1)) $
+                                   int (linear minBound maxBound)
+                             list (singleton locationsLen) $ element locations'
         }
     ]
 
 instance HasParameterisedGenerator LocationSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' [Int]
+baseGen :: Gen [Int]
 baseGen =
   let g = int (linear minBound maxBound)
    in list (linear 0 10) g

@@ -46,7 +46,7 @@ module Apropos (
 
   -- Apropos.HasPermutationGenerator
   HasPermutationGenerator(..),
-  PermutationEdge(..),
+  Morphism(..),
   Abstraction(..),
   abstract,
   abstractsProperties,

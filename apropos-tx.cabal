@@ -72,7 +72,7 @@ library
                  , Apropos.HasPermutationGenerator
                  , Apropos.HasPermutationGenerator.Abstraction
                  , Apropos.HasPermutationGenerator.Contract
-                 , Apropos.HasPermutationGenerator.PermutationEdge
+                 , Apropos.HasPermutationGenerator.Morphism
                  , Apropos.Gen
                  , Apropos.Pure
                  , Apropos.Script

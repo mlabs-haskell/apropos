@@ -1,22 +1,22 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Apropos.HasPermutationGenerator.PermutationEdge (
-  PermutationEdge (..),
+module Apropos.HasPermutationGenerator.Morphism (
+  Morphism (..),
 ) where
 
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel.Formula
 
-data PermutationEdge p m = PermutationEdge
+data Morphism p m = Morphism
   { name :: String
   , match :: Formula p
   , contract :: Contract p ()
-  , permuteGen :: Gen m m
+  , morphism :: Gen m m
   }
 
-instance Eq (PermutationEdge p m) where
+instance Eq (Morphism p m) where
   (==) a b = name a == name b
 
-instance Show (PermutationEdge p m) where
+instance Show (Morphism p m) where
   show = name

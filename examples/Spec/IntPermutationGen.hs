@@ -46,37 +46,37 @@ instance HasLogicalModel IntProp Int where
 
 instance HasPermutationGenerator IntProp Int where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeZero"
         , match = Not $ Var IsZero
         , contract = clear >> addAll [IsZero, IsSmall]
-        , permuteGen = sink 0
+        , morphism = sink 0
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMaxBound"
         , match = Not $ Var IsMaxBound
         , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , permuteGen = sink maxBound
+        , morphism = sink maxBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMinBound"
         , match = Not $ Var IsMinBound
         , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , permuteGen = sink minBound
+        , morphism = sink minBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , permuteGen = int (linear 11 (maxBound -1))
+        , morphism = int (linear 11 (maxBound -1))
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSmall"
         , match = Not $ Var IsSmall
         , contract = clear >> addAll [IsSmall, IsPositive]
-        , permuteGen = int (linear 1 10)
+        , morphism = int (linear 1 10)
         }
-    , PermutationEdge
+    , Morphism
         { name = "Negate"
         , match = Not $ Var IsZero
         , contract =
@@ -84,7 +84,7 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , permuteGen = do
+        , morphism = do
             i <- source
             sink (- i)
         }
@@ -133,5 +133,5 @@ intPermutationGenSelfTests =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge IntProp Int) -> True)
+        (\(_ :: Morphism IntProp Int) -> True)
         baseGen

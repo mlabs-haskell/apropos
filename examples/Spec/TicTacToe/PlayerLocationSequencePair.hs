@@ -77,5 +77,5 @@ playerLocationSequencePairPermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         False
-        (\(_ :: PermutationEdge PlayerLocationSequencePairProperty ([Int], [Int])) -> True)
+        (\(_ :: Morphism PlayerLocationSequencePairProperty ([Int], [Int])) -> True)
         baseGen

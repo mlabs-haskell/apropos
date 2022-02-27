@@ -49,7 +49,7 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
 
 instance HasPermutationGenerator PlayerSequenceProperty [Int] where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeTakeTurnsNotLongerThanGame"
         , match = Yes
         , contract =
@@ -60,13 +60,13 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
               , PlayerSequenceIsLongerThanGame
               ]
               >> add TakeTurns
-        , permuteGen = do
+        , morphism = do
             s <- source
             let numMoves = min 9 (max 2 (length s))
             pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeTakeTurnsLongerThanGame"
         , match = Yes
         , contract =
@@ -79,48 +79,48 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
                 [ TakeTurns
                 , PlayerSequenceIsLongerThanGame
                 ]
-        , permuteGen = do
+        , morphism = do
             let numMoves = 10
             pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakePlayerSequenceNull"
         , match = Yes
         , contract =
             removeAll [Don'tTakeTurns, PlayerSequenceSingleton]
               >> addAll [TakeTurns, PlayerSequenceNull]
-        , permuteGen = pure []
+        , morphism = pure []
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakePlayerSingletonDon'tTakeTurns"
         , match = Yes
         , contract =
             removeAll [TakeTurns, PlayerSequenceNull]
               >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
-        , permuteGen = do
+        , morphism = do
             list (singleton 1) $
                 choice
                   [ int (linear minBound (-1))
                   , int (linear 2 maxBound)
                   ]
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakePlayerSingletonTakeTurns"
         , match = Yes
         , contract =
             removeAll [Don'tTakeTurns, PlayerSequenceNull]
               >> addAll [TakeTurns, PlayerSequenceSingleton]
-        , permuteGen = do
+        , morphism = do
             list (singleton 1) $ int (linear 0 1)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeDon'tTakeTurns"
         , match = Yes
         , contract =
             add Don'tTakeTurns
               >> removeAll [TakeTurns, PlayerSequenceSingleton, PlayerSequenceNull]
-        , permuteGen = do
+        , morphism = do
             s <- source
             let numMoves = max 2 (length s)
             let genFoulPlay = do
@@ -147,5 +147,5 @@ playerSequencePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge PlayerSequenceProperty [Int]) -> True)
+        (\(_ :: Morphism PlayerSequenceProperty [Int]) -> True)
         baseGen

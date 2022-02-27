@@ -113,5 +113,5 @@ intPairGenSelfTests =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge IntPairProp (Int, Int)) -> True)
+        (\(_ :: Morphism IntPairProp (Int, Int)) -> True)
         baseGen

@@ -58,6 +58,6 @@ movePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge MoveProperty (Int, Int)) -> True)
+        (\(_ :: Morphism MoveProperty (Int, Int)) -> True)
         baseGen
 

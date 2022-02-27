@@ -6,6 +6,7 @@ module Apropos.HasPermutationGenerator (
   abstractsProperties,
   (|:->),
   ) where
+import Apropos.Type
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
@@ -17,7 +18,6 @@ import qualified Data.Set as Set
 import Hedgehog (Group(..),failure,property)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
 import Data.Graph (buildG,scc,path)
 import Text.Show.Pretty (ppDoc)
@@ -37,8 +37,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   permutationGeneratorSelfTest :: Bool -> (PermutationEdge p m -> Bool) -> Gen m m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
-    let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
-        (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+    let pedges = findPermutationEdges (Apropos :: m :+ p)
+        (_,ns) = numberNodes (Apropos :: m :+ p)
         mGen = buildGen bgen
         graph = buildGraph pedges
         isco = isStronglyConnected graph
@@ -60,7 +60,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                               ]
     where
       abortNotSCC ns graph =
-        let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+        let (a,b) = findNoPath (Apropos :: m :+ p) ns graph
           in genProp $ failWithFootnote $ renderStyle ourStyle $
                "PermutationEdges do not form a strongly connected graph."
                $+$ hang "No Edge Between here:" 4 (ppDoc a)
@@ -103,10 +103,10 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   buildGen :: Gen m m -> Set p -> Gen m m
   buildGen g = do
-    let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
+    let pedges = findPermutationEdges (Apropos :: m :+ p)
         edges = Map.keys pedges
         distmap = distanceMap edges
-        (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+        (sn,ns) = numberNodes (Apropos :: m :+ p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
         go targetProperties = do
@@ -117,7 +117,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           if isco
              then pure ()
              else
-               let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+               let (a,b) = findNoPath (Apropos :: m :+ p) ns graph
                 in failWithFootnote $ renderStyle ourStyle $
                       "PermutationEdges do not form a strongly connected graph."
                       $+$ hang "No Edge Between here:" 4 (ppDoc a)
@@ -125,7 +125,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           transformModel sn pedges edges distmap m targetProperties
        in go
 
-  findNoPath :: Proxy m
+  findNoPath :: m :+ p
              -> Map Int (Set p)
              -> Graph
              -> (Set p, Set p)
@@ -143,7 +143,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                  -> Set p
                  -> Gen m m
   transformModel nodes pedges edges distmap m to = do
-    pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
+    pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
   traversePath :: Map (Int,Int) [PermutationEdge p m]
@@ -177,7 +177,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           else edgeFailsContract tr m nm expected observed
         traversePath edges r nm
 
-  findPathOptions :: (Proxy m)
+  findPathOptions :: m :+ p
                   -> [(Int,Int)]
                   -> Map Int (Map Int Int)
                   -> Map (Set p) Int
@@ -208,21 +208,19 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == (lut m b)
 
 
-  findPermutationEdges :: Proxy m
-                       -> Proxy p
+  findPermutationEdges :: m :+ p
                        -> Map (Int,Int) [PermutationEdge p m]
-  findPermutationEdges pm pp =
-    let nodemap = snd $ numberNodes pm pp
+  findPermutationEdges apropos =
+    let nodemap = snd $ numberNodes apropos
         nodes = Map.keys nodemap
      in Map.fromList [ ((a,b), options )
                      | a <- nodes
                      , b <- nodes
                      , let options = filter (mapsBetween nodemap a b) generators
                      , length options > 0 ]
-  numberNodes :: Proxy m
-              -> Proxy p
+  numberNodes :: m :+ p
               -> (Map (Set p) Int, Map Int (Set p))
-  numberNodes _ (Proxy :: Proxy p) =
+  numberNodes _ =
     let scenarios = enumerateScenariosWhere (logic :: Formula p)
         scennums = Map.fromList $ zip scenarios [0..]
         numsscen = Map.fromList $ zip [0..] scenarios
@@ -264,10 +262,7 @@ genRandomPath edges m from to = go [] from
               p <- element options''
               (f:) <$> go (p:breadcrumbs) p
 
--- I thought this would be slow but it seems okay
--- I tried using digraph from kadena-io but couldn't get it to build
--- It would be nice to depend on a library that gives us a distance matrix for a digraph
--- instead of hand rolling it
+-- TODO is this a performance bottleneck?
 distanceMap :: [(Int,Int)] -> Map Int (Map Int Int)
 distanceMap edges =
   let initial = foldr ($) Map.empty (insertEdge <$> edges)

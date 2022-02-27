@@ -3,10 +3,7 @@
 module Spec.Plutarch.MagicNumber (
   magicNumberPropGenTests,
 ) where
-
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.LogicalModel
+import Apropos
 
 import qualified Data.Set as Set
 
@@ -15,7 +12,6 @@ import Plutus.V1.Ledger.Scripts (Script)
 import Plutarch (compile)
 import Plutarch.Prelude
 
-import Data.Proxy (Proxy (..))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -61,7 +57,7 @@ magicNumberPropGenTests =
   testGroup "Spec.Plutarch.MagicNumber" $
     fromGroup
       <$> [ runGeneratorTestsWhere
-              (Proxy :: Proxy Script)
+              (Apropos :: Script :+ MagicNumberProp)
               "Magic Number Script Generator"
-              (Yes :: Formula MagicNumberProp)
+              Yes
           ]

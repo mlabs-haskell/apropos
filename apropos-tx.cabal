@@ -61,7 +61,9 @@ common lang
 
 library
   import:          lang
-  exposed-modules: Apropos.LogicalModel
+  exposed-modules: Apropos
+                 , Apropos.Type
+                 , Apropos.LogicalModel
                  , Apropos.LogicalModel.Formula
                  , Apropos.LogicalModel.Enumerable
                  , Apropos.LogicalModel.Enumerable.TH

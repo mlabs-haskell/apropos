@@ -4,10 +4,7 @@ module Spec.Plutarch.CostModel (
   addCostPropGenTests,
   addCostModelPlutarchTests,
 ) where
-
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.LogicalModel
+import Apropos
 import Apropos.Script
 
 import qualified Data.Set as Set
@@ -18,7 +15,6 @@ import Plutus.V1.Ledger.Scripts (Script)
 import Plutarch (compile)
 import Plutarch.Prelude
 
-import Data.Proxy (Proxy (..))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -59,14 +55,14 @@ addCostPropGenTests =
   testGroup "Spec.Plutarch.CostModel" $
     fromGroup
       <$> [ runGeneratorTestsWhere
-              (Proxy :: Proxy Integer)
+              (Apropos :: Integer :+ CostModelProp)
               "(+) Cost Model Script Generator"
-              (Yes :: Formula CostModelProp)
+              Yes
           ]
 
 instance HasScriptRunner CostModelProp Integer where
   script _ i = addCost i
-  expect _ _ = Yes :: Formula CostModelProp
+  expect _ = Yes :: Formula CostModelProp
 
   -- This is the cool bit. We can model the cost exactly. Neato.
   -- If we build a higherarchichal model we can compose these.
@@ -82,8 +78,7 @@ addCostModelPlutarchTests =
   testGroup "Plutarch.AdditionCostModel" $
     fromGroup
       <$> [ runScriptTestsWhere
-              (Proxy :: Proxy Integer)
-              (Proxy :: Proxy CostModelProp)
+              (Apropos :: Integer :+ CostModelProp)
               "AdditionCostModel"
               Yes
           ]

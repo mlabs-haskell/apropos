@@ -7,16 +7,8 @@ module Spec.IntPermutationGen (
   intPermutationGenSelfTests,
   IntProp (..),
 ) where
-
-import Apropos.Gen
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel
-import Apropos.Pure
+import Apropos
 import Apropos.Script
-import Data.Proxy (Proxy (..))
 import Plutarch (compile)
 import Plutarch.Prelude
 import Test.Tasty (TestTree, testGroup)
@@ -58,19 +50,19 @@ instance HasPermutationGenerator IntProp Int where
         { name = "MakeZero"
         , match = Not $ Var IsZero
         , contract = clear >> addAll [IsZero, IsSmall]
-        , permuteGen = pure 0
+        , permuteGen = sink 0
         }
     , PermutationEdge
         { name = "MakeMaxBound"
         , match = Not $ Var IsMaxBound
         , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , permuteGen = pure maxBound
+        , permuteGen = sink maxBound
         }
     , PermutationEdge
         { name = "MakeMinBound"
         , match = Not $ Var IsMinBound
         , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , permuteGen = pure minBound
+        , permuteGen = sink minBound
         }
     , PermutationEdge
         { name = "MakeLarge"
@@ -94,7 +86,7 @@ instance HasPermutationGenerator IntProp Int where
               ]
         , permuteGen = do
             i <- source
-            pure (- i)
+            sink (- i)
         }
     ]
 
@@ -108,7 +100,7 @@ intPermutationGenTests :: TestTree
 intPermutationGenTests =
   testGroup "intPermutationGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
+      <$> [ runGeneratorTestsWhere (Apropos :: Int :+ IntProp) "Int Generator" Yes
           ]
 
 instance HasPureRunner IntProp Int where
@@ -119,11 +111,11 @@ intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 instance HasScriptRunner IntProp Int where
-  expect _ _ = Var IsSmall :&&: Var IsNegative
+  expect _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer
      in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
@@ -132,7 +124,7 @@ intPermutationGenPlutarchTests :: TestTree
 intPermutationGenPlutarchTests =
   testGroup "intPermutationGenPlutarchTests" $
     fromGroup
-      <$> [ runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
+      <$> [ runScriptTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 intPermutationGenSelfTests :: TestTree

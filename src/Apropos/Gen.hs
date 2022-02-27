@@ -7,6 +7,7 @@ module Apropos.Gen (
   handleRootRetries,
 
   source,
+  sink,
   label,
   failWithFootnote,
   liftEdge,
@@ -99,6 +100,10 @@ instance Functor (FreeGen m) where
 type Gen p = Free (FreeGen p)
 
 type Gen' p = Gen p p
+
+
+sink :: a -> Gen m a
+sink = pure
 
 source :: Gen m m
 source = liftF (ReadGenInput id)

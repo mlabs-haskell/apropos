@@ -1,10 +1,11 @@
 module Apropos.HasPermutationGenerator.Contract (
   Contract,
+  FreeContract(..),
   runContract,
   readContractInput,
   readContractEdgeName,
   readContractOutput,
-  setContractOutput,
+  writeContractOutput,
   branches,
   branchIf,
   has,
@@ -21,12 +22,14 @@ module Apropos.HasPermutationGenerator.Contract (
   removeAllIf,
   clear,
   output,
+  contractError,
+  terminal,
 ) where
-
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
-import Control.Monad.State (StateT, get, modify, put, runStateT)
+import Control.Monad.State (StateT, get, put, runStateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
+import Control.Monad.Free
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -40,33 +43,73 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-type Contract p a = MaybeT (ReaderT (String, Set p) (StateT (Set p) (Either String))) a
+data FreeContract p next =
+    ReadContractInput (Set p -> next)
+  | ReadContractEdgeName (String -> next)
+  | ReadContractOutput (Set p -> next)
+  | WriteContractOutput (Set p) next
+  | ContractError String next
+  | Terminal next
 
-runContract :: Contract p () -> String -> Set p -> Either String (Maybe (Set p))
-runContract c nm s = do
-  (b, s') <- runStateT (runReaderT (runMaybeT c) (nm, s)) s
-  case b of
-    Just () -> pure $ Just s'
-    Nothing -> pure Nothing
+instance Functor (FreeContract p) where
+  fmap f (ReadContractInput r) = ReadContractInput (f . r)
+  fmap f (ReadContractEdgeName r) = ReadContractEdgeName (f . r)
+  fmap f (ReadContractOutput r) = ReadContractOutput (f . r)
+  fmap f (WriteContractOutput r next) = WriteContractOutput r (f next)
+  fmap f (ContractError err next) = ContractError err (f next)
+  fmap f (Terminal next) = Terminal (f next)
 
-runContractInternal :: Contract p () -> String -> Set p -> Set p -> Either String (Maybe (Set p))
-runContractInternal c nm s i = do
-  (b, s') <- runStateT (runReaderT (runMaybeT c) (nm, s)) i
-  case b of
-    Just () -> pure $ Just s'
-    Nothing -> pure Nothing
+type Contract p = Free (FreeContract p)
 
 readContractInput :: Contract p (Set p)
-readContractInput = snd <$> lift ask
+readContractInput = liftF (ReadContractInput id)
 
 readContractEdgeName :: Contract p String
-readContractEdgeName = fst <$> lift ask
+readContractEdgeName = liftF (ReadContractEdgeName id)
 
 readContractOutput :: Contract p (Set p)
-readContractOutput = lift $ lift get
+readContractOutput = liftF (ReadContractOutput id)
 
-setContractOutput :: Set p -> Contract p ()
-setContractOutput = lift . lift . put
+writeContractOutput :: Set p -> Contract p ()
+writeContractOutput s = liftF (WriteContractOutput s ())
+
+contractError :: String -> Contract p ()
+contractError s = liftF (ContractError s ())
+
+terminal :: Contract p ()
+terminal = liftF (Terminal ())
+
+type ContractRun p a = MaybeT (ReaderT (String, Set p) (StateT (Set p) (Either String))) a
+
+interpret :: Contract p () -> ContractRun p ()
+interpret (Free (ReadContractInput next))     = (snd <$> lift ask) >>= interpret . next
+interpret (Free (ReadContractEdgeName next))  = (fst <$> lift ask) >>= interpret . next
+interpret (Free (ReadContractOutput next))    = (lift $ lift get)  >>= interpret . next
+interpret (Free (WriteContractOutput s next)) = (lift $ lift $ put s) >> interpret next
+interpret (Free (ContractError err next))     = (lift $ lift $ lift $ Left err) >> interpret next
+interpret (Free (Terminal next))              = fail "terminal" >> interpret next
+interpret (Pure a)                            = pure a
+
+runContract :: Contract p () -> String -> Set p -> Either String (Maybe (Set p))
+runContract = runContract' . interpret
+  where
+    runContract' :: ContractRun p () -> String -> Set p -> Either String (Maybe (Set p))
+    runContract' c nm s = do
+      (b, s') <- runStateT (runReaderT (runMaybeT c) (nm, s)) s
+      case b of
+        Just () -> pure $ Just s'
+        Nothing -> pure Nothing
+
+runContractInternal :: Contract p () -> String -> Set p -> Set p -> Contract p (Maybe (Set p))
+runContractInternal = runContractInternal' . interpret
+  where
+    runContractInternal' :: ContractRun p () -> String -> Set p -> Set p -> Contract p (Maybe (Set p))
+    runContractInternal' c nm s i = do
+      case runStateT (runReaderT (runMaybeT c) (nm, s)) i of
+        Left err -> contractError err >> pure Nothing
+        Right (b, s') -> case b of
+                           Just () -> pure $ Just s'
+                           Nothing -> pure Nothing
 
 --e.g. has ThisThing >> add ThatThing
 has :: Eq p => p -> Contract p ()
@@ -74,7 +117,7 @@ has p = do
   s <- readContractInput
   if p `elem` s
     then pure ()
-    else fail "Nothing"
+    else terminal
 
 --e.g. hasAll [ThisThing,ThatThing] >> add TheOtherThing
 hasAll :: Eq p => [p] -> Contract p ()
@@ -85,7 +128,7 @@ hasn't :: Eq p => p -> Contract p ()
 hasn't p = do
   s <- readContractInput
   if p `elem` s
-    then fail "Nothing"
+    then terminal
     else pure ()
 
 --e.g. hasNone [ThisThing,ThatThing] >> add TheOtherThing
@@ -93,10 +136,10 @@ hasNone :: Eq p => [p] -> Contract p ()
 hasNone = mapM_ hasn't
 
 add :: Ord p => p -> Contract p ()
-add p = lift $ lift $ modify (Set.insert p)
+add p = readContractOutput >>= writeContractOutput . Set.insert p
 
 remove :: Ord p => p -> Contract p ()
-remove p = lift $ lift $ modify (Set.delete p)
+remove p = readContractOutput >>= writeContractOutput . Set.delete p
 
 addAll :: Ord p => [p] -> Contract p ()
 addAll = mapM_ add
@@ -105,10 +148,10 @@ removeAll :: Ord p => [p] -> Contract p ()
 removeAll = mapM_ remove
 
 clear :: Contract p ()
-clear = lift $ lift $ put Set.empty
+clear = writeContractOutput Set.empty
 
 output :: Set p -> Contract p ()
-output = lift . lift . put
+output = writeContractOutput
 
 addIf :: (Ord p, Show p) => p -> p -> Contract p ()
 addIf p q = branches [has p >> add q, hasn't p]
@@ -130,19 +173,14 @@ branches cs = do
   i <- readContractInput
   e <- readContractEdgeName
   o <- readContractOutput
-  rs <- mapM (\c -> lift $ lift $ lift $ runContractInternal c e i o) cs
+  rs <- mapM (\c -> runContractInternal c e i o) cs
   case catMaybes rs of
-    [] -> fail "Nothing"
-    [ao] -> setContractOutput ao >> pure ()
+    [] -> terminal
+    [ao] -> writeContractOutput ao
     (ao : rest) ->
       if all (== ao) rest
-        then setContractOutput ao >> pure ()
-        else
-          lift $
-            lift $
-              lift $
-                Left $
-                  renderStyle ourStyle $
+        then writeContractOutput ao
+        else contractError $ renderStyle ourStyle $
                     (fromString $ "PermutationEdge " <> e <> " has non-deterministic type")
                       $+$ hang "error:" 4 "branches succeeded with different results in each branch."
                       $+$ hang "results:" 4 (ppDoc (ao : rest))

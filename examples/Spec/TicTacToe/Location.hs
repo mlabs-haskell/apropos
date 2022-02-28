@@ -30,17 +30,17 @@ instance HasLogicalModel LocationProperty Int where
 
 instance HasPermutationGenerator LocationProperty Int where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeLocationIsWithinBounds"
         , match = Var LocationIsOutOfBounds
         , contract = remove LocationIsOutOfBounds >> add LocationIsWithinBounds
-        , permuteGen = int (linear 0 8)
+        , morphism = int (linear 0 8)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeLocationIsOutOfBounds"
         , match = Var LocationIsWithinBounds
         , contract = remove LocationIsWithinBounds >> add LocationIsOutOfBounds
-        , permuteGen =
+        , morphism =
             choice $
                 [ int (linear minBound (-1))
                 , int (linear 9 maxBound)
@@ -60,5 +60,5 @@ locationPermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge LocationProperty Int) -> True)
+        (\(_ :: Morphism LocationProperty Int) -> True)
         baseGen

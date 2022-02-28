@@ -56,7 +56,7 @@ instance HasLogicalModel LocationSequenceProperty [Int] where
 
 instance HasPermutationGenerator LocationSequenceProperty [Int] where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeLocationSequenceNull"
         , match = Yes
         , contract =
@@ -67,9 +67,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsNull]
-        , permuteGen = pure []
+        , morphism = pure []
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
         , match = Not $ Var LocationSequenceIsNull
         , contract =
@@ -79,13 +79,13 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> add AllLocationsAreInBounds
-        , permuteGen = do
+        , morphism = do
             locations <- source
             let locationsLen = min 9 (length locations)
             locations' <- shuffle [0 .. 8]
             pure $ take locationsLen locations'
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeAllLocationsAreInBoundsSomeOccupiedTwice"
         , match = Yes
         , contract =
@@ -97,14 +97,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 [ AllLocationsAreInBounds
                 , SomeLocationIsOccupiedTwice
                 ]
-        , permuteGen = do
+        , morphism = do
             locations <- source
             let locationsLen = max 2 (length locations)
             locations' <- shuffle [0 .. 8]
             let locations'' = take (locationsLen - 1) locations'
             list (singleton locationsLen) $ element locations''
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeOutOfBoundsSingleton"
         , match = Yes
         , contract =
@@ -115,14 +115,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [SomeLocationIsOutOfBounds, LocationSequenceIsSingleton]
-        , permuteGen =
+        , morphism =
             list (singleton 1) $
               choice
                   [ int (linear minBound (-1))
                   , int (linear 9 maxBound)
                   ]
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeInBoundsSingleton"
         , match = Yes
         , contract =
@@ -133,10 +133,10 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsSingleton]
-        , permuteGen =
+        , morphism =
             list (singleton 1) $ int (linear 0 8)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
         , match = Not $ Var LocationSequenceIsNull
         , contract =
@@ -145,7 +145,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , SomeLocationIsOccupiedTwice
               ]
               >> add SomeLocationIsOutOfBounds
-        , permuteGen =
+        , morphism =
             let f =
                   ( \m ->
                       satisfiesFormula
@@ -161,7 +161,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                       list (singleton locationsLen) $
                         int (linear minBound maxBound)
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
         , match = Not (Var LocationSequenceIsNull :||: Var LocationSequenceIsSingleton)
         , contract =
@@ -175,13 +175,13 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 , SomeLocationIsOutOfBounds
                 , LocationSequenceIsLongerThanGame
                 ]
-        , permuteGen = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+        , morphism = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
             let locationsLen = 10
             locations' <- list (singleton (locationsLen - 1)) $
                   int (linear minBound maxBound)
             list (singleton locationsLen) $ element locations'
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSomeLocationIsOccupiedTwice"
         , match = Not (Var LocationSequenceIsNull :||: Var LocationSequenceIsSingleton)
         , contract =
@@ -194,7 +194,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 [ SomeLocationIsOccupiedTwice
                 , SomeLocationIsOutOfBounds
                 ]
-        , permuteGen = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+        , morphism = genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
             locations <- source
             let locationsLen = length locations
             locations' <- list (singleton (locationsLen - 1)) $
@@ -217,5 +217,5 @@ locationSequencePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge LocationSequenceProperty [Int]) -> True)
+        (\(_ :: Morphism LocationSequenceProperty [Int]) -> True)
         baseGen

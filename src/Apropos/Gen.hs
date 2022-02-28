@@ -7,9 +7,10 @@ module Apropos.Gen (
   handleRootRetries,
 
   source,
+  sink,
   label,
   failWithFootnote,
-  liftEdge,
+  liftMorphism,
   liftGen,
   bool,
   int,
@@ -62,7 +63,7 @@ hRange (Linear lo hi) = HRange.linear lo hi
 
 data FreeGen m next where
   ReadGenInput :: forall m next . (m -> next)  -> FreeGen m next
-  LiftEdge :: forall m n next . Gen n n -> n -> (n -> next) -> FreeGen m next
+  LiftMorphism :: forall m n next . Gen n n -> n -> (n -> next) -> FreeGen m next
   LiftGen :: forall m n next . Gen n n -> (n -> next) -> FreeGen m next
   Label :: String -> next -> FreeGen m next
   FailWithFootnote :: forall a m next . String -> (a -> next) -> FreeGen m next
@@ -82,7 +83,7 @@ data FreeGen m next where
 
 instance Functor (FreeGen m) where
   fmap f (ReadGenInput next) = ReadGenInput (f . next)
-  fmap f (LiftEdge e i next) = LiftEdge e i (f . next)
+  fmap f (LiftMorphism e i next) = LiftMorphism e i (f . next)
   fmap f (LiftGen g next) = LiftGen g (f . next)
   fmap f (Label l next) = Label l (f next)
   fmap f (FailWithFootnote l next) = FailWithFootnote l (f . next)
@@ -100,11 +101,15 @@ type Gen p = Free (FreeGen p)
 
 type Gen' p = Gen p p
 
+
+sink :: a -> Gen m a
+sink = pure
+
 source :: Gen m m
 source = liftF (ReadGenInput id)
 
-liftEdge :: Gen n n -> n -> Gen m n
-liftEdge e i = liftF (LiftEdge e i id)
+liftMorphism :: Gen n n -> n -> Gen m n
+liftMorphism e i = liftF (LiftMorphism e i id)
 
 liftGen :: Gen n n -> Gen m n
 liftGen g = liftF (LiftGen g id)
@@ -159,7 +164,7 @@ gen (Free (ReadGenInput next)) = do
   case m of
     Nothing -> lift $ throwE $ GenException "can't read input in root gen"
     Just so -> gen $ next so
-gen (Free (LiftEdge e i next)) = lift (genEdge e i) >>>= next
+gen (Free (LiftMorphism e i next)) = lift (genMorphism e i) >>>= next
 gen (Free (LiftGen g next)) = lift (genRoot g) >>>= next
 gen (Free (Label s next)) = H.label (fromString s) >> gen next
 gen (Free (FailWithFootnote s _)) = H.footnote s >> H.failure
@@ -214,8 +219,8 @@ handleRootRetries l g = do
     Left Retry -> handleRootRetries (l-1) g
     Left (GenException e) -> H.footnote e >> H.failure
 
-genEdge :: Gen m a -> m -> Generator a
-genEdge g m = runReaderT (gen g) (Just m)
+genMorphism :: Gen m a -> m -> Generator a
+genMorphism g m = runReaderT (gen g) (Just m)
 
 genFilter' :: forall m r. (r -> Bool) -> Gen m r -> GenMorphism m r
 genFilter' condition g = go 100

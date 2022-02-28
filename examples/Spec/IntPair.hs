@@ -6,16 +6,10 @@ module Spec.IntPair (
   intPairGenSelfTests,
   intPairGenPlutarchTests,
 ) where
-
-import Apropos.Gen
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.LogicalModel
-import Apropos.Pure
+import Apropos
 import Apropos.Script
+
 import Control.Monad (join)
-import Data.Proxy (Proxy (..))
 import Plutarch (compile)
 import Plutarch.Prelude
 import Spec.IntPermutationGen
@@ -61,29 +55,36 @@ intPairGenTests :: TestTree
 intPairGenTests =
   testGroup "intPairGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Proxy :: Proxy (Int, Int)) "(Int,Int) Generator" (Yes :: Formula IntPairProp)
+      <$> [ runGeneratorTestsWhere
+              (Apropos :: (Int, Int) :+ IntPairProp)
+              "(Int,Int) Generator"
+              Yes
           ]
 
 instance HasPureRunner IntPairProp (Int, Int) where
   expect _ =
     All $
-      Var
-        <$> ( join
-                [ L <$> [IsSmall, IsNegative]
-                , R <$> [IsSmall, IsPositive]
-                ]
-            )
-  script _ (l, r) = l < 0 && l >= -10 && r > 0 && r <= 10
+       Var
+         <$> ( join
+                 [ L <$> [IsSmall, IsNegative]
+                 , R <$> [IsSmall, IsPositive]
+                 ]
+             )
+  script _ (l,r) = l < 0 && l >= -10 && r > 0 && r <= 10
+
 
 intPairGenPureTests :: TestTree
 intPairGenPureTests =
   testGroup "intPairGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Proxy :: Proxy (Int, Int)) "AcceptsLeftSmallNegativeRightSmallPositive" (Yes :: Formula IntPairProp)
+      <$> [ runPureTestsWhere
+              (Apropos :: (Int, Int) :+ IntPairProp)
+              "AcceptsLeftSmallNegativeRightSmallPositive"
+              Yes
           ]
 
 instance HasScriptRunner IntPairProp (Int, Int) where
-  expect _ _ =
+  expect _ =
     All $
       Var
         <$> ( join
@@ -100,7 +101,10 @@ intPairGenPlutarchTests :: TestTree
 intPairGenPlutarchTests =
   testGroup "intPairGenPlutarchTests" $
     fromGroup
-      <$> [ runScriptTestsWhere (Proxy :: Proxy (Int, Int)) (Proxy :: Proxy IntPairProp) "AcceptsLeftSmallNegativeRightSmallPositive" Yes
+      <$> [ runScriptTestsWhere
+              (Apropos :: (Int, Int) :+ IntPairProp)
+              "AcceptsLeftSmallNegativeRightSmallPositive"
+              Yes
           ]
 
 intPairGenSelfTests :: TestTree
@@ -109,5 +113,5 @@ intPairGenSelfTests =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge IntPairProp (Int, Int)) -> True)
+        (\(_ :: Morphism IntPairProp (Int, Int)) -> True)
         baseGen

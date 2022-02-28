@@ -67,27 +67,27 @@ baseGen = liftGen $ genSatisfying (Yes :: Formula LocationSequenceProperty)
 
 instance HasPermutationGenerator MoveSequenceProperty [Int] where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "InvalidNoWin"
         , match = Yes
         , contract = clear
-        , permuteGen = do
+        , morphism = do
             genFilter (not . containsWin) $ liftGen
                $ genSatisfying $ Not locationSequenceIsValid
         }
-    , PermutationEdge
+    , Morphism
         { name = "ValidNoWin"
         , match = Yes
         , contract = clear >> add MoveSequenceValid
-        , permuteGen = do
+        , morphism = do
            genFilter (not . containsWin) $ liftGen
                $ genSatisfying locationSequenceIsValid
         }
-    , PermutationEdge
+    , Morphism
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , permuteGen = do
+        , morphism = do
             moves <- source
             winlocs <- Set.toList <$> (element winTileSets)
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
@@ -96,11 +96,11 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
               then pure win
               else retry
         }
-    , PermutationEdge
+    , Morphism
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , permuteGen = do
+        , morphism = do
             moves <- source
             winlocs <- Set.toList <$> (element winTileSets)
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
@@ -120,5 +120,5 @@ moveSequencePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge MoveSequenceProperty [Int]) -> True)
+        (\(_ :: Morphism MoveSequenceProperty [Int]) -> True)
         baseGen

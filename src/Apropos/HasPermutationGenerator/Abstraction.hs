@@ -3,12 +3,10 @@ module Apropos.HasPermutationGenerator.Abstraction (
   Abstraction(..),
   abstract,
   abstractsProperties,
-  (|:->),
   ) where
 import Apropos.LogicalModel.Enumerable
-import Apropos.LogicalModel.Formula
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.HasPermutationGenerator.PermutationEdge
+import Apropos.HasPermutationGenerator.Morphism
 import Apropos.Gen
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -23,18 +21,18 @@ data Abstraction ap am bp bm =
   }
 
 abstract :: Enumerable ap
-             => Enumerable bp
-             => Abstraction ap am bp bm -> PermutationEdge ap am -> PermutationEdge bp bm
+         => Enumerable bp
+         => Abstraction ap am bp bm -> Morphism ap am -> Morphism bp bm
 abstract abstraction edge =
-  PermutationEdge {
+  Morphism {
     name = (abstractionName abstraction) <> name edge
   , match = ((propertyAbstraction abstraction) #) <$> match edge
   , contract = abstractContract (abstractionName abstraction)
                                 (propertyAbstraction abstraction) $ contract edge
-  , permuteGen = do
+  , morphism = do
         m <- source
         let n = m ^. (modelAbstraction abstraction)
-        nn <- liftEdge (permuteGen edge) n --TODO make retry limit configurable
+        nn <- liftMorphism (morphism edge) n
         pure $ (modelAbstraction abstraction) .~ nn $ m
   }
 
@@ -64,20 +62,4 @@ abstractContract prefix a c = do
     projectProperties pa s = Set.fromList $ rights ((matching pa) <$> Set.toList s)
     maskProperties :: Prism' b a -> Set b -> Set b
     maskProperties pa = Set.filter (isn't pa)
-
-(|:->) :: [PermutationEdge p m] -> [PermutationEdge p m] -> [PermutationEdge p m]
-(|:->) as bs = [composeEdges a b | a <- as, b <- bs]
-
-composeEdges :: PermutationEdge p m -> PermutationEdge p m -> PermutationEdge p m
-composeEdges a b =
-  PermutationEdge
-    { name = name a <> name b
-    , match = match a :&&: match b
-    , contract = contract a >> contract b
-    , permuteGen = do
-        m <- source
-        ma <- liftEdge (permuteGen a) m
-        liftEdge (permuteGen b) ma
-    }
-
 

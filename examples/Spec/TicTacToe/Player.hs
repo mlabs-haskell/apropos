@@ -32,25 +32,25 @@ instance HasLogicalModel PlayerProperty Int where
 
 instance HasPermutationGenerator PlayerProperty Int where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakePlayerX"
         , match = Not $ Var PlayerIsX
         , contract = removeAll [PlayerIsO, PlayerIsInvalid] >> add PlayerIsX
-        , permuteGen = do
+        , morphism = do
             pure 1
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakePlayerO"
         , match = Not $ Var PlayerIsO
         , contract = removeAll [PlayerIsX, PlayerIsInvalid] >> add PlayerIsO
-        , permuteGen = do
+        , morphism = do
             pure 0
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakePlayerInvalid"
         , match = Not $ Var PlayerIsInvalid
         , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , permuteGen = genFilter (\i -> not (i `elem` [0, 1])) $
+        , morphism = genFilter (\i -> not (i `elem` [0, 1])) $
                   int (linear minBound maxBound)
         }
     ]
@@ -67,5 +67,5 @@ playerPermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge PlayerProperty Int) -> True)
+        (\(_ :: Morphism PlayerProperty Int) -> True)
         baseGen

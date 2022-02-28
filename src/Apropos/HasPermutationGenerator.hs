@@ -1,23 +1,23 @@
 module Apropos.HasPermutationGenerator (
   HasPermutationGenerator(..),
-  PermutationEdge(..),
+  Morphism(..),
   Abstraction(..),
   abstract,
   abstractsProperties,
   (|:->),
   ) where
+import Apropos.Type
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.HasPermutationGenerator.PermutationEdge
+import Apropos.HasPermutationGenerator.Morphism
 import Apropos.HasPermutationGenerator.Abstraction
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Hedgehog (Group(..),failure,property)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Proxy (Proxy(..))
 import Data.Graph (Graph)
 import Data.Graph (buildG,scc,path)
 import Text.Show.Pretty (ppDoc)
@@ -33,19 +33,19 @@ import Data.String (fromString)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
-  generators :: [PermutationEdge p m]
+  generators :: [Morphism p m]
 
-  permutationGeneratorSelfTest :: Bool -> (PermutationEdge p m -> Bool) -> Gen m m -> [Group]
+  permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
-    let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
-        (_,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+    let pedges = findMorphisms (Apropos :: m :+ p)
+        (_,ns) = numberNodes (Apropos :: m :+ p)
         mGen = buildGen bgen
         graph = buildGraph pedges
         isco = isStronglyConnected graph
      in if length (Map.keys pedges) == 0
           then [Group "No permutation edges defined."
                 [(fromString "no edges defined"
-                 ,genProp $ failWithFootnote "no PermutationEdges defined"
+                 ,genProp $ failWithFootnote "no Morphisms defined"
                  )]]
           else if isco
                  then case findDupEdgeNames of
@@ -60,18 +60,18 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                               ]
     where
       abortNotSCC ns graph =
-        let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+        let (a,b) = findNoPath (Apropos :: m :+ p) ns graph
           in genProp $ failWithFootnote $ renderStyle ourStyle $
-               "PermutationEdges do not form a strongly connected graph."
+               "Morphisms do not form a strongly connected graph."
                $+$ hang "No Edge Between here:" 4 (ppDoc a)
                $+$ hang "            and here:" 4 (ppDoc b)
-      findDupEdgeNames = [ name g | g <- generators :: [PermutationEdge p m]
+      findDupEdgeNames = [ name g | g <- generators :: [Morphism p m]
                                   , length (filter (==g) generators) > 1 ]
       testEdge :: Bool
                -> Map Int (Set p)
-               -> Map (Int,Int) [PermutationEdge p m]
+               -> Map (Int,Int) [Morphism p m]
                -> (Set p -> Gen m m)
-               -> PermutationEdge p m
+               -> Morphism p m
                -> Group
       testEdge testRequired ns pem mGen pe =
         Group (fromString (name pe)) $ addRequiredTest testRequired
@@ -90,11 +90,11 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
             if isRequired
                then pure ()
                else failWithFootnote $ renderStyle ourStyle $
-                      (fromString $ "PermutationEdge " <> name pe <> " is not required to make graph strongly connected.")
+                      (fromString $ "Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = genProp $ do
             om <- mGen (lut ns f)
-            nm <- liftEdge (permuteGen pe) om
+            nm <- liftMorphism (morphism pe) om
             let expected = lut ns t
                 observed = properties nm
             if expected == observed
@@ -103,29 +103,29 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   buildGen :: Gen m m -> Set p -> Gen m m
   buildGen g = do
-    let pedges = findPermutationEdges (Proxy :: Proxy m) (Proxy :: Proxy p)
+    let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         distmap = distanceMap edges
-        (sn,ns) = numberNodes (Proxy :: Proxy m) (Proxy :: Proxy p)
+        (sn,ns) = numberNodes (Apropos :: m :+ p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
         go targetProperties = do
           m <- g
           if length pedges == 0
-             then failWithFootnote "no PermutationEdges defined"
+             then failWithFootnote "no Morphisms defined"
              else pure ()
           if isco
              then pure ()
              else
-               let (a,b) = findNoPath (Proxy :: Proxy m) ns graph
+               let (a,b) = findNoPath (Apropos :: m :+ p) ns graph
                 in failWithFootnote $ renderStyle ourStyle $
-                      "PermutationEdges do not form a strongly connected graph."
+                      "Morphisms do not form a strongly connected graph."
                       $+$ hang "No Edge Between here:" 4 (ppDoc a)
                       $+$ hang "            and here:" 4 (ppDoc b)
           transformModel sn pedges edges distmap m targetProperties
        in go
 
-  findNoPath :: Proxy m
+  findNoPath :: m :+ p
              -> Map Int (Set p)
              -> Graph
              -> (Set p, Set p)
@@ -136,17 +136,17 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                           ]
 
   transformModel :: Map (Set p) Int
-                 -> Map (Int,Int) [PermutationEdge p m]
+                 -> Map (Int,Int) [Morphism p m]
                  -> [(Int,Int)]
                  -> Map Int (Map Int Int)
                  -> m
                  -> Set p
                  -> Gen m m
   transformModel nodes pedges edges distmap m to = do
-    pathOptions <- findPathOptions (Proxy :: Proxy m) edges distmap nodes (properties m) to
+    pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
-  traversePath :: Map (Int,Int) [PermutationEdge p m]
+  traversePath :: Map (Int,Int) [Morphism p m]
                  -> [(Int,Int)] -> m -> Gen m m
   traversePath _ [] m = pure m
   traversePath edges (h:r) m = do
@@ -159,25 +159,25 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     case mexpected of
       Left e -> failWithFootnote e
       Right Nothing -> failWithFootnote $ renderStyle ourStyle $
-                    "PermutationEdge doesn't work. This is a model error"
+                    "Morphism doesn't work. This is a model error"
                     $+$ "This should never happen at this point in the program."
       Right (Just expected) -> do
         if satisfiesFormula logic expected
            then pure ()
            else failWithFootnote $ renderStyle ourStyle $
-                  "PermutationEdge contract produces invalid model"
+                  "Morphism contract produces invalid model"
                   $+$ hang "Edge:" 4 (ppDoc $ name tr)
                   $+$ hang "Input:" 4 (ppDoc inprops)
                   $+$ hang "Output:" 4 (ppDoc expected)
         label $ fromString $ name tr
-        nm <- liftEdge (permuteGen tr) m
+        nm <- liftMorphism (morphism tr) m
         let observed = properties nm
         if expected == observed
           then pure ()
           else edgeFailsContract tr m nm expected observed
         traversePath edges r nm
 
-  findPathOptions :: (Proxy m)
+  findPathOptions :: m :+ p
                   -> [(Int,Int)]
                   -> Map Int (Map Int Int)
                   -> Map (Set p) Int
@@ -194,13 +194,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     rpath <- genRandomPath edges distmap fn tn
     pure $ pairPath rpath
 
-  buildGraph :: Map (Int,Int) [PermutationEdge p m] -> Graph
+  buildGraph :: Map (Int,Int) [Morphism p m] -> Graph
   buildGraph pedges =
     let edges = Map.keys pedges
         ub = max (maximum (fst <$> edges)) (maximum (snd <$> edges))
      in buildG (0,ub) edges
 
-  mapsBetween :: Map Int (Set p) -> Int -> Int -> PermutationEdge p m -> Bool
+  mapsBetween :: Map Int (Set p) -> Int -> Int -> Morphism p m -> Bool
   mapsBetween m a b pedge =
     case runContract (contract pedge) (name pedge) (lut m a) of
       Left e -> error e
@@ -208,21 +208,19 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == (lut m b)
 
 
-  findPermutationEdges :: Proxy m
-                       -> Proxy p
-                       -> Map (Int,Int) [PermutationEdge p m]
-  findPermutationEdges pm pp =
-    let nodemap = snd $ numberNodes pm pp
+  findMorphisms :: m :+ p
+                       -> Map (Int,Int) [Morphism p m]
+  findMorphisms apropos =
+    let nodemap = snd $ numberNodes apropos
         nodes = Map.keys nodemap
      in Map.fromList [ ((a,b), options )
                      | a <- nodes
                      , b <- nodes
                      , let options = filter (mapsBetween nodemap a b) generators
                      , length options > 0 ]
-  numberNodes :: Proxy m
-              -> Proxy p
+  numberNodes :: m :+ p
               -> (Map (Set p) Int, Map Int (Set p))
-  numberNodes _ (Proxy :: Proxy p) =
+  numberNodes _ =
     let scenarios = enumerateScenariosWhere (logic :: Formula p)
         scennums = Map.fromList $ zip scenarios [0..]
         numsscen = Map.fromList $ zip [0..] scenarios
@@ -264,10 +262,7 @@ genRandomPath edges m from to = go [] from
               p <- element options''
               (f:) <$> go (p:breadcrumbs) p
 
--- I thought this would be slow but it seems okay
--- I tried using digraph from kadena-io but couldn't get it to build
--- It would be nice to depend on a library that gives us a distance matrix for a digraph
--- instead of hand rolling it
+-- TODO is this a performance bottleneck?
 distanceMap :: [(Int,Int)] -> Map Int (Map Int Int)
 distanceMap edges =
   let initial = foldr ($) Map.empty (insertEdge <$> edges)
@@ -308,10 +303,10 @@ distanceMap edges =
 edgeFailsContract :: forall m p .
                      HasLogicalModel p m
                   => Show m
-                  => PermutationEdge p m -> m -> m -> Set p -> Set p -> Gen m ()
+                  => Morphism p m -> m -> m -> Set p -> Set p -> Gen m ()
 edgeFailsContract tr m nm expected observed =
   failWithFootnote $ renderStyle ourStyle $
-    "PermutationEdge fails its contract."
+    "Morphism fails its contract."
           $+$ hang "Edge:" 4 (ppDoc $ name tr)
           $+$ hang "InputModel:" 4 (ppDoc (ppDoc m))
           $+$ hang "InputProperties" 4 (ppDoc $ Set.toList (properties m :: Set p))

@@ -1,14 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, intPlutarchTests) where
-
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.LogicalModel
-import Apropos.Pure
+import Apropos
 import Apropos.Script
-import Apropos.Gen
-import Data.Proxy (Proxy (..))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -68,7 +62,7 @@ intGenTests :: TestTree
 intGenTests =
   testGroup "intGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
+      <$> [ runGeneratorTestsWhere (Apropos :: Int :+ IntProp) "Int Generator" Yes
           ]
 
 instance HasPureRunner IntProp Int where
@@ -79,11 +73,11 @@ intPureTests :: TestTree
 intPureTests =
   testGroup "intPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 instance HasScriptRunner IntProp Int where
-  expect _ _ = Var IsSmall :&&: Var IsNegative
+  expect _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer
      in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
@@ -92,5 +86,5 @@ intPlutarchTests :: TestTree
 intPlutarchTests =
   testGroup "intPlutarchTests" $
     fromGroup
-      <$> [ runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
+      <$> [ runScriptTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]

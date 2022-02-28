@@ -7,16 +7,8 @@ module Spec.IntPermutationGen (
   intPermutationGenSelfTests,
   IntProp (..),
 ) where
-
-import Apropos.Gen
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel
-import Apropos.Pure
+import Apropos
 import Apropos.Script
-import Data.Proxy (Proxy (..))
 import Plutarch (compile)
 import Plutarch.Prelude
 import Test.Tasty (TestTree, testGroup)
@@ -54,37 +46,37 @@ instance HasLogicalModel IntProp Int where
 
 instance HasPermutationGenerator IntProp Int where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeZero"
         , match = Not $ Var IsZero
         , contract = clear >> addAll [IsZero, IsSmall]
-        , permuteGen = pure 0
+        , morphism = sink 0
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMaxBound"
         , match = Not $ Var IsMaxBound
         , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , permuteGen = pure maxBound
+        , morphism = sink maxBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMinBound"
         , match = Not $ Var IsMinBound
         , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , permuteGen = pure minBound
+        , morphism = sink minBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , permuteGen = int (linear 11 (maxBound -1))
+        , morphism = int (linear 11 (maxBound -1))
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSmall"
         , match = Not $ Var IsSmall
         , contract = clear >> addAll [IsSmall, IsPositive]
-        , permuteGen = int (linear 1 10)
+        , morphism = int (linear 1 10)
         }
-    , PermutationEdge
+    , Morphism
         { name = "Negate"
         , match = Not $ Var IsZero
         , contract =
@@ -92,9 +84,9 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , permuteGen = do
+        , morphism = do
             i <- source
-            pure (- i)
+            sink (- i)
         }
     ]
 
@@ -108,7 +100,7 @@ intPermutationGenTests :: TestTree
 intPermutationGenTests =
   testGroup "intPermutationGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
+      <$> [ runGeneratorTestsWhere (Apropos :: Int :+ IntProp) "Int Generator" Yes
           ]
 
 instance HasPureRunner IntProp Int where
@@ -119,11 +111,11 @@ intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 instance HasScriptRunner IntProp Int where
-  expect _ _ = Var IsSmall :&&: Var IsNegative
+  expect _ = Var IsSmall :&&: Var IsNegative
   script _ i =
     let ii = (fromIntegral i) :: Integer
      in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
@@ -132,7 +124,7 @@ intPermutationGenPlutarchTests :: TestTree
 intPermutationGenPlutarchTests =
   testGroup "intPermutationGenPlutarchTests" $
     fromGroup
-      <$> [ runScriptTestsWhere (Proxy :: Proxy Int) (Proxy :: Proxy IntProp) "AcceptsSmallNegativeInts" Yes
+      <$> [ runScriptTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 intPermutationGenSelfTests :: TestTree
@@ -141,5 +133,5 @@ intPermutationGenSelfTests =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: PermutationEdge IntProp Int) -> True)
+        (\(_ :: Morphism IntProp Int) -> True)
         baseGen

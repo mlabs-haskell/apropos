@@ -1,10 +1,9 @@
 module Apropos.Script (HasScriptRunner (..)) where
-
+import Apropos.Type
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
 import Apropos.Gen
-import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String (fromString)
@@ -52,40 +51,36 @@ import Prelude (
  )
 
 class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p m where
-  script :: Proxy p -> m -> Script
-  expect :: Proxy m -> Proxy p -> Formula p
+  expect :: (m :+ p) -> Formula p
+  script :: (m :+ p) -> (m -> Script)
 
-  modelMemoryBounds :: Proxy p -> m -> (ExMemory, ExMemory)
+  modelMemoryBounds :: (m :+ p) -> m -> (ExMemory, ExMemory)
   modelMemoryBounds _ _ = (ExMemory minBound, ExMemory maxBound)
 
-  modelCPUBounds :: Proxy p -> m -> (ExCPU, ExCPU)
+  modelCPUBounds :: (m :+ p) -> m -> (ExCPU, ExCPU)
   modelCPUBounds _ _ = (ExCPU minBound, ExCPU maxBound)
 
-  runScriptTestsWhere :: (Proxy m) -> (Proxy p) -> String -> Formula p -> Group
-  runScriptTestsWhere mprox _ name condition =
+  runScriptTestsWhere :: m :+ p -> String -> Formula p -> Group
+  runScriptTestsWhere apropos name condition =
     Group (fromString name) $
-      [ (fromString $ show $ Set.toList scenario, runScriptTest mprox (Proxy :: Proxy p) scenario)
+      [ (fromString $ show $ Set.toList scenario, runScriptTest apropos scenario)
       | scenario <- enumerateScenariosWhere condition
       ]
 
-  runScriptTest ::
-    (Proxy m) ->
-    (Proxy p) ->
-    Set p ->
-    Property
-  runScriptTest _ pprox targetProperties = genProp $ do
+  runScriptTest :: m :+ p -> Set p -> Property
+  runScriptTest apropos targetProperties = genProp $ do
     (m :: m) <- parameterisedGenerator targetProperties
-    case evaluateScript $ script pprox m of
-      Left (EvaluationError logs err) -> deliverResult pprox m (Left (logs, err))
-      Right res -> deliverResult pprox m (Right res)
+    case evaluateScript $ script apropos m of
+      Left (EvaluationError logs err) -> deliverResult apropos m (Left (logs, err))
+      Right res -> deliverResult apropos m (Right res)
       Left err -> failWithFootnote (show err)
 
   deliverResult ::
-    (Proxy p) ->
+    m :+ p ->
     m ->
     Either ([Text], String) (ExBudget, [Text]) ->
     Gen m ()
-  deliverResult pprox model res =
+  deliverResult apropos model res =
     case (shouldPass, res) of
       (False, Left _) -> pure ()
       (True, Right (cost, _)) -> successWithBudgetCheck cost
@@ -93,10 +88,10 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       (False, Right (_, logs)) -> failWithFootnote $ unexpectedSuccess logs
     where
       shouldPass :: Bool
-      shouldPass = satisfiesFormula (expect (Proxy :: Proxy m) pprox) $ properties model
+      shouldPass = satisfiesFormula (expect apropos) $ properties model
       successWithBudgetCheck :: ExBudget -> Gen m ()
       successWithBudgetCheck cost@(ExBudget cpu mem) =
-        if inInterval cpu (modelCPUBounds pprox model) && inInterval mem (modelMemoryBounds pprox model)
+        if inInterval cpu (modelCPUBounds apropos model) && inInterval mem (modelMemoryBounds apropos model)
           then pure ()
           else failWithFootnote $ budgetCheckFailure cost
         where
@@ -106,19 +101,19 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       budgetCheckFailure cost =
         renderStyle ourStyle $
           "Success! But at what cost?"
-            $+$ hang "Lower Bound" 4 (ppDoc (ExBudget (fst (modelCPUBounds pprox model)) (fst (modelMemoryBounds pprox model))))
+            $+$ hang "Lower Bound" 4 (ppDoc (ExBudget (fst (modelCPUBounds apropos model)) (fst (modelMemoryBounds apropos model))))
             $+$ hang "Actual Cost" 4 (ppDoc cost)
-            $+$ hang "Upper Bound" 4 (ppDoc (ExBudget (snd (modelCPUBounds pprox model)) (snd (modelMemoryBounds pprox model))))
+            $+$ hang "Upper Bound" 4 (ppDoc (ExBudget (snd (modelCPUBounds apropos model)) (snd (modelMemoryBounds apropos model))))
       unexpectedSuccess :: [Text] -> String
       unexpectedSuccess logs =
         renderStyle ourStyle $
-          "Unexpected success" $+$ dumpState pprox logs
+          "Unexpected success" $+$ dumpState apropos logs
       unexpectedFailure :: ([Text], String) -> String
       unexpectedFailure (logs, reason) =
         renderStyle ourStyle $
-          text ("Unexpected failure(" <> reason <> ")") $+$ dumpState pprox logs
-      dumpState :: Proxy p -> [Text] -> Doc
-      dumpState (Proxy :: Proxy p) logs =
+          text ("Unexpected failure(" <> reason <> ")") $+$ dumpState apropos logs
+      dumpState :: m :+ p -> [Text] -> Doc
+      dumpState _ logs =
         ""
           $+$ hang "Inputs" 4 dumpInputs
           $+$ hang "Logs" 4 (dumpLogs logs)

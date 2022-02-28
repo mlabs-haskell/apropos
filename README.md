@@ -60,7 +60,7 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 ```
 
-To generate our test suites we require a generator that is parameterised by the logical model for this enriched type. This will allow us to efficiently sample from random spaces defined by logical formulas. We can use this generator to exhaustively enumerate all scenarios encoded by the model as property tests. We can also use it compositionally in specifications that depend on this model. For example `genSatisfying (Var IsNegative :: Formula IntProp) must generate negative integers for us.
+To generate our test suites we require a generator that is parameterised by the logical model for this enriched type. This will allow us to efficiently sample from random spaces defined by logical formulas. We can use this generator to exhaustively enumerate all scenarios encoded by the model as property tests. We can also use it compositionally in specifications that depend on this model. For example `genSatisfying (Var IsNegative :: Formula IntProp)` must generate negative integers for us.
 
 This generator implements the class `HasParameterisedGenerator`.
 
@@ -68,8 +68,8 @@ This generator implements the class `HasParameterisedGenerator`.
 instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen Int
-baseGen = liftGenP $ Gen.int (linear minBound maxBound)
+baseGen :: Gen Int
+baseGen = int (linear minBound maxBound)
 ```
 
 Here we are using a generator construction method that allows us to build such a generator.
@@ -82,37 +82,37 @@ Each PermutationEdge must have a unique name. It can match on a subset of the pr
 ```Haskell
 instance HasPermutationGenerator IntProp Int where
   generators =
-    [ PermutationEdge
+    [ Morphism
         { name = "MakeZero"
         , match = Not $ Var IsZero
         , contract = clear >> addAll [IsZero, IsSmall]
-        , permuteGen = pure 0
+        , morphism = \_ -> pure 0
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMaxBound"
         , match = Not $ Var IsMaxBound
         , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , permuteGen = pure maxBound
+        , morphism = \_ -> pure maxBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeMinBound"
         , match = Not $ Var IsMinBound
         , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , permuteGen = pure minBound
+        , morphism = \_ -> pure minBound
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , permuteGen = liftGenPA $ Gen.int (linear 11 (maxBound -1))
+        , morphism = \_ -> int (linear 11 (maxBound -1))
         }
-    , PermutationEdge
+    , Morphism
         { name = "MakeSmall"
         , match = Not $ Var IsSmall
         , contract = clear >> addAll [IsSmall, IsPositive]
-        , permuteGen = liftGenPA $ Gen.int (linear 1 10)
+        , morphism = \_ -> int (linear 1 10)
         }
-    , PermutationEdge
+    , Morphism
         { name = "Negate"
         , match = Not $ Var IsZero
         , contract =
@@ -120,11 +120,10 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , permuteGen = do
-            i <- source
-            pure (- i)
+        , morphism = \i -> pure (- i)
         }
     ]
+
 
 ```
 
@@ -132,17 +131,19 @@ The construction method involves building a directed graph of random morphisms o
 
 ### How to run tests
 
-Given thse generators we can now perform a model consistency test. We can define this test suite in terms of a logical formula over the propositions. This lets us for example only run tests that deal with negative integers by specifying `Var IsNegative` in place of `Yes :: Formula IntProp` which enumerates the whole space.
+Given these generators we can now perform a model consistency test. We can define this test suite in terms of a logical formula over the propositions. This lets us for example only run tests that deal with negative integers by specifying `Var IsNegative` in place of `Yes :: Formula IntProp` which enumerates the whole space.
 
 This test will check that every edge defined above behaves according to its contract. It will also provide helpful errors if the generators do not behave as specified.
 
 ```Haskell
-intPermutationGenTests :: TestTree
-intPermutationGenTests =
-  testGroup "intPermutationGenTests" $
+intPermutationGenSelfTests :: TestTree
+intPermutationGenSelfTests =
+  testGroup "intPermutationGenSelfTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Proxy :: Proxy Int) "Int Generator" (Yes :: Formula IntProp)
-          ]
+      <$> permutationGeneratorSelfTest
+        True
+        (\(_ :: Morphism IntProp Int) -> True)
+        baseGen
 ```
 
 We can now run the test suite against some pure function that returns `Bool`. It must return `Bool` in accordance with the definition of `expect` otherwise tests will fail.
@@ -157,7 +158,7 @@ intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Proxy :: Proxy Int) "AcceptsSmallNegativeInts" (Yes :: Formula IntProp)
+      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 ```
 

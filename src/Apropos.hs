@@ -31,6 +31,8 @@ module Apropos (
   HasParameterisedGenerator (..),
   runGeneratorTest,
   runGeneratorTestsWhere,
+  enumerateGeneratorTest,
+  enumerateGeneratorTestsWhere,
   genSatisfying,
   -- Apropos.HasPermutationGenerator
   HasPermutationGenerator (..),

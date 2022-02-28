@@ -1,6 +1,5 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, intPlutarchTests) where
+
 import Apropos
 import Apropos.Script
 import Test.Tasty (TestTree, testGroup)
@@ -79,8 +78,8 @@ intPureTests =
 instance HasScriptRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i =
-    let ii = (fromIntegral i) :: Integer
-     in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
+    let ii = fromIntegral i :: Integer
+     in compile (pif ((fromInteger ii #< (0 :: Term s PInteger)) #&& ((fromInteger (-10) :: Term s PInteger) #<= fromInteger ii)) (pcon PUnit) perror)
 
 intPlutarchTests :: TestTree
 intPlutarchTests =

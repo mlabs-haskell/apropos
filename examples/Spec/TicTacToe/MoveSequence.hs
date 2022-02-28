@@ -13,7 +13,7 @@ import Apropos.LogicalModel
 import Control.Monad (join)
 import Data.List (transpose)
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -56,7 +56,7 @@ instance LogicalModel MoveSequenceProperty where
 locationSequenceIsValid :: Formula LocationSequenceProperty
 locationSequenceIsValid =
   Var AllLocationsAreInBounds
-    :&&: (Not $ Var SomeLocationIsOccupiedTwice)
+    :&&: Not (Var SomeLocationIsOccupiedTwice)
 
 instance HasLogicalModel MoveSequenceProperty [Int] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
@@ -71,22 +71,24 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "InvalidNoWin"
         , match = Yes
         , contract = clear
-        , morphism = \_ -> genFilter (not . containsWin) 
-                             $ genSatisfying $ Not locationSequenceIsValid
+        , morphism = \_ ->
+            genFilter (not . containsWin) $
+              genSatisfying $ Not locationSequenceIsValid
         }
     , Morphism
         { name = "ValidNoWin"
         , match = Yes
         , contract = clear >> add MoveSequenceValid
-        , morphism = \_ -> genFilter (not . containsWin)
-                             $ genSatisfying locationSequenceIsValid
+        , morphism = \_ ->
+            genFilter (not . containsWin) $
+              genSatisfying locationSequenceIsValid
         }
     , Morphism
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , morphism = \moves -> do
-            winlocs <- Set.toList <$> (element winTileSets)
+            winlocs <- Set.toList <$> element winTileSets
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
             if containsWin win && satisfiesExpression (Not locationSequenceIsValid) win
@@ -98,7 +100,7 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , morphism = \moves -> do
-            winlocs <- Set.toList <$> (element winTileSets)
+            winlocs <- Set.toList <$> element winTileSets
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
             if containsWin win && satisfiesExpression locationSequenceIsValid win

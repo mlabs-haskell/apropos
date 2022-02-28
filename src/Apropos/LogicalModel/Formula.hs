@@ -9,7 +9,7 @@ module Apropos.LogicalModel.Formula (
 
 import Data.Map
 import GHC.Generics (Generic)
-import qualified SAT.MiniSat as S
+import SAT.MiniSat qualified as S
 
 infixr 6 :&&:
 infixr 5 :||:
@@ -39,11 +39,11 @@ translateToSAT (Var v) = S.Var v
 translateToSAT Yes = S.Yes
 translateToSAT No = S.No
 translateToSAT (Not c) = S.Not (translateToSAT c)
-translateToSAT (a :&&: b) = (translateToSAT a) S.:&&: (translateToSAT b)
-translateToSAT (a :||: b) = (translateToSAT a) S.:||: (translateToSAT b)
-translateToSAT (a :++: b) = (translateToSAT a) S.:++: (translateToSAT b)
-translateToSAT (a :->: b) = (translateToSAT a) S.:->: (translateToSAT b)
-translateToSAT (a :<->: b) = (translateToSAT a) S.:<->: (translateToSAT b)
+translateToSAT (a :&&: b) = translateToSAT a S.:&&: translateToSAT b
+translateToSAT (a :||: b) = translateToSAT a S.:||: translateToSAT b
+translateToSAT (a :++: b) = translateToSAT a S.:++: translateToSAT b
+translateToSAT (a :->: b) = translateToSAT a S.:->: translateToSAT b
+translateToSAT (a :<->: b) = translateToSAT a S.:<->: translateToSAT b
 translateToSAT (All cs) = S.All (translateToSAT <$> cs)
 translateToSAT (Some cs) = S.Some (translateToSAT <$> cs)
 translateToSAT (None cs) = S.None (translateToSAT <$> cs)
@@ -51,7 +51,7 @@ translateToSAT (ExactlyOne cs) = S.ExactlyOne (translateToSAT <$> cs)
 translateToSAT (AtMostOne cs) = S.AtMostOne (translateToSAT <$> cs)
 
 instance (Eq v) => Eq (Formula v) where
-  a == b = (translateToSAT a) == (translateToSAT b)
+  a == b = translateToSAT a == translateToSAT b
 
 instance (Ord v) => Ord (Formula v) where
   compare a b = compare (translateToSAT a) (translateToSAT b)

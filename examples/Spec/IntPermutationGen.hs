@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module Spec.IntPermutationGen (
   intPermutationGenTests,
   intPermutationGenPureTests,
@@ -7,6 +5,7 @@ module Spec.IntPermutationGen (
   intPermutationGenSelfTests,
   IntProp (..),
 ) where
+
 import Apropos
 import Apropos.Script
 import Plutarch (compile)
@@ -115,8 +114,8 @@ intPermutationGenPureTests =
 instance HasScriptRunner IntProp Int where
   expect _ = Var IsSmall :&&: Var IsNegative
   script _ i =
-    let ii = (fromIntegral i) :: Integer
-     in compile (pif (((fromInteger ii) #< ((fromInteger 0) :: Term s PInteger)) #&& (((fromInteger (-10)) :: Term s PInteger) #<= (fromInteger ii))) (pcon PUnit) perror)
+    let ii = fromIntegral i :: Integer
+     in compile (pif ((fromInteger ii #< (0 :: Term s PInteger)) #&& ((fromInteger (-10) :: Term s PInteger) #<= fromInteger ii)) (pcon PUnit) perror)
 
 intPermutationGenPlutarchTests :: TestTree
 intPermutationGenPlutarchTests =

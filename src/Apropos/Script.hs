@@ -1,11 +1,12 @@
 module Apropos.Script (HasScriptRunner (..)) where
-import Apropos.Type
+
+import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
-import Apropos.Gen
+import Apropos.Type
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.String (fromString)
 import Data.Text (Text)
 import Hedgehog (
@@ -27,7 +28,7 @@ import Text.PrettyPrint (
   ($+$),
   (<+>),
  )
-import qualified Text.PrettyPrint as PP
+import Text.PrettyPrint qualified as PP
 import Text.Show.Pretty (ppDoc)
 import Prelude (
   Bool (..),
@@ -37,9 +38,9 @@ import Prelude (
   Ord,
   Show (..),
   String,
-  pure,
   fmap,
   fst,
+  pure,
   snd,
   zip,
   ($),
@@ -118,7 +119,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
           $+$ hang "Inputs" 4 dumpInputs
           $+$ hang "Logs" 4 (dumpLogs logs)
           $+$ hang "Expected " 4 (if shouldPass then "Pass" else "Fail")
-          $+$ hang "Properties " 4 (ppDoc $ (properties model :: Set p))
+          $+$ hang "Properties " 4 (ppDoc (properties model :: Set p))
       dumpInputs :: Doc
       dumpInputs =
         "Parameters"

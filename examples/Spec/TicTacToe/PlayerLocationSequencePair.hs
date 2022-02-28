@@ -10,13 +10,12 @@ import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
+import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Control.Lens.Tuple(_1,_2)
-
 
 data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
@@ -51,14 +50,18 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   generators =
-    let l = Abstraction { abstractionName = ""
-                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
-                        , modelAbstraction = _1
-                        }
-        r = Abstraction { abstractionName = ""
-                        , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
-                        , modelAbstraction = _2
-                        }
+    let l =
+          Abstraction
+            { abstractionName = ""
+            , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+            , modelAbstraction = _1
+            }
+        r =
+          Abstraction
+            { abstractionName = ""
+            , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+            , modelAbstraction = _2
+            }
      in (abstract l <$> generators) |:-> (abstract r <$> generators)
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where

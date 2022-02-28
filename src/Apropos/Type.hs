@@ -1,8 +1,8 @@
 module Apropos.Type (
-  Apropos(..),
+  Apropos (..),
   (:+),
-  ) where
+) where
 
-type (type' :+ logic') = Apropos (type',logic')
+type type' :+ logic' = Apropos (type', logic')
 
 data Apropos a = Apropos

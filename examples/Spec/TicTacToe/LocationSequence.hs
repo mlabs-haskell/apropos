@@ -9,7 +9,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -28,14 +28,14 @@ instance Enumerable LocationSequenceProperty where
 
 instance LogicalModel LocationSequenceProperty where
   logic =
-    (ExactlyOne $ Var <$> [AllLocationsAreInBounds, SomeLocationIsOutOfBounds])
+     ExactlyOne (Var <$> [AllLocationsAreInBounds, SomeLocationIsOutOfBounds])
       :&&: (Var LocationSequenceIsNull :->: Var AllLocationsAreInBounds)
-      :&&: (Var LocationSequenceIsNull :->: (Not $ Var SomeLocationIsOutOfBounds))
-      :&&: (Var LocationSequenceIsNull :->: (Not $ Var SomeLocationIsOccupiedTwice))
-      :&&: (Var LocationSequenceIsNull :->: (Not $ Var LocationSequenceIsLongerThanGame))
-      :&&: (Var LocationSequenceIsSingleton :->: (Not $ Var SomeLocationIsOccupiedTwice))
-      :&&: (Var LocationSequenceIsSingleton :->: (Not $ Var LocationSequenceIsLongerThanGame))
-      :&&: (AtMostOne [Var LocationSequenceIsNull, Var LocationSequenceIsSingleton])
+      :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOutOfBounds))
+      :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOccupiedTwice))
+      :&&: (Var LocationSequenceIsNull :->: Not (Var LocationSequenceIsLongerThanGame))
+      :&&: (Var LocationSequenceIsSingleton :->: Not (Var SomeLocationIsOccupiedTwice))
+      :&&: (Var LocationSequenceIsSingleton :->: Not (Var LocationSequenceIsLongerThanGame))
+      :&&: AtMostOne [Var LocationSequenceIsNull, Var LocationSequenceIsSingleton]
       :&&: ( (Var LocationSequenceIsLongerThanGame :&&: Var AllLocationsAreInBounds)
               :->: Var SomeLocationIsOccupiedTwice
            )
@@ -50,7 +50,7 @@ instance HasLogicalModel LocationSequenceProperty [Int] where
   satisfiesProperty SomeLocationIsOutOfBounds m =
     any (satisfiesProperty LocationIsOutOfBounds) m
   satisfiesProperty SomeLocationIsOccupiedTwice m = someLocationIsOccupiedTwice m
-  satisfiesProperty LocationSequenceIsNull m = length m == 0
+  satisfiesProperty LocationSequenceIsNull m = null m
   satisfiesProperty LocationSequenceIsSingleton m = length m == 1
   satisfiesProperty LocationSequenceIsLongerThanGame m = length m > 9
 
@@ -116,9 +116,9 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
         , morphism = \_ ->
             list (singleton 1) $
               choice
-                  [ int (linear minBound (-1))
-                  , int (linear 9 maxBound)
-                  ]
+                [ int (linear minBound (-1))
+                , int (linear 9 maxBound)
+                ]
         }
     , Morphism
         { name = "MakeInBoundsSingleton"
@@ -144,18 +144,16 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               >> add SomeLocationIsOutOfBounds
         , morphism = \locations ->
             let f =
-                  ( \m ->
-                      satisfiesFormula
+                  ( satisfiesFormula
                         ( Var SomeLocationIsOutOfBounds
-                            :&&: (Not $ Var SomeLocationIsOccupiedTwice)
-                        )
-                        (properties m)
+                            :&&: Not (Var SomeLocationIsOccupiedTwice)
+                        ) . properties
                   )
              in do
                   let locationsLen = length locations
                   genFilter f $
-                      list (singleton locationsLen) $
-                        int (linear minBound maxBound)
+                    list (singleton locationsLen) $
+                      int (linear minBound maxBound)
         }
     , Morphism
         { name = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
@@ -172,10 +170,11 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 , LocationSequenceIsLongerThanGame
                 ]
         , morphism = \_ -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-                             let locationsLen = 10
-                             locations' <- list (singleton (locationsLen - 1)) $
-                                   int (linear minBound maxBound)
-                             list (singleton locationsLen) $ element locations'
+            let locationsLen = 10
+            locations' <-
+              list (singleton (locationsLen - 1)) $
+                int (linear minBound maxBound)
+            list (singleton locationsLen) $ element locations'
         }
     , Morphism
         { name = "MakeSomeLocationIsOccupiedTwice"
@@ -191,10 +190,11 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 , SomeLocationIsOutOfBounds
                 ]
         , morphism = \locations -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-                             let locationsLen = length locations
-                             locations' <- list (singleton (locationsLen - 1)) $
-                                   int (linear minBound maxBound)
-                             list (singleton locationsLen) $ element locations'
+            let locationsLen = length locations
+            locations' <-
+              list (singleton (locationsLen - 1)) $
+                int (linear minBound maxBound)
+            list (singleton locationsLen) $ element locations'
         }
     ]
 

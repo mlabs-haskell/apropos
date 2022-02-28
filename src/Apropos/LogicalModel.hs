@@ -12,9 +12,9 @@ module Apropos.LogicalModel (
 import Apropos.LogicalModel.Enumerable
 import Apropos.LogicalModel.Enumerable.TH
 import Apropos.LogicalModel.Formula
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p

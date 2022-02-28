@@ -8,6 +8,7 @@ module Apropos.HasPermutationGenerator.Morphism (
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel.Formula
+import Control.Monad ((>=>))
 
 data Morphism p m = Morphism
   { name :: String
@@ -31,7 +32,5 @@ composeMorphisms a b =
     { name = name a <> name b
     , match = match a :&&: match b
     , contract = contract a >> contract b
-    , morphism = \m -> (morphism a) m >>= morphism b
+    , morphism = morphism a >=> morphism b
     }
-
-

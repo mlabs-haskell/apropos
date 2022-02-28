@@ -1,4 +1,5 @@
 module Apropos.Gen (
+  FreeGen(..),
   Gen,
   GenException,
   genProp,

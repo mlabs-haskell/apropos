@@ -15,8 +15,7 @@ import Apropos.Type
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, withTests, property, (===))
-import Control.Monad (void)
+import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   parameterisedGenerator :: Set p -> Gen m
@@ -55,10 +54,11 @@ enumerateGeneratorTest ::
   m :+ p ->
   Set p ->
   Property
-enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $ property $ do
-  let (ms :: [m]) = enumerate $ parameterisedGenerator s
-      run m = properties m === s
-  void $ sequence (run <$> ms)
+enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
+  property $ do
+    let (ms :: [m]) = enumerate $ parameterisedGenerator s
+        run m = properties m === s
+    sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
@@ -71,7 +71,6 @@ enumerateGeneratorTestsWhere proxy name condition =
     [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest proxy scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
-
 
 genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do

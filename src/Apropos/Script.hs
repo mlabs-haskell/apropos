@@ -47,10 +47,10 @@ import Prelude (
   sequence,
   snd,
   zip,
-  (<$>),
   ($),
   (&&),
   (.),
+  (<$>),
   (<=),
   (<>),
   (>=),
@@ -89,13 +89,14 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       ]
 
   enumerateScriptTest :: m :+ p -> Set p -> Property
-  enumerateScriptTest apropos targetProperties = withTests (1 :: TestLimit) $ genProp $ do
-    let ms = enumerate $ parameterisedGenerator targetProperties
-    let run m = case evaluateScript $ script apropos m of
-                  Left (EvaluationError logs err) -> deliverResult apropos m (Left (logs, err))
-                  Right res -> deliverResult apropos m (Right res)
-                  Left err -> failWithFootnote (show err)
-    sequence (run <$> ms)
+  enumerateScriptTest apropos targetProperties = withTests (1 :: TestLimit) $
+    genProp $ do
+      let ms = enumerate $ parameterisedGenerator targetProperties
+      let run m = case evaluateScript $ script apropos m of
+            Left (EvaluationError logs err) -> deliverResult apropos m (Left (logs, err))
+            Right res -> deliverResult apropos m (Right res)
+            Left err -> failWithFootnote (show err)
+      sequence (run <$> ms)
 
   deliverResult ::
     m :+ p ->

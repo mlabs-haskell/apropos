@@ -60,8 +60,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
               , PlayerSequenceIsLongerThanGame
               ]
               >> add TakeTurns
-        , morphism = do
-            s <- source
+        , morphism = \s -> do
             let numMoves = min 9 (max 2 (length s))
             pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
@@ -79,7 +78,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
                 [ TakeTurns
                 , PlayerSequenceIsLongerThanGame
                 ]
-        , morphism = do
+        , morphism = \_ -> do
             let numMoves = 10
             pattern <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pattern)
@@ -90,7 +89,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , contract =
             removeAll [Don'tTakeTurns, PlayerSequenceSingleton]
               >> addAll [TakeTurns, PlayerSequenceNull]
-        , morphism = pure []
+        , morphism = \_ -> pure []
         }
     , Morphism
         { name = "MakePlayerSingletonDon'tTakeTurns"
@@ -98,12 +97,11 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , contract =
             removeAll [TakeTurns, PlayerSequenceNull]
               >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
-        , morphism = do
-            list (singleton 1) $
-                choice
-                  [ int (linear minBound (-1))
-                  , int (linear 2 maxBound)
-                  ]
+        , morphism = \_ -> list (singleton 1)
+                            $ choice
+                                 [ int (linear minBound (-1))
+                                 , int (linear 2 maxBound)
+                                 ]
         }
     , Morphism
         { name = "MakePlayerSingletonTakeTurns"
@@ -111,8 +109,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , contract =
             removeAll [Don'tTakeTurns, PlayerSequenceNull]
               >> addAll [TakeTurns, PlayerSequenceSingleton]
-        , morphism = do
-            list (singleton 1) $ int (linear 0 1)
+        , morphism = \_ -> list (singleton 1) $ int (linear 0 1)
         }
     , Morphism
         { name = "MakeDon'tTakeTurns"
@@ -120,8 +117,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , contract =
             add Don'tTakeTurns
               >> removeAll [TakeTurns, PlayerSequenceSingleton, PlayerSequenceNull]
-        , morphism = do
-            s <- source
+        , morphism = \s -> do
             let numMoves = max 2 (length s)
             let genFoulPlay = do
                   genFilter (satisfiesProperty Don'tTakeTurns) $
@@ -138,7 +134,7 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
 instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' [Int]
+baseGen :: Gen [Int]
 baseGen = list (linear 0 10) $ int (linear minBound maxBound)
 
 playerSequencePermutationGenSelfTest :: TestTree

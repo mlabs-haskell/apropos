@@ -7,7 +7,6 @@ module Apropos.HasPermutationGenerator.Abstraction (
 import Apropos.LogicalModel.Enumerable
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
-import Apropos.Gen
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Either (rights)
@@ -29,10 +28,9 @@ abstract abstraction edge =
   , match = ((propertyAbstraction abstraction) #) <$> match edge
   , contract = abstractContract (abstractionName abstraction)
                                 (propertyAbstraction abstraction) $ contract edge
-  , morphism = do
-        m <- source
+  , morphism = \m -> do
         let n = m ^. (modelAbstraction abstraction)
-        nn <- liftMorphism (morphism edge) n
+        nn <- (morphism edge) n
         pure $ (modelAbstraction abstraction) .~ nn $ m
   }
 

@@ -50,31 +50,31 @@ instance HasPermutationGenerator IntProp Int where
         { name = "MakeZero"
         , match = Not $ Var IsZero
         , contract = clear >> addAll [IsZero, IsSmall]
-        , morphism = sink 0
+        , morphism = \_ -> pure 0
         }
     , Morphism
         { name = "MakeMaxBound"
         , match = Not $ Var IsMaxBound
         , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , morphism = sink maxBound
+        , morphism = \_ -> pure maxBound
         }
     , Morphism
         { name = "MakeMinBound"
         , match = Not $ Var IsMinBound
         , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , morphism = sink minBound
+        , morphism = \_ -> pure minBound
         }
     , Morphism
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , morphism = int (linear 11 (maxBound -1))
+        , morphism = \_ -> int (linear 11 (maxBound -1))
         }
     , Morphism
         { name = "MakeSmall"
         , match = Not $ Var IsSmall
         , contract = clear >> addAll [IsSmall, IsPositive]
-        , morphism = int (linear 1 10)
+        , morphism = \_ -> int (linear 1 10)
         }
     , Morphism
         { name = "Negate"
@@ -84,16 +84,14 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , morphism = do
-            i <- source
-            sink (- i)
+        , morphism = \i -> pure (- i)
         }
     ]
 
 instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen Int Int
+baseGen :: Gen Int
 baseGen = int (linear minBound maxBound)
 
 intPermutationGenTests :: TestTree

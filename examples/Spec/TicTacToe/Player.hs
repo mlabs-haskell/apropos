@@ -36,29 +36,27 @@ instance HasPermutationGenerator PlayerProperty Int where
         { name = "MakePlayerX"
         , match = Not $ Var PlayerIsX
         , contract = removeAll [PlayerIsO, PlayerIsInvalid] >> add PlayerIsX
-        , morphism = do
-            pure 1
+        , morphism = \_ -> pure 1
         }
     , Morphism
         { name = "MakePlayerO"
         , match = Not $ Var PlayerIsO
         , contract = removeAll [PlayerIsX, PlayerIsInvalid] >> add PlayerIsO
-        , morphism = do
-            pure 0
+        , morphism = \_ -> pure 0
         }
     , Morphism
         { name = "MakePlayerInvalid"
         , match = Not $ Var PlayerIsInvalid
         , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , morphism = genFilter (\i -> not (i `elem` [0, 1])) $
-                  int (linear minBound maxBound)
+        , morphism = \_ -> genFilter (\i -> not (i `elem` [0, 1]))
+                              $ int (linear minBound maxBound)
         }
     ]
 
 instance HasParameterisedGenerator PlayerProperty Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen' Int
+baseGen :: Gen Int
 baseGen = int (linear minBound maxBound)
 
 playerPermutationGenSelfTest :: TestTree

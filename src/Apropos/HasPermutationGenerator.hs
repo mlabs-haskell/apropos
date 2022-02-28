@@ -35,7 +35,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   generators :: [Morphism p m]
 
-  permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m m -> [Group]
+  permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
     let pedges = findMorphisms (Apropos :: m :+ p)
         (_,ns) = numberNodes (Apropos :: m :+ p)
@@ -70,7 +70,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       testEdge :: Bool
                -> Map Int (Set p)
                -> Map (Int,Int) [Morphism p m]
-               -> (Set p -> Gen m m)
+               -> (Set p -> Gen m)
                -> Morphism p m
                -> Group
       testEdge testRequired ns pem mGen pe =
@@ -94,14 +94,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = genProp $ do
             om <- mGen (lut ns f)
-            nm <- liftMorphism (morphism pe) om
+            nm <- (morphism pe) om
             let expected = lut ns t
                 observed = properties nm
             if expected == observed
               then pure ()
               else edgeFailsContract pe om nm expected observed
 
-  buildGen :: Gen m m -> Set p -> Gen m m
+  buildGen :: Gen m -> Set p -> Gen m
   buildGen g = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
@@ -141,13 +141,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                  -> Map Int (Map Int Int)
                  -> m
                  -> Set p
-                 -> Gen m m
+                 -> Gen m
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
     traversePath pedges pathOptions m
 
   traversePath :: Map (Int,Int) [Morphism p m]
-                 -> [(Int,Int)] -> m -> Gen m m
+                 -> [(Int,Int)] -> m -> Gen m
   traversePath _ [] m = pure m
   traversePath edges (h:r) m = do
     pe <- case Map.lookup h edges of
@@ -170,7 +170,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   $+$ hang "Input:" 4 (ppDoc inprops)
                   $+$ hang "Output:" 4 (ppDoc expected)
         label $ fromString $ name tr
-        nm <- liftMorphism (morphism tr) m
+        nm <- (morphism tr) m
         let observed = properties nm
         if expected == observed
           then pure ()
@@ -181,7 +181,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   -> [(Int,Int)]
                   -> Map Int (Map Int Int)
                   -> Map (Set p) Int
-                  -> Set p -> Set p -> Gen m [(Int,Int)]
+                  -> Set p -> Set p -> Gen [(Int,Int)]
   findPathOptions _ edges distmap ns from to = do
     fn <- case Map.lookup from ns of
             Nothing -> failWithFootnote $ renderStyle ourStyle $
@@ -242,7 +242,7 @@ lut m i = case Map.lookup i m of
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: [(Int,Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen m [Int]
+genRandomPath :: [(Int,Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen [Int]
 genRandomPath edges m from to = go [] from
   where
     go breadcrumbs f =
@@ -303,7 +303,7 @@ distanceMap edges =
 edgeFailsContract :: forall m p .
                      HasLogicalModel p m
                   => Show m
-                  => Morphism p m -> m -> m -> Set p -> Set p -> Gen m ()
+                  => Morphism p m -> m -> m -> Set p -> Set p -> Gen ()
 edgeFailsContract tr m nm expected observed =
   failWithFootnote $ renderStyle ourStyle $
     "Morphism fails its contract."

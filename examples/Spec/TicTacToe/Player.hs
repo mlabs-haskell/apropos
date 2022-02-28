@@ -22,7 +22,7 @@ instance Enumerable PlayerProperty where
   enumerated = [minBound .. maxBound]
 
 instance LogicalModel PlayerProperty where
-  logic = (ExactlyOne $ Var <$> [PlayerIsInvalid, PlayerIsX, PlayerIsO])
+  logic = ExactlyOne $ Var <$> [PlayerIsInvalid, PlayerIsX, PlayerIsO]
 
 instance HasLogicalModel PlayerProperty Int where
   satisfiesProperty PlayerIsX player = player == 1
@@ -48,8 +48,9 @@ instance HasPermutationGenerator PlayerProperty Int where
         { name = "MakePlayerInvalid"
         , match = Not $ Var PlayerIsInvalid
         , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , morphism = \_ -> genFilter (\i -> not (i `elem` [0, 1]))
-                              $ int (linear minBound maxBound)
+        , morphism = \_ ->
+            genFilter (\i -> i `notElem` [0, 1]) $
+              int (linear minBound maxBound)
         }
     ]
 

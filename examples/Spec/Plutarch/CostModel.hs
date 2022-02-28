@@ -4,10 +4,11 @@ module Spec.Plutarch.CostModel (
   addCostPropGenTests,
   addCostModelPlutarchTests,
 ) where
+
 import Apropos
 import Apropos.Script
 
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 import Plutus.V1.Ledger.Scripts (Script)
@@ -22,8 +23,8 @@ numCostModels :: Integer
 numCostModels = 10
 
 peano :: Integer -> Term s PInteger
-peano 0 = fromInteger 0
-peano i = papp (plam (\p -> p + (fromInteger 1))) (peano (i -1))
+peano 0 = 0
+peano i = papp (plam (+ 1)) (peano (i -1))
 
 addCost :: Integer -> Script
 addCost i = compile $ peano i
@@ -36,8 +37,8 @@ instance Enumerable CostModelProp where
 
 instance LogicalModel CostModelProp where
   logic =
-    (ExactlyOne $ Var <$> enumerated)
-      :&&: (Some $ Var <$> enumerated)
+    ExactlyOne (Var <$> enumerated)
+      :&&: Some (Var <$> enumerated)
 
 instance HasLogicalModel CostModelProp Integer where
   satisfiesProperty (ThisManyAdditions i) s = i == s

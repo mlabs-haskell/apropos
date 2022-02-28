@@ -1,21 +1,16 @@
 module Apropos (
   -- Apropos.Type
-  Apropos(..),
+  Apropos (..),
   (:+),
-
   -- Apropos.LogicalModel
-  LogicalModel(..),
-
+  LogicalModel (..),
   -- Apropos.LogicalModel.Enumerable
-  Enumerable(..),
-  gen_enumerable,
-
+  Enumerable (..),
+  genEnumerable,
   -- Apropos.LogicalModel.Formula
-  Formula(..),
-
+  Formula (..),
   -- Apropos.HasLogicalModel
-  HasLogicalModel(..),
-
+  HasLogicalModel (..),
   -- Apropos.Gen
   Gen,
   label,
@@ -28,26 +23,22 @@ module Apropos (
   choice,
   genFilter,
   retry,
-
   -- Apropos.Gen.Range
   Range,
   linear,
   singleton,
-
   -- Apropos.HasParameterisedGenerator
   HasParameterisedGenerator (..),
   runGeneratorTest,
   runGeneratorTestsWhere,
   genSatisfying,
-
   -- Apropos.HasPermutationGenerator
-  HasPermutationGenerator(..),
-  Morphism(..),
-  Abstraction(..),
+  HasPermutationGenerator (..),
+  Morphism (..),
+  Abstraction (..),
   abstract,
   abstractsProperties,
   (|:->),
-
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
   runContract,
@@ -73,17 +64,15 @@ module Apropos (
   output,
   contractError,
   terminal,
-
   -- Apropos.Pure
-  HasPureRunner(..),
+  HasPureRunner (..),
+) where
 
-  )
-  where
-import Apropos.Type
-import Apropos.LogicalModel
-import Apropos.HasLogicalModel
 import Apropos.Gen
+import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
+import Apropos.LogicalModel
 import Apropos.Pure
+import Apropos.Type

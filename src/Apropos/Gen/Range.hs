@@ -1,19 +1,19 @@
 module Apropos.Gen.Range (
-  Range(..),
+  Range (..),
   linear,
   singleton,
   rangeSize,
   rangeHi,
   rangeLo,
-  ) where
+) where
 
 data Range = Linear Int Int | Singleton Int
 
 linear :: Int -> Int -> Range
-linear a b = Linear a b
+linear = Linear
 
 singleton :: Int -> Range
-singleton s = Singleton s
+singleton = Singleton
 
 rangeSize :: Range -> Int
 rangeSize (Singleton _) = 1
@@ -26,5 +26,3 @@ rangeHi (Linear _ hi) = fromIntegral hi
 rangeLo :: Range -> Int
 rangeLo (Singleton s) = fromIntegral s
 rangeLo (Linear lo _) = fromIntegral lo
-
-

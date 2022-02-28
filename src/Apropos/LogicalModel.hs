@@ -12,9 +12,9 @@ module Apropos.LogicalModel (
 import Apropos.LogicalModel.Enumerable
 import Apropos.LogicalModel.Enumerable.TH
 import Apropos.LogicalModel.Formula
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 
 class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p
@@ -28,7 +28,7 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPr
     mention p = Var p :||: Not (Var p)
 
 enumerateSolutions :: LogicalModel p => Formula p -> [Set p]
-enumerateSolutions f = fromSolution <$> solve_all f
+enumerateSolutions f = fromSolution <$> solveAll f
   where
     fromSolution :: LogicalModel p => Map.Map p Bool -> Set p
     fromSolution m = Set.fromList $ filter isInSet enumerated

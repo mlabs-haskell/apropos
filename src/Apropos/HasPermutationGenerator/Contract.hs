@@ -1,6 +1,6 @@
 module Apropos.HasPermutationGenerator.Contract (
   Contract,
-  FreeContract(..),
+  FreeContract (..),
   runContract,
   readContractInput,
   readContractEdgeName,
@@ -25,14 +25,15 @@ module Apropos.HasPermutationGenerator.Contract (
   contractError,
   terminal,
 ) where
+
+import Control.Monad.Free
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State (StateT, get, put, runStateT)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Maybe (MaybeT, runMaybeT)
-import Control.Monad.Free
 import Data.Maybe (catMaybes)
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
@@ -43,8 +44,8 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-data FreeContract p next =
-    ReadContractInput (Set p -> next)
+data FreeContract p next
+  = ReadContractInput (Set p -> next)
   | ReadContractEdgeName (String -> next)
   | ReadContractOutput (Set p -> next)
   | WriteContractOutput (Set p) next
@@ -82,13 +83,13 @@ terminal = liftF (Terminal ())
 type ContractRun p a = MaybeT (ReaderT (String, Set p) (StateT (Set p) (Either String))) a
 
 interpret :: Contract p () -> ContractRun p ()
-interpret (Free (ReadContractInput next))     = (snd <$> lift ask) >>= interpret . next
-interpret (Free (ReadContractEdgeName next))  = (fst <$> lift ask) >>= interpret . next
-interpret (Free (ReadContractOutput next))    = (lift $ lift get)  >>= interpret . next
-interpret (Free (WriteContractOutput s next)) = (lift $ lift $ put s) >> interpret next
-interpret (Free (ContractError err next))     = (lift $ lift $ lift $ Left err) >> interpret next
-interpret (Free (Terminal next))              = fail "terminal" >> interpret next
-interpret (Pure a)                            = pure a
+interpret (Free (ReadContractInput next)) = lift ask >>= (interpret . next) . snd
+interpret (Free (ReadContractEdgeName next)) = lift ask >>= (interpret . next) . fst
+interpret (Free (ReadContractOutput next)) = lift (lift get) >>= interpret . next
+interpret (Free (WriteContractOutput s next)) = lift (lift $ put s) >> interpret next
+interpret (Free (ContractError err next)) = lift (lift $ lift $ Left err) >> interpret next
+interpret (Free (Terminal next)) = fail "terminal" >> interpret next
+interpret (Pure a) = pure a
 
 runContract :: Contract p () -> String -> Set p -> Either String (Maybe (Set p))
 runContract = runContract' . interpret
@@ -108,8 +109,8 @@ runContractInternal = runContractInternal' . interpret
       case runStateT (runReaderT (runMaybeT c) (nm, s)) i of
         Left err -> contractError err >> pure Nothing
         Right (b, s') -> case b of
-                           Just () -> pure $ Just s'
-                           Nothing -> pure Nothing
+          Just () -> pure $ Just s'
+          Nothing -> pure Nothing
 
 --e.g. has ThisThing >> add ThatThing
 has :: Eq p => p -> Contract p ()
@@ -180,10 +181,12 @@ branches cs = do
     (ao : rest) ->
       if all (== ao) rest
         then writeContractOutput ao
-        else contractError $ renderStyle ourStyle $
-                    (fromString $ "PermutationEdge " <> e <> " has non-deterministic type")
-                      $+$ hang "error:" 4 "branches succeeded with different results in each branch."
-                      $+$ hang "results:" 4 (ppDoc (ao : rest))
+        else
+          contractError $
+            renderStyle ourStyle $
+              fromString ("PermutationEdge " <> e <> " has non-deterministic type")
+                $+$ hang "error:" 4 "branches succeeded with different results in each branch."
+                $+$ hang "results:" 4 (ppDoc (ao : rest))
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}

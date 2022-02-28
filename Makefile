@@ -28,7 +28,7 @@ usage:
 	@echo "  nixfmt              -- Apply nix formatting with nixfmt"
 	@echo "  nixfmt_check        -- Check nix files for format errors"
 	@echo "  lint                -- Check the sources with hlint"
-	@echo "  refactor            -- Automatically apply hlint refactors, with prompt
+	@echo "  refactor            -- Automatically apply hlint refactors, with prompt"
 	@echo "  readme_contents     -- Add table of contents to README"
 	@echo "  update_plutus       -- Update plutus version with niv"
 

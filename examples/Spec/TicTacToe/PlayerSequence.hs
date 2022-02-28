@@ -25,9 +25,9 @@ instance Enumerable PlayerSequenceProperty where
 
 instance LogicalModel PlayerSequenceProperty where
   logic =
-    (ExactlyOne $ Var <$> [TakeTurns, Don'tTakeTurns])
+    ExactlyOne (Var <$> [TakeTurns, Don'tTakeTurns])
       :&&: (Var PlayerSequenceNull :->: Var TakeTurns)
-      :&&: (AtMostOne [Var PlayerSequenceNull, Var PlayerSequenceSingleton, Var PlayerSequenceIsLongerThanGame])
+      :&&: AtMostOne [Var PlayerSequenceNull, Var PlayerSequenceSingleton, Var PlayerSequenceIsLongerThanGame]
 
 playersTakeTurns :: [Int] -> Bool
 playersTakeTurns playerSeq =
@@ -43,7 +43,7 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
   satisfiesProperty TakeTurns m = playersTakeTurns m
   satisfiesProperty Don'tTakeTurns m =
     not (satisfiesProperty TakeTurns m)
-  satisfiesProperty PlayerSequenceNull m = length m == 0
+  satisfiesProperty PlayerSequenceNull m = null m
   satisfiesProperty PlayerSequenceSingleton m = length m == 1
   satisfiesProperty PlayerSequenceIsLongerThanGame m = length m > 9
 
@@ -62,8 +62,8 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
               >> add TakeTurns
         , morphism = \s -> do
             let numMoves = min 9 (max 2 (length s))
-            pattern <- element [[0, 1], [1, 0]]
-            pure $ take numMoves (cycle pattern)
+            pat <- element [[0, 1], [1, 0]]
+            pure $ take numMoves (cycle pat)
         }
     , Morphism
         { name = "MakeTakeTurnsLongerThanGame"
@@ -80,8 +80,8 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
                 ]
         , morphism = \_ -> do
             let numMoves = 10
-            pattern <- element [[0, 1], [1, 0]]
-            pure $ take numMoves (cycle pattern)
+            pat <- element [[0, 1], [1, 0]]
+            pure $ take numMoves (cycle pat)
         }
     , Morphism
         { name = "MakePlayerSequenceNull"
@@ -97,11 +97,12 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , contract =
             removeAll [TakeTurns, PlayerSequenceNull]
               >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
-        , morphism = \_ -> list (singleton 1)
-                            $ choice
-                                 [ int (linear minBound (-1))
-                                 , int (linear 2 maxBound)
-                                 ]
+        , morphism = \_ ->
+            list (singleton 1) $
+              choice
+                [ int (linear minBound (-1))
+                , int (linear 2 maxBound)
+                ]
         }
     , Morphism
         { name = "MakePlayerSingletonTakeTurns"

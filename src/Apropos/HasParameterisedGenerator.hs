@@ -4,12 +4,13 @@ module Apropos.HasParameterisedGenerator (
   runGeneratorTestsWhere,
   genSatisfying,
 ) where
-import Apropos.Type
+
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
+import Apropos.Type
 import Data.Set (Set)
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, property, (===))
 
@@ -19,17 +20,25 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   rootRetryLimit _ = 100
 
 --TODO caching calls to the solver in genSatisfying would probably be worth it
-runGeneratorTest :: forall p m . HasParameterisedGenerator p m
-                 => m :+ p -> Set p -> Property
+runGeneratorTest ::
+  forall p m.
+  HasParameterisedGenerator p m =>
+  m :+ p ->
+  Set p ->
+  Property
 runGeneratorTest _ s = property $ do
   (m :: m) <- handleRootRetries numRetries $ gen $ parameterisedGenerator s
   properties m === s
-    where
-      numRetries :: Int
-      numRetries = rootRetryLimit (Apropos :: Apropos (m,p))
+  where
+    numRetries :: Int
+    numRetries = rootRetryLimit (Apropos :: Apropos (m, p))
 
-runGeneratorTestsWhere :: HasParameterisedGenerator p m
-                       => m :+ p -> String -> Formula p -> Group
+runGeneratorTestsWhere ::
+  HasParameterisedGenerator p m =>
+  m :+ p ->
+  String ->
+  Formula p ->
+  Group
 runGeneratorTestsWhere proxy name condition =
   Group (fromString name) $
     [ (fromString $ show $ Set.toList scenario, runGeneratorTest proxy scenario)
@@ -41,4 +50,3 @@ genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
   parameterisedGenerator s
-

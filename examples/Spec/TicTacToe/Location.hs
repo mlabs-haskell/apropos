@@ -21,7 +21,7 @@ instance Enumerable LocationProperty where
   enumerated = [minBound .. maxBound]
 
 instance LogicalModel LocationProperty where
-  logic = (ExactlyOne $ Var <$> [LocationIsWithinBounds, LocationIsOutOfBounds])
+  logic = ExactlyOne $ Var <$> [LocationIsWithinBounds, LocationIsOutOfBounds]
 
 instance HasLogicalModel LocationProperty Int where
   satisfiesProperty LocationIsWithinBounds location = location >= 0 && location < 9
@@ -41,10 +41,10 @@ instance HasPermutationGenerator LocationProperty Int where
         , match = Var LocationIsWithinBounds
         , contract = remove LocationIsWithinBounds >> add LocationIsOutOfBounds
         , morphism = \_ ->
-            choice $
-                [ int (linear minBound (-1))
-                , int (linear 9 maxBound)
-                ]
+            choice
+              [ int (linear minBound (-1))
+              , int (linear 9 maxBound)
+              ]
         }
     ]
 

@@ -10,20 +10,19 @@ import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
+import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Control.Lens.Tuple(_1,_2)
-
 
 data MoveProperty
   = MoveLocation LocationProperty
   | MovePlayer PlayerProperty
   deriving stock (Eq, Ord, Show)
 
-$(gen_enumerable ''MoveProperty)
+$(genEnumerable ''MoveProperty)
 
 instance LogicalModel MoveProperty where
   logic = (MoveLocation <$> logic) :&&: (MovePlayer <$> logic)
@@ -34,14 +33,18 @@ instance HasLogicalModel MoveProperty (Int, Int) where
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
   generators =
-    let l = Abstraction { abstractionName = "MovePlayer"
-                        , propertyAbstraction = abstractsProperties MovePlayer
-                        , modelAbstraction = _1
-                        }
-        r = Abstraction { abstractionName = "MoveLocation"
-                        , propertyAbstraction = abstractsProperties MoveLocation
-                        , modelAbstraction = _2
-                             }
+    let l =
+          Abstraction
+            { abstractionName = "MovePlayer"
+            , propertyAbstraction = abstractsProperties MovePlayer
+            , modelAbstraction = _1
+            }
+        r =
+          Abstraction
+            { abstractionName = "MoveLocation"
+            , propertyAbstraction = abstractsProperties MoveLocation
+            , modelAbstraction = _2
+            }
      in join [abstract l <$> generators, abstract r <$> generators]
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
@@ -60,4 +63,3 @@ movePermutationGenSelfTest =
         True
         (\(_ :: Morphism MoveProperty (Int, Int)) -> True)
         baseGen
-

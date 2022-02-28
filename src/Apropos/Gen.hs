@@ -21,7 +21,7 @@ module Apropos.Gen (
 ) where
 
 import Apropos.Gen.Range
-import Control.Monad (void,replicateM)
+import Control.Monad (replicateM, void)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)

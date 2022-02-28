@@ -71,9 +71,9 @@ instance HasPureRunner IntPairProp (Int, Int) where
     All $
       Var
         <$> join
-                [ L <$> [IsSmall, IsNegative]
-                , R <$> [IsSmall, IsPositive]
-                ]
+          [ L <$> [IsSmall, IsNegative]
+          , R <$> [IsSmall, IsPositive]
+          ]
   script _ (l, r) = l < 0 && l >= -10 && r > 0 && r <= 10
 
 intPairGenPureTests :: TestTree
@@ -91,9 +91,9 @@ instance HasScriptRunner IntPairProp (Int, Int) where
     All $
       Var
         <$> join
-                [ L <$> [IsSmall, IsNegative]
-                , R <$> [IsSmall, IsPositive]
-                ]
+          [ L <$> [IsSmall, IsNegative]
+          , R <$> [IsSmall, IsPositive]
+          ]
   script _ (il, ir) =
     let iil = fromIntegral il :: Integer
         iir = fromIntegral ir :: Integer

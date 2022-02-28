@@ -28,7 +28,7 @@ instance Enumerable LocationSequenceProperty where
 
 instance LogicalModel LocationSequenceProperty where
   logic =
-     ExactlyOne (Var <$> [AllLocationsAreInBounds, SomeLocationIsOutOfBounds])
+    ExactlyOne (Var <$> [AllLocationsAreInBounds, SomeLocationIsOutOfBounds])
       :&&: (Var LocationSequenceIsNull :->: Var AllLocationsAreInBounds)
       :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOutOfBounds))
       :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOccupiedTwice))
@@ -145,9 +145,10 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
         , morphism = \locations ->
             let f =
                   ( satisfiesFormula
-                        ( Var SomeLocationIsOutOfBounds
-                            :&&: Not (Var SomeLocationIsOccupiedTwice)
-                        ) . properties
+                      ( Var SomeLocationIsOutOfBounds
+                          :&&: Not (Var SomeLocationIsOccupiedTwice)
+                      )
+                      . properties
                   )
              in do
                   let locationsLen = length locations

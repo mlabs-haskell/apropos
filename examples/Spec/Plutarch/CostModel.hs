@@ -37,7 +37,7 @@ instance Enumerable CostModelProp where
 
 instance LogicalModel CostModelProp where
   logic =
-     ExactlyOne (Var <$> enumerated)
+    ExactlyOne (Var <$> enumerated)
       :&&: Some (Var <$> enumerated)
 
 instance HasLogicalModel CostModelProp Integer where

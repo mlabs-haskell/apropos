@@ -59,12 +59,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                     <$> filter pefilter generators
                 dups ->
                   [ Group "HasPermutationGenerator edge names must be unique." $
-                      [ (fromString $ dup <> " not unique",  property failure)
+                      [ (fromString $ dup <> " not unique", property failure)
                       | dup <- dups
                       ]
                   ]
               else
-                [ Group "HasPermutationGenerator Graph Not Strongly Connected"
+                [ Group
+                    "HasPermutationGenerator Graph Not Strongly Connected"
                     [(fromString "Not strongly connected", abortNotSCC ns graph)]
                 ]
     where
@@ -97,10 +98,10 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           addRequiredTest False l = l
           addRequiredTest True l = (fromString "Is Required", runRequiredTest) : l
           matchesEdges = [e | (e, v) <- Map.toList pem, pe `elem` v]
-          edgeTestName f t = fromString $ name pe <> " : " <>show (Set.toList (lut ns f)) <> " -> " <>show (Set.toList (lut ns t))
+          edgeTestName f t = fromString $ name pe <> " : " <> show (Set.toList (lut ns f)) <> " -> " <> show (Set.toList (lut ns t))
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
-             in  elem 1 inEdges
+             in elem 1 inEdges
           runRequiredTest = genProp $ do
             if isRequired
               then pure ()

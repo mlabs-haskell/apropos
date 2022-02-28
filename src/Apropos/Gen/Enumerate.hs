@@ -25,7 +25,7 @@ enumerate (Free (GenShuffle ls next)) =
 enumerate (Free (GenElement ls next)) =
   join (enumerate (sequence (next <$> ls)))
 enumerate (Free (GenChoice gs next)) = do
-   (>>== next) =<< gs
+  (>>== next) =<< gs
 enumerate (Free (GenFilter c g next)) = do
   filter c (enumerate g) >>>= next
 enumerate (Free (RootRetry _)) = error "enumerate can't retry"

@@ -23,7 +23,7 @@ data PlayerLocationSequencePairProperty
   | PlayerLocationSequencePairLengthsAreEqual
   deriving stock (Eq, Ord, Show)
 
-$(gen_enumerable ''PlayerLocationSequencePairProperty)
+$(genEnumerable ''PlayerLocationSequencePairProperty)
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =

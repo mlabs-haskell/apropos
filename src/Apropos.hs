@@ -6,7 +6,7 @@ module Apropos (
   LogicalModel (..),
   -- Apropos.LogicalModel.Enumerable
   Enumerable (..),
-  gen_enumerable,
+  genEnumerable,
   -- Apropos.LogicalModel.Formula
   Formula (..),
   -- Apropos.HasLogicalModel

@@ -3,7 +3,7 @@
 
 module Apropos.LogicalModel.Formula (
   Formula (..),
-  solve_all,
+  solveAll,
   satisfiable,
 ) where
 
@@ -62,5 +62,5 @@ instance (Show v) => Show (Formula v) where
 satisfiable :: Ord v => Formula v -> Bool
 satisfiable = S.satisfiable . translateToSAT
 
-solve_all :: Ord v => Formula v -> [Map v Bool]
-solve_all = S.solve_all . translateToSAT
+solveAll :: Ord v => Formula v -> [Map v Bool]
+solveAll = S.solve_all . translateToSAT

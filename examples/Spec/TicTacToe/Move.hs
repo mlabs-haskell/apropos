@@ -22,7 +22,7 @@ data MoveProperty
   | MovePlayer PlayerProperty
   deriving stock (Eq, Ord, Show)
 
-$(gen_enumerable ''MoveProperty)
+$(genEnumerable ''MoveProperty)
 
 instance LogicalModel MoveProperty where
   logic = (MoveLocation <$> logic) :&&: (MovePlayer <$> logic)

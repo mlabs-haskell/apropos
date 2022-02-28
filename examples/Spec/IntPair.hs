@@ -23,7 +23,7 @@ data IntPairProp
   | R IntProp
   deriving stock (Eq, Ord, Show)
 
-$(gen_enumerable ''IntPairProp)
+$(genEnumerable ''IntPairProp)
 
 instance LogicalModel IntPairProp where
   logic = (L <$> logic) :&&: (R <$> logic)

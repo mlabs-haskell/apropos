@@ -23,7 +23,7 @@ data MoveSequenceProperty
   | MoveSequenceContainsWin
   deriving stock (Eq, Ord, Show)
 
-$(gen_enumerable ''MoveSequenceProperty)
+$(genEnumerable ''MoveSequenceProperty)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])

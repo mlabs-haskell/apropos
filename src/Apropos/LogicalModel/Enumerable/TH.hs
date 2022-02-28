@@ -1,17 +1,17 @@
 module Apropos.LogicalModel.Enumerable.TH (
-  gen_enumerable,
+  genEnumerable,
 ) where
 
 import Language.Haskell.TH
 
 -- cribbed from here https://wiki.haskell.org/Template_haskell/Instance_deriving_example
 
-gen_enumerable :: Name -> Q [Dec]
-gen_enumerable typName = do
+genEnumerable :: Name -> Q [Dec]
+genEnumerable typName = do
   (TyConI d) <- reify typName
   (type_name, _, _, constructors) <- typeInfo (return d)
   i_dec <-
-    gen_instance
+    genInstance
       (mkName "Enumerable")
       (conT type_name)
       constructors
@@ -21,13 +21,13 @@ gen_enumerable typName = do
     gen_enumerated = appE (varE (mkName "join")) . listE
 
 type Constructor = (Name, [(Maybe Name, Type)])
-type Function_body = ExpQ
-type Gen_func = [ExpQ] -> Function_body
-type Func_name = Name
-type Func = (Func_name, Gen_func)
+type FunctionBody = ExpQ
+type GenFunc = [ExpQ] -> FunctionBody
+type FuncName = Name
+type Func = (FuncName, GenFunc)
 
-gen_instance :: Name -> TypeQ -> [Constructor] -> Func -> DecQ
-gen_instance class_name for_type constructors func =
+genInstance :: Name -> TypeQ -> [Constructor] -> Func -> DecQ
+genInstance class_name for_type constructors func =
   instanceD
     (cxt [])
     (appT (conT class_name) for_type)
@@ -36,10 +36,10 @@ gen_instance class_name for_type constructors func =
     func_def (func_name, gen_func) =
       funD
         func_name
-        [gen_clause gen_func constructors]
+        [genClause gen_func constructors]
 
-gen_clause :: ([ExpQ] -> ExpQ) -> [Constructor] -> ClauseQ
-gen_clause func_body data_cons =
+genClause :: ([ExpQ] -> ExpQ) -> [Constructor] -> ClauseQ
+genClause func_body data_cons =
   do
     let comprehensions = map makeComprehension data_cons
     clause [] (normalB (func_body comprehensions)) []

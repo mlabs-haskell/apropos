@@ -28,7 +28,7 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPr
     mention p = Var p :||: Not (Var p)
 
 enumerateSolutions :: LogicalModel p => Formula p -> [Set p]
-enumerateSolutions f = fromSolution <$> solve_all f
+enumerateSolutions f = fromSolution <$> solveAll f
   where
     fromSolution :: LogicalModel p => Map.Map p Bool -> Set p
     fromSolution m = Set.fromList $ filter isInSet enumerated

@@ -52,10 +52,10 @@ instance HasPermutationGenerator IntPairProp (Int, Int) where
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen (Int, Int)
+baseGen :: Gen' (Int, Int)
 baseGen =
-  (,) <$> genSatisfying (Yes :: Formula IntProp)
-    <*> genSatisfying (Yes :: Formula IntProp)
+  (,) <$> (liftGen $ genSatisfying (Yes :: Formula IntProp))
+      <*> (liftGen $ genSatisfying (Yes :: Formula IntProp))
 
 intPairGenTests :: TestTree
 intPairGenTests =

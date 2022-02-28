@@ -3,7 +3,7 @@ module Apropos.Script (HasScriptRunner (..)) where
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
-
+import Apropos.Gen
 import Data.Proxy (Proxy (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -11,13 +11,7 @@ import Data.String (fromString)
 import Data.Text (Text)
 import Hedgehog (
   Group (..),
-  MonadTest,
   Property,
-  failure,
-  footnote,
-  footnoteShow,
-  property,
-  success,
  )
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 import Plutus.V1.Ledger.Scripts (Script, ScriptError (..), evaluateScript)
@@ -27,7 +21,6 @@ import Text.PrettyPrint (
   Style (lineLength),
   colon,
   hang,
-  int,
   renderStyle,
   style,
   text,
@@ -35,6 +28,7 @@ import Text.PrettyPrint (
   ($+$),
   (<+>),
  )
+import qualified Text.PrettyPrint as PP
 import Text.Show.Pretty (ppDoc)
 import Prelude (
   Bool (..),
@@ -44,6 +38,7 @@ import Prelude (
   Ord,
   Show (..),
   String,
+  pure,
   fmap,
   fst,
   snd,
@@ -54,7 +49,6 @@ import Prelude (
   (<=),
   (<>),
   (>=),
-  (>>),
  )
 
 class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p m where
@@ -79,32 +73,31 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
     (Proxy p) ->
     Set p ->
     Property
-  runScriptTest _ pprox targetProperties = property $ do
+  runScriptTest _ pprox targetProperties = genProp $ do
     (m :: m) <- parameterisedGenerator targetProperties
     case evaluateScript $ script pprox m of
       Left (EvaluationError logs err) -> deliverResult pprox m (Left (logs, err))
       Right res -> deliverResult pprox m (Right res)
-      Left err -> footnoteShow err >> failure
+      Left err -> failWithFootnote (show err)
 
   deliverResult ::
-    MonadTest t =>
     (Proxy p) ->
     m ->
     Either ([Text], String) (ExBudget, [Text]) ->
-    t ()
+    Gen m ()
   deliverResult pprox model res =
     case (shouldPass, res) of
-      (False, Left _) -> success
+      (False, Left _) -> pure ()
       (True, Right (cost, _)) -> successWithBudgetCheck cost
       (True, Left err) -> failWithFootnote $ unexpectedFailure err
       (False, Right (_, logs)) -> failWithFootnote $ unexpectedSuccess logs
     where
       shouldPass :: Bool
       shouldPass = satisfiesFormula (expect (Proxy :: Proxy m) pprox) $ properties model
-      successWithBudgetCheck :: MonadTest t => ExBudget -> t ()
+      successWithBudgetCheck :: ExBudget -> Gen m ()
       successWithBudgetCheck cost@(ExBudget cpu mem) =
         if inInterval cpu (modelCPUBounds pprox model) && inInterval mem (modelMemoryBounds pprox model)
-          then success
+          then pure ()
           else failWithFootnote $ budgetCheckFailure cost
         where
           inInterval :: Ord a => a -> (a, a) -> Bool
@@ -138,10 +131,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       dumpLogs :: [Text] -> Doc
       dumpLogs logs = vcat . fmap go . zip [1 ..] $ logs
       go :: (Int, Text) -> Doc
-      go (ix, line) = (int ix <> colon) <+> (text . show $ line)
-
-failWithFootnote :: MonadTest m => String -> m a
-failWithFootnote s = footnote s >> failure
+      go (ix, line) = (PP.int ix <> colon) <+> (text . show $ line)
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}

@@ -17,8 +17,6 @@ import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Script
 import Data.Proxy (Proxy (..))
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Plutarch (compile)
 import Plutarch.Prelude
 import Test.Tasty (TestTree, testGroup)
@@ -78,13 +76,13 @@ instance HasPermutationGenerator IntProp Int where
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , permuteGen = liftGenPA $ Gen.int (linear 11 (maxBound -1))
+        , permuteGen = int (linear 11 (maxBound -1))
         }
     , PermutationEdge
         { name = "MakeSmall"
         , match = Not $ Var IsSmall
         , contract = clear >> addAll [IsSmall, IsPositive]
-        , permuteGen = liftGenPA $ Gen.int (linear 1 10)
+        , permuteGen = int (linear 1 10)
         }
     , PermutationEdge
         { name = "Negate"
@@ -103,8 +101,8 @@ instance HasPermutationGenerator IntProp Int where
 instance HasParameterisedGenerator IntProp Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen Int
-baseGen = liftGenP $ Gen.int (linear minBound maxBound)
+baseGen :: Gen Int Int
+baseGen = int (linear minBound maxBound)
 
 intPermutationGenTests :: TestTree
 intPermutationGenTests =

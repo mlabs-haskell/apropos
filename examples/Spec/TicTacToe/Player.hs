@@ -9,8 +9,6 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -52,20 +50,16 @@ instance HasPermutationGenerator PlayerProperty Int where
         { name = "MakePlayerInvalid"
         , match = Not $ Var PlayerIsInvalid
         , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , permuteGen = do
-            p <-
-              liftGenPA $
-                Gen.filter (\i -> not (i `elem` [0, 1])) $
-                  Gen.int (linear minBound maxBound)
-            pure p
+        , permuteGen = genFilter (\i -> not (i `elem` [0, 1])) $
+                  int (linear minBound maxBound)
         }
     ]
 
 instance HasParameterisedGenerator PlayerProperty Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen Int
-baseGen = liftGenP $ Gen.int (linear minBound maxBound)
+baseGen :: Gen' Int
+baseGen = int (linear minBound maxBound)
 
 playerPermutationGenSelfTest :: TestTree
 playerPermutationGenSelfTest =

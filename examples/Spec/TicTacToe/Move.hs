@@ -11,8 +11,6 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Monad (join)
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
 import Test.Tasty (TestTree, testGroup)
@@ -49,10 +47,10 @@ instance HasPermutationGenerator MoveProperty (Int, Int) where
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen (Int, Int)
+baseGen :: Gen' (Int, Int)
 baseGen =
-  let g = Gen.int (linear minBound maxBound)
-   in liftGenP ((,) <$> g <*> g)
+  let g = int (linear minBound maxBound)
+   in (,) <$> g <*> g
 
 movePermutationGenSelfTest :: TestTree
 movePermutationGenSelfTest =
@@ -62,3 +60,4 @@ movePermutationGenSelfTest =
         True
         (\(_ :: PermutationEdge MoveProperty (Int, Int)) -> True)
         baseGen
+

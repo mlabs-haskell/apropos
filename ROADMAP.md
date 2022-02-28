@@ -11,4 +11,5 @@
 - Create road plan for `apropos-plutus` standard library models
   - having a shared library of specifications could make the library more usable
   - this shared library might be best developed by encouraging upstreaming from library users
-
+- Collect space size statistics from generators. Generate 1000 values or so and filter identical values - this could be an interesting statistic. If we have generators that only produce a small number of values for some parameterisation we could reduce the number of tests for that space, flag this as a notable statistic that may indicate a problem, perhaps other use cases or statistics could be found.
+- Attach weights to propositions such that we can modulate the number of tests in each property based on these weights. We could allow user specified importance weightings and combine these with weights derived from distribution introspection as described above.This will allow the user to express importance and stop us wasting cycles on generators that have exhausted their space.

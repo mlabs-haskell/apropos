@@ -12,7 +12,7 @@ data PermutationEdge p m = PermutationEdge
   { name :: String
   , match :: Formula p
   , contract :: Contract p ()
-  , permuteGen :: PAGen m m
+  , permuteGen :: Gen m m
   }
 
 instance Eq (PermutationEdge p m) where

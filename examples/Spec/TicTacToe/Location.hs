@@ -9,8 +9,6 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import qualified Hedgehog.Gen as Gen
-import Hedgehog.Range (linear)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -36,17 +34,16 @@ instance HasPermutationGenerator LocationProperty Int where
         { name = "MakeLocationIsWithinBounds"
         , match = Var LocationIsOutOfBounds
         , contract = remove LocationIsOutOfBounds >> add LocationIsWithinBounds
-        , permuteGen = liftGenPA $ Gen.int (linear 0 8)
+        , permuteGen = int (linear 0 8)
         }
     , PermutationEdge
         { name = "MakeLocationIsOutOfBounds"
         , match = Var LocationIsWithinBounds
         , contract = remove LocationIsWithinBounds >> add LocationIsOutOfBounds
         , permuteGen =
-            liftGenPA $
-              Gen.choice $
-                [ Gen.int (linear minBound (-1))
-                , Gen.int (linear 9 maxBound)
+            choice $
+                [ int (linear minBound (-1))
+                , int (linear 9 maxBound)
                 ]
         }
     ]
@@ -54,8 +51,8 @@ instance HasPermutationGenerator LocationProperty Int where
 instance HasParameterisedGenerator LocationProperty Int where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: PGen Int
-baseGen = liftGenP $ Gen.int (linear minBound maxBound)
+baseGen :: Gen' Int
+baseGen = int (linear minBound maxBound)
 
 locationPermutationGenSelfTest :: TestTree
 locationPermutationGenSelfTest =

@@ -78,7 +78,7 @@ addCostModelPlutarchTests :: TestTree
 addCostModelPlutarchTests =
   testGroup "Plutarch.AdditionCostModel" $
     fromGroup
-      <$> [ runScriptTestsWhere
+      <$> [ enumerateScriptTestsWhere
               (Apropos :: Integer :+ CostModelProp)
               "AdditionCostModel"
               Yes

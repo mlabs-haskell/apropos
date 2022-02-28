@@ -2,17 +2,21 @@ module Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator (..),
   runGeneratorTest,
   runGeneratorTestsWhere,
+  enumerateGeneratorTest,
+  enumerateGeneratorTestsWhere,
   genSatisfying,
 ) where
 
 import Apropos.Gen
+import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
 import Apropos.Type
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, property, (===))
+import Hedgehog (Group (..), Property, TestLimit, withTests, property, (===))
+import Control.Monad (void)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   parameterisedGenerator :: Set p -> Gen m
@@ -44,6 +48,30 @@ runGeneratorTestsWhere proxy name condition =
     [ (fromString $ show $ Set.toList scenario, runGeneratorTest proxy scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
+
+enumerateGeneratorTest ::
+  forall p m.
+  HasParameterisedGenerator p m =>
+  m :+ p ->
+  Set p ->
+  Property
+enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $ property $ do
+  let (ms :: [m]) = enumerate $ parameterisedGenerator s
+      run m = properties m === s
+  void $ sequence (run <$> ms)
+
+enumerateGeneratorTestsWhere ::
+  HasParameterisedGenerator p m =>
+  m :+ p ->
+  String ->
+  Formula p ->
+  Group
+enumerateGeneratorTestsWhere proxy name condition =
+  Group (fromString name) $
+    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest proxy scenario)
+    | scenario <- enumerateScenariosWhere condition
+    ]
+
 
 genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do

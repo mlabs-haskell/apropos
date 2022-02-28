@@ -1,6 +1,7 @@
 module Apropos.Script (HasScriptRunner (..)) where
 
 import Apropos.Gen
+import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
@@ -12,6 +13,8 @@ import Data.Text (Text)
 import Hedgehog (
   Group (..),
   Property,
+  TestLimit,
+  withTests,
  )
 import Plutus.V1.Ledger.Api (ExCPU (..), ExMemory (..))
 import Plutus.V1.Ledger.Scripts (Script, ScriptError (..), evaluateScript)
@@ -41,8 +44,10 @@ import Prelude (
   fmap,
   fst,
   pure,
+  sequence,
   snd,
   zip,
+  (<$>),
   ($),
   (&&),
   (.),
@@ -75,6 +80,22 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
       Left (EvaluationError logs err) -> deliverResult apropos m (Left (logs, err))
       Right res -> deliverResult apropos m (Right res)
       Left err -> failWithFootnote (show err)
+
+  enumerateScriptTestsWhere :: m :+ p -> String -> Formula p -> Group
+  enumerateScriptTestsWhere apropos name condition =
+    Group (fromString name) $
+      [ (fromString $ show $ Set.toList scenario, enumerateScriptTest apropos scenario)
+      | scenario <- enumerateScenariosWhere condition
+      ]
+
+  enumerateScriptTest :: m :+ p -> Set p -> Property
+  enumerateScriptTest apropos targetProperties = withTests (1 :: TestLimit) $ genProp $ do
+    let ms = enumerate $ parameterisedGenerator targetProperties
+    let run m = case evaluateScript $ script apropos m of
+                  Left (EvaluationError logs err) -> deliverResult apropos m (Left (logs, err))
+                  Right res -> deliverResult apropos m (Right res)
+                  Left err -> failWithFootnote (show err)
+    sequence (run <$> ms)
 
   deliverResult ::
     m :+ p ->

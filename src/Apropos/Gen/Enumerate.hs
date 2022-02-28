@@ -7,6 +7,7 @@ import Control.Monad.Free
 import Control.Monad (join,replicateM)
 import Data.List (permutations)
 
+-- Gen can be interpreted as an exhaustive enumeration
 enumerate :: Gen a -> [a]
 enumerate (Free (Label _ next)) = enumerate next
 enumerate (Free (FailWithFootnote s _)) = error s

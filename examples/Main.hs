@@ -3,8 +3,6 @@ module Main (main) where
 import Spec.Int
 import Spec.IntPair
 import Spec.IntPermutationGen
-import Spec.Plutarch.CostModel
-import Spec.Plutarch.MagicNumber
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.Move
@@ -25,13 +23,11 @@ tests =
         "Int model Hand Written Parameterised Generator"
         [ intGenTests
         , intPureTests
-        , intPlutarchTests
         ]
     , testGroup
         "Int model using Permutation Generator"
         [ intPermutationGenTests
         , intPermutationGenPureTests
-        , intPermutationGenPlutarchTests
         , intPermutationGenSelfTests
         ]
     , testGroup
@@ -39,7 +35,6 @@ tests =
         [ intPairGenSelfTests
         , intPairGenSelfTests
         , intPairGenPureTests
-        , intPairGenPlutarchTests
         ]
     , testGroup
         "TicTacToe"
@@ -50,11 +45,5 @@ tests =
         , locationSequencePermutationGenSelfTest
         , playerLocationSequencePairPermutationGenSelfTest
         , moveSequencePermutationGenSelfTest
-        ]
-    , testGroup
-        "Script As Object"
-        [ magicNumberPropGenTests
-        , addCostPropGenTests
-        , addCostModelPlutarchTests
         ]
     ]

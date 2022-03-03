@@ -4,16 +4,12 @@ module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
   intPairGenSelfTests,
-  intPairGenPlutarchTests,
 ) where
 
 import Apropos
-import Apropos.Script
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
-import Plutarch (compile)
-import Plutarch.Prelude
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -81,29 +77,6 @@ intPairGenPureTests =
   testGroup "intPairGenPureTests" $
     fromGroup
       <$> [ runPureTestsWhere
-              (Apropos :: (Int, Int) :+ IntPairProp)
-              "AcceptsLeftSmallNegativeRightSmallPositive"
-              Yes
-          ]
-
-instance HasScriptRunner IntPairProp (Int, Int) where
-  expect _ =
-    All $
-      Var
-        <$> join
-          [ L <$> [IsSmall, IsNegative]
-          , R <$> [IsSmall, IsPositive]
-          ]
-  script _ (il, ir) =
-    let iil = fromIntegral il :: Integer
-        iir = fromIntegral ir :: Integer
-     in compile (pif (pif ((fromInteger iil #< (0 :: Term s PInteger)) #&& ((fromInteger (-10) :: Term s PInteger) #<= fromInteger iil)) (pcon PTrue) perror #&& pif (((0 :: Term s PInteger) #< fromInteger iir) #&& (fromInteger iir #<= (10 :: Term s PInteger))) (pcon PTrue) perror) (pcon PUnit) perror)
-
-intPairGenPlutarchTests :: TestTree
-intPairGenPlutarchTests =
-  testGroup "intPairGenPlutarchTests" $
-    fromGroup
-      <$> [ runScriptTestsWhere
               (Apropos :: (Int, Int) :+ IntPairProp)
               "AcceptsLeftSmallNegativeRightSmallPositive"
               Yes

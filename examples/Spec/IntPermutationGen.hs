@@ -1,15 +1,11 @@
 module Spec.IntPermutationGen (
   intPermutationGenTests,
   intPermutationGenPureTests,
-  intPermutationGenPlutarchTests,
   intPermutationGenSelfTests,
   IntProp (..),
 ) where
 
 import Apropos
-import Apropos.Script
-import Plutarch (compile)
-import Plutarch.Prelude
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -109,19 +105,6 @@ intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
       <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
-          ]
-
-instance HasScriptRunner IntProp Int where
-  expect _ = Var IsSmall :&&: Var IsNegative
-  script _ i =
-    let ii = fromIntegral i :: Integer
-     in compile (pif ((fromInteger ii #< (0 :: Term s PInteger)) #&& ((fromInteger (-10) :: Term s PInteger) #<= fromInteger ii)) (pcon PUnit) perror)
-
-intPermutationGenPlutarchTests :: TestTree
-intPermutationGenPlutarchTests =
-  testGroup "intPermutationGenPlutarchTests" $
-    fromGroup
-      <$> [ runScriptTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
 intPermutationGenSelfTests :: TestTree

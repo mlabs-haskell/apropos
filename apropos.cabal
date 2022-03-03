@@ -44,9 +44,6 @@ common lang
                     , lens
                     , minisat-solver
                     , mtl
-                    , plutarch
-                    , plutus-core
-                    , plutus-ledger-api
                     , pretty
                     , pretty-show
                     , safe
@@ -77,8 +74,6 @@ library
                  , Apropos.Gen.Enumerate
                  , Apropos.Gen.Range
                  , Apropos.Pure
-                 , Apropos.Script
-                 , Apropos.Tx
   hs-source-dirs:  src
 
 test-suite examples
@@ -98,17 +93,12 @@ test-suite examples
     Spec.TicTacToe.PlayerLocationSequencePair
     Spec.TicTacToe.Move
     Spec.TicTacToe.MoveSequence
-    Spec.Plutarch.MagicNumber
-    Spec.Plutarch.CostModel
   build-depends:
     base,
     apropos,
-    plutarch,
     tasty,
     tasty-hedgehog,
     hedgehog,
-    plutus-ledger-api,
-    plutus-core,
     text,
     containers,
     mtl,

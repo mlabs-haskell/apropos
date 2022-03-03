@@ -1,12 +1,8 @@
-module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, intPlutarchTests) where
+module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests ) where
 
 import Apropos
-import Apropos.Script
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-
-import Plutarch (compile)
-import Plutarch.Prelude
 
 data IntProp
   = IsNegative
@@ -75,15 +71,3 @@ intPureTests =
       <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
 
-instance HasScriptRunner IntProp Int where
-  expect _ = Var IsSmall :&&: Var IsNegative
-  script _ i =
-    let ii = fromIntegral i :: Integer
-     in compile (pif ((fromInteger ii #< (0 :: Term s PInteger)) #&& ((fromInteger (-10) :: Term s PInteger) #<= fromInteger ii)) (pcon PUnit) perror)
-
-intPlutarchTests :: TestTree
-intPlutarchTests =
-  testGroup "intPlutarchTests" $
-    fromGroup
-      <$> [ runScriptTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
-          ]

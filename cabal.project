@@ -1,6 +1,6 @@
 index-state: 2021-10-20T00:00:00Z
 
-packages: ./apropos-tx.cabal
+packages: ./apropos.cabal
 
 -- Always build tests and benchmarks.
 tests: true

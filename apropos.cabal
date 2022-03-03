@@ -1,5 +1,5 @@
 cabal-version:      3.0
-name:               apropos-tx
+name:               apropos
 version:            1.0
 extra-source-files: CHANGELOG.md
 
@@ -102,7 +102,7 @@ test-suite examples
     Spec.Plutarch.CostModel
   build-depends:
     base,
-    apropos-tx,
+    apropos,
     plutarch,
     tasty,
     tasty-hedgehog,

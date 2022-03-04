@@ -10,6 +10,7 @@ common lang
     BinaryLiterals
     ConstraintKinds
     DataKinds
+    DeriveAnyClass
     DeriveFunctor
     DeriveGeneric
     DeriveTraversable

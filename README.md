@@ -29,9 +29,7 @@ data IntProp
   | IsMaxBound
   | IsMinBound
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable IntProp where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass Enumerable
 ```
 Here is a model for integers. We have partitioned the space of integers into a smaller easier to manage space. This will be a sufficient description to test the example function defined later. It is sufficient since the function should return true/false according to a formula defined in terms of the above propositions. By modelling integers like this we also make sure that we test some specific extremal values in the space.
 

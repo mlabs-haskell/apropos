@@ -18,9 +18,7 @@ data IntProp
   | IsMaxBound
   | IsMinBound
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable IntProp where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntProp where
   logic =

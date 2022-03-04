@@ -17,9 +17,7 @@ data PlayerProperty
   | PlayerIsO
   | PlayerIsInvalid
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable PlayerProperty where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel PlayerProperty where
   logic = ExactlyOne $ Var <$> [PlayerIsInvalid, PlayerIsX, PlayerIsO]

@@ -1,4 +1,4 @@
-module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests ) where
+module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests) where
 
 import Apropos
 import Test.Tasty (TestTree, testGroup)
@@ -13,9 +13,7 @@ data IntProp
   | IsMaxBound
   | IsMinBound
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable IntProp where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntProp where
   logic =
@@ -70,4 +68,3 @@ intPureTests =
     fromGroup
       <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
-

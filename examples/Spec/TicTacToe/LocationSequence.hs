@@ -22,9 +22,7 @@ data LocationSequenceProperty
   | LocationSequenceIsSingleton
   | LocationSequenceIsLongerThanGame
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable LocationSequenceProperty where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel LocationSequenceProperty where
   logic =

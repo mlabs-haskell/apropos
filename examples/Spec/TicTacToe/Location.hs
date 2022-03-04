@@ -16,9 +16,7 @@ data LocationProperty
   = LocationIsWithinBounds
   | LocationIsOutOfBounds
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable LocationProperty where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel LocationProperty where
   logic = ExactlyOne $ Var <$> [LocationIsWithinBounds, LocationIsOutOfBounds]

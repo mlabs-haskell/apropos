@@ -19,9 +19,7 @@ data PlayerSequenceProperty
   | PlayerSequenceSingleton
   | PlayerSequenceIsLongerThanGame
   deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable PlayerSequenceProperty where
-  enumerated = [minBound .. maxBound]
+  deriving anyclass (Enumerable)
 
 instance LogicalModel PlayerSequenceProperty where
   logic =

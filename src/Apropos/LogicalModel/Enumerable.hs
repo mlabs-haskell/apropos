@@ -1,5 +1,3 @@
-{-# LANGUAGE DefaultSignatures #-}
-
 module Apropos.LogicalModel.Enumerable (
   Enumerable (..),
 ) where

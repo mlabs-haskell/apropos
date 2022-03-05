@@ -1,4 +1,4 @@
-module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests ) where
+module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests) where
 
 import Apropos
 import Test.Tasty (TestTree, testGroup)
@@ -70,4 +70,3 @@ intPureTests =
     fromGroup
       <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
           ]
-

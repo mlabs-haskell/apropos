@@ -28,7 +28,8 @@ enumerate (Free (GenChoice gs next)) = do
   (>>== next) =<< gs
 enumerate (Free (GenFilter c g next)) = do
   filter c (enumerate g) >>>= next
-enumerate (Free (RootRetry _)) = error "enumerate can't retry"
+enumerate (Free (ThrowRetry _)) = error "enumerate can't retry"
+enumerate (Free OnRetry {}) = error "maybe it can..."
 enumerate (Pure a) = pure a
 
 (>>==) :: Gen r -> (r -> Gen a) -> [a]

@@ -15,6 +15,9 @@ module Apropos.Gen (
   choice,
   genFilter,
   retry,
+  onRetry,
+  retryLimit,
+  (===),
   Range,
   linear,
   singleton,
@@ -66,7 +69,8 @@ data FreeGen next where
     Gen a ->
     (a -> next) ->
     FreeGen next
-  RootRetry :: forall a next. (a -> next) -> FreeGen next
+  ThrowRetry :: forall a next. (a -> next) -> FreeGen next
+  OnRetry :: forall a next. Gen a -> Gen a -> (a -> next) -> FreeGen next
 
 instance Functor FreeGen where
   fmap f (Label l next) = Label l (f next)
@@ -78,7 +82,8 @@ instance Functor FreeGen where
   fmap f (GenElement ls next) = GenElement ls (f . next)
   fmap f (GenChoice gs next) = GenChoice gs (f . next)
   fmap f (GenFilter c g next) = GenFilter c g (f . next)
-  fmap f (RootRetry next) = RootRetry (f . next)
+  fmap f (ThrowRetry next) = ThrowRetry (f . next)
+  fmap f (OnRetry a b next) = OnRetry a b (f . next)
 
 type Gen = Free FreeGen
 
@@ -110,7 +115,25 @@ genFilter :: Show a => (a -> Bool) -> Gen a -> Gen a
 genFilter c g = liftF (GenFilter c g id)
 
 retry :: Gen a
-retry = liftF (RootRetry id)
+retry = liftF (ThrowRetry id)
+
+onRetry :: Gen a -> Gen a -> Gen a
+onRetry a b = liftF (OnRetry a b id)
+
+retryLimit :: forall a. Int -> Gen a -> Gen a -> Gen a
+retryLimit lim g done = go lim
+  where
+    go :: Int -> Gen a
+    go i =
+      if i == 0
+        then done
+        else onRetry g (go (i - 1))
+
+(===) :: (Eq a, Show a) => a -> a -> Gen ()
+(===) l r =
+  if l == r
+    then pure ()
+    else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
 genProp :: Gen a -> Property
 genProp g = H.property $ void $ runExceptT $ gen g
@@ -146,7 +169,13 @@ gen (Free (GenChoice gs next)) = do
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
   genFilter' c g >>>= next
-gen (Free (RootRetry _)) = throwE Retry
+gen (Free (ThrowRetry _)) = throwE Retry
+gen (Free (OnRetry a b next)) = do
+  res <- lift $ runExceptT (gen a)
+  case res of
+    Right r -> gen $ next r
+    Left Retry -> gen b >>= (gen . next)
+    Left err -> throwE err
 gen (Pure a) = pure a
 
 (>>==) :: Gen r -> (r -> Gen a) -> Generator a

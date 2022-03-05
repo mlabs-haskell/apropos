@@ -7,7 +7,7 @@ module Apropos.HasParameterisedGenerator (
   genSatisfying,
 ) where
 
-import Apropos.Gen
+import Apropos.Gen hiding ((===))
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel

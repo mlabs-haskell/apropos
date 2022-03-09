@@ -149,7 +149,7 @@ gen (Free (Label s next)) = H.label (fromString s) >> gen next
 gen (Free (FailWithFootnote s _)) = H.footnote s >> H.failure
 gen (Free (GenBool next)) = lift (H.forAll HGen.bool) >>= (gen . next)
 gen (Free (GenInt r next)) = do
-  i <- lift (H.forAll $ HGen.integral_ (hRange r))
+  i <- lift (H.forAll $ HGen.resize (HRange.Size 99) $ HGen.integral_ (hRange r))
   gen $ next i
 gen (Free (GenList r g next)) = do
   let gs = int r >>= \l -> replicateM l g

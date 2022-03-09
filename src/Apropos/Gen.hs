@@ -2,8 +2,8 @@ module Apropos.Gen (
   FreeGen (..),
   Gen,
   GenException,
-  genProp,
-  handleRootRetries,
+  forAll,
+  handleRetries,
   gen,
   label,
   failWithFootnote,
@@ -22,14 +22,15 @@ module Apropos.Gen (
   linear,
   singleton,
 ) where
-
+import Debug.Trace
 import Apropos.Gen.Range
-import Control.Monad (replicateM, void)
+import Control.Monad (replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
+import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
 import Data.String (fromString)
-import Hedgehog (Property, PropertyT)
+import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
@@ -135,40 +136,46 @@ retryLimit lim g done = go lim
     then pure ()
     else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
-genProp :: Gen a -> Property
-genProp g = H.property $ void $ runExceptT $ gen g
+forAll :: Show a => Gen a -> PropertyT IO a
+forAll g = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> H.footnote "global retry limit reached" >> H.failure
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure a
 
 data GenException = GenException String | Retry deriving stock (Show)
 
-type GenContext = PropertyT IO
+type GenContext = H.Gen
 
-type Generator = ExceptT GenException GenContext
+type Generator = ExceptT GenException (WriterT [String] GenContext)
 
 gen :: Gen a -> Generator a
-gen (Free (Label s next)) = H.label (fromString s) >> gen next
-gen (Free (FailWithFootnote s _)) = H.footnote s >> H.failure
-gen (Free (GenBool next)) = lift (H.forAll HGen.bool) >>= (gen . next)
+gen (Free (Label s next)) = lift (tell [s]) >> gen next
+gen (Free (FailWithFootnote s _)) = throwE $ GenException s
+gen (Free (GenBool next)) = lift HGen.bool >>= (gen . next)
 gen (Free (GenInt r next)) = do
-  i <- lift (H.forAll $ HGen.resize (HRange.Size 99) $ HGen.integral_ (hRange r))
+  i <- lift $ HGen.int (hRange r)
   gen $ next i
 gen (Free (GenList r g next)) = do
   let gs = int r >>= \l -> replicateM l g
   gen gs >>>= next
 gen (Free (GenShuffle ls next)) = do
-  s <- lift $ H.forAll $ HGen.shuffle ls
+  s <- lift $ HGen.shuffle ls
   gen $ next s
 gen (Free (GenElement ls next)) = do
-  s <- lift $ H.forAll $ HGen.element ls
+  s <- lift $ HGen.element ls
   gen $ next s
 gen (Free (GenChoice gs next)) = do
   let l = length gs
   if l == 0
     then throwE $ GenException "GenChoice: list length zero"
     else do
-      i <- lift (H.forAll $ HGen.int (HRange.linear 0 (l -1)))
+      i <- lift (HGen.int (HRange.linear 0 (l -1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
-  genFilter' c g >>>= next
+  gen (genFilter' c g >>= next)
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)
@@ -192,27 +199,23 @@ gen (Pure a) = pure a
     Right x -> gen $ b x
     Left e -> throwE e
 
-handleRootRetries :: Int -> Generator a -> GenContext a
-handleRootRetries 0 _ = H.footnote "global retry limit reached reached" >> H.failure
-handleRootRetries l g = do
-  gr <- runExceptT g
-  case gr of
-    Right a -> pure a
-    Left Retry -> handleRootRetries (l -1) g
-    Left (GenException e) -> H.footnote e >> H.failure
+handleRetries :: Int -> Gen a -> Gen a
+handleRetries l g = traceShow l $ do
+  if l < 1
+     then g
+     else onRetry g (handleRetries (l - 1) g)
 
-genFilter' :: forall r. (r -> Bool) -> Gen r -> Generator r
+
+genFilter' :: forall r. (r -> Bool) -> Gen r -> Gen r
 genFilter' condition g = go 100
   where
-    go :: Int -> Generator r
+    go :: Int -> Gen r
+    go 0 = retry
     go l = do
-      if l < 0
-        then throwE Retry
-        else do
-          res <- gen g
-          if condition res
-            then pure res
-            else go (l -1)
+      res <- g
+      if condition res
+         then pure res
+         else go (l-1)
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

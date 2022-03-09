@@ -30,6 +30,7 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
+import Control.Monad (void)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
@@ -47,7 +48,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                 "No permutation edges defined."
                 [
                   ( fromString "no edges defined"
-                  , genProp $ failWithFootnote "no Morphisms defined"
+                  , property $ void $ forAll $ (failWithFootnote "no Morphisms defined" :: Gen String)
                   )
                 ]
             ]
@@ -66,13 +67,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               else
                 [ Group
                     "HasPermutationGenerator Graph Not Strongly Connected"
-                    [(fromString "Not strongly connected", abortNotSCC ns graph)]
+                    [( fromString "Not strongly connected"
+                     , property $ void $ forAll $ (abortNotSCC ns graph :: Gen String))]
                 ]
     where
       abortNotSCC ns graph =
         let (a, b) = findNoPath (Apropos :: m :+ p) ns graph
-         in genProp $
-              failWithFootnote $
+         in failWithFootnote $
                 renderStyle ourStyle $
                   "Morphisms do not form a strongly connected graph."
                     $+$ hang "No Edge Between here:" 4 (ppDoc a)
@@ -102,7 +103,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
-          runRequiredTest = genProp $ do
+          runRequiredTest = property $ forAll $ do
             if isRequired
               then pure ()
               else
@@ -110,7 +111,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   renderStyle ourStyle $
                     fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = genProp $ do
+          runEdgeTest f t = property $ forAll $ handleRetries 100 $ do
             om <- mGen (lut ns f)
             nm <- morphism pe om
             let expected = lut ns t

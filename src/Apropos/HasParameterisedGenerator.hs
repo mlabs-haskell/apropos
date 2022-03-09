@@ -30,7 +30,7 @@ runGeneratorTest ::
   Set p ->
   Property
 runGeneratorTest _ s = property $ do
-  (m :: m) <- handleRootRetries numRetries $ gen $ parameterisedGenerator s
+  (m :: m) <- forAll $ handleRetries numRetries $ parameterisedGenerator s
   properties m === s
   where
     numRetries :: Int

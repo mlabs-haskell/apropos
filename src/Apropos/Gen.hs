@@ -22,7 +22,7 @@ module Apropos.Gen (
   linear,
   singleton,
 ) where
-import Debug.Trace
+--import Debug.Trace
 import Apropos.Gen.Range
 import Control.Monad (replicateM)
 import Control.Monad.Free
@@ -138,7 +138,9 @@ retryLimit lim g done = go lim
 
 forAll :: Show a => Gen a -> PropertyT IO a
 forAll g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+  -- we may want Gen level prune
+  -- this is probably good for edges but not for most uses
+  (ee,labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> H.footnote "global retry limit reached" >> H.failure
@@ -175,7 +177,7 @@ gen (Free (GenChoice gs next)) = do
       i <- lift (HGen.int (HRange.linear 0 (l -1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
-  gen (genFilter' c g >>= next)
+  genFilter' c g >>>= next
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)
@@ -186,11 +188,14 @@ gen (Free (OnRetry a b next)) = do
 gen (Pure a) = pure a
 
 (>>==) :: Gen r -> (r -> Gen a) -> Generator a
-(>>==) a b = do
+(>>==) a b = gen a >>>= b
+  {-
+  do
   r <- lift (runExceptT (gen a))
   case r of
     Right x -> gen $ b x
     Left e -> throwE e
+    -}
 
 (>>>=) :: Generator r -> (r -> Gen a) -> Generator a
 (>>>=) a b = do
@@ -200,14 +205,19 @@ gen (Pure a) = pure a
     Left e -> throwE e
 
 handleRetries :: Int -> Gen a -> Gen a
-handleRetries l g = traceShow l $ do
+handleRetries l g = retryLimit l g retry
+  {-
+  traceShow l $ do
   if l < 1
      then g
      else onRetry g (handleRetries (l - 1) g)
+     -}
 
 
-genFilter' :: forall r. (r -> Bool) -> Gen r -> Gen r
-genFilter' condition g = go 100
+genFilter' :: forall r. (r -> Bool) -> Gen r -> Generator r
+genFilter' condition g = HGen.filterT condition (gen g)
+  {-
+  go 100
   where
     go :: Int -> Gen r
     go 0 = retry
@@ -216,6 +226,7 @@ genFilter' condition g = go 100
       if condition res
          then pure res
          else go (l-1)
+         -}
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

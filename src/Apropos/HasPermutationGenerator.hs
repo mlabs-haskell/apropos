@@ -14,7 +14,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (join)
+import Control.Monad (join,void,when,unless)
 import Data.Graph (Graph, buildG, path, scc)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -30,7 +30,6 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
-import Control.Monad (void)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
@@ -130,12 +129,8 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         isco = isStronglyConnected graph
         go targetProperties = do
           m <- g
-          if null pedges
-            then failWithFootnote "no Morphisms defined"
-            else pure ()
-          if isco
-            then pure ()
-            else
+          when (null pedges) $ failWithFootnote "no Morphisms defined"
+          unless isco $
               let (a, b) = findNoPath (Apropos :: m :+ p) ns graph
                in failWithFootnote $
                     renderStyle ourStyle $
@@ -191,9 +186,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
             "Morphism doesn't work. This is a model error"
               $+$ "This should never happen at this point in the program."
       Right (Just expected) -> do
-        if satisfiesFormula logic expected
-          then pure ()
-          else
+        unless (satisfiesFormula logic expected) $
             failWithFootnote $
               renderStyle ourStyle $
                 "Morphism contract produces invalid model"
@@ -203,9 +196,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         label $ fromString $ name tr
         nm <- morphism tr m
         let observed = properties nm
-        if expected == observed
-          then pure ()
-          else edgeFailsContract tr m nm expected observed
+        unless (expected == observed) $ edgeFailsContract tr m nm expected observed
         traversePath edges r nm
 
   findPathOptions ::

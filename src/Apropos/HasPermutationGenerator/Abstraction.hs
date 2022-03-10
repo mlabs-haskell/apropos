@@ -17,7 +17,7 @@ import Data.Set qualified as Set
 data Abstraction ap am bp bm = Abstraction
   { abstractionName :: String
   , propertyAbstraction :: Prism' bp ap
-  , modelAbstraction :: Lens' bm am
+  , modelAbstraction :: Traversal' bm am
   }
 
 abstract ::
@@ -35,10 +35,7 @@ abstract abstraction edge =
           (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
-    , morphism = \m -> do
-        let n = m ^. modelAbstraction abstraction
-        nn <- morphism edge n
-        pure $ modelAbstraction abstraction .~ nn $ m
+    , morphism = modelAbstraction abstraction $ morphism edge
     }
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a

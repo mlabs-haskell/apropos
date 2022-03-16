@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
@@ -10,6 +8,7 @@ import Apropos
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
+import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -17,9 +16,8 @@ import Test.Tasty.Hedgehog (fromGroup)
 data IntPairProp
   = L IntProp
   | R IntProp
-  deriving stock (Eq, Ord, Show)
-
-$(genEnumerable ''IntPairProp)
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntPairProp where
   logic = (L <$> logic) :&&: (R <$> logic)

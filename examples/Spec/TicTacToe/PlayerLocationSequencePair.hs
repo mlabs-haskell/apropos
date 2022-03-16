@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Spec.TicTacToe.PlayerLocationSequencePair (
   PlayerLocationSequencePairProperty (..),
   playerLocationSequencePairPermutationGenSelfTest,
@@ -11,9 +9,9 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
-import Control.Monad (join)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
+import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -21,9 +19,8 @@ data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
   | PlayerLocationSequencePairPlayer PlayerSequenceProperty
   | PlayerLocationSequencePairLengthsAreEqual
-  deriving stock (Eq, Ord, Show)
-
-$(genEnumerable ''PlayerLocationSequencePairProperty)
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass Enumerable
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =

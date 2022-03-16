@@ -6,11 +6,9 @@ module Apropos.LogicalModel (
   enumerateSolutions,
   module Apropos.LogicalModel.Formula,
   module Apropos.LogicalModel.Enumerable,
-  module Apropos.LogicalModel.Enumerable.TH,
 ) where
 
 import Apropos.LogicalModel.Enumerable
-import Apropos.LogicalModel.Enumerable.TH
 import Apropos.LogicalModel.Formula
 import Data.Map qualified as Map
 import Data.Set (Set)

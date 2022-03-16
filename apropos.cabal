@@ -10,6 +10,8 @@ common lang
     BinaryLiterals
     ConstraintKinds
     DataKinds
+    DefaultSignatures
+   DeriveAnyClass
     DeriveFunctor
     DeriveGeneric
     DeriveTraversable
@@ -63,7 +65,6 @@ library
                  , Apropos.LogicalModel
                  , Apropos.LogicalModel.Formula
                  , Apropos.LogicalModel.Enumerable
-                 , Apropos.LogicalModel.Enumerable.TH
                  , Apropos.HasLogicalModel
                  , Apropos.HasParameterisedGenerator
                  , Apropos.HasPermutationGenerator

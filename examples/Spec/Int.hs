@@ -1,6 +1,7 @@
 module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests) where
 
 import Apropos
+import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -12,10 +13,9 @@ data IntProp
   | IsSmall
   | IsMaxBound
   | IsMinBound
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded,Generic)
+  deriving anyclass Enumerable
 
-instance Enumerable IntProp where
-  enumerated = [minBound .. maxBound]
 
 instance LogicalModel IntProp where
   logic =

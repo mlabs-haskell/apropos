@@ -30,4 +30,3 @@ instance Enumerable c => GenericEnum (K1 i c) where
 
 instance GenericEnum f => GenericEnum (M1 i t f) where
   genericEnumerated = M1 <$> genericEnumerated
-

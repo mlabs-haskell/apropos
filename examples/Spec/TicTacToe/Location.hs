@@ -16,8 +16,8 @@ import Test.Tasty.Hedgehog (fromGroup)
 data LocationProperty
   = LocationIsWithinBounds
   | LocationIsOutOfBounds
-  deriving stock (Eq, Ord, Enum, Show, Bounded,Generic)
-  deriving anyclass Enumerable
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel LocationProperty where
   logic = ExactlyOne $ Var <$> [LocationIsWithinBounds, LocationIsOutOfBounds]

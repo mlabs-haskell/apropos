@@ -10,9 +10,9 @@ import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
+import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
-import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -20,7 +20,7 @@ data MoveProperty
   = MoveLocation LocationProperty
   | MovePlayer PlayerProperty
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass Enumerable
+  deriving anyclass (Enumerable)
 
 instance LogicalModel MoveProperty where
   logic = (MoveLocation <$> logic) :&&: (MovePlayer <$> logic)

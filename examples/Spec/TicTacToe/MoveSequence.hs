@@ -21,7 +21,7 @@ data MoveSequenceProperty
   = MoveSequenceValid
   | MoveSequenceContainsWin
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass Enumerable
+  deriving anyclass (Enumerable)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])

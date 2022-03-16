@@ -13,9 +13,8 @@ data IntProp
   | IsSmall
   | IsMaxBound
   | IsMinBound
-  deriving stock (Eq, Ord, Enum, Show, Bounded,Generic)
-  deriving anyclass Enumerable
-
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntProp where
   logic =

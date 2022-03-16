@@ -17,7 +17,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
 
   runPureTest :: m :+ p -> Set p -> Property
   runPureTest apropos s = property $ do
-    (m :: m) <- forAll $ handleRetries numRetries $ parameterisedGenerator s
+    (m :: m) <- forAllWithRetries numRetries $ parameterisedGenerator s
     satisfiesFormula (expect apropos) s === script apropos m
     where
       numRetries :: Int

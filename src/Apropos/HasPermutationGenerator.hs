@@ -111,7 +111,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   renderStyle ourStyle $
                     fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = property $ forAll $ handleRetries 100 $ do
+          runEdgeTest f t = property $ forAllWithRetries 100 $ do
             om <- mGen (lut ns f)
             nm <- morphism pe om
             let expected = lut ns t

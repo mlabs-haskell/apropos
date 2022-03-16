@@ -3,6 +3,7 @@ module Apropos.Gen (
   Gen,
   GenException,
   forAll,
+  forAllWithRetries,
   handleRetries,
   gen,
   label,
@@ -22,7 +23,6 @@ module Apropos.Gen (
   linear,
   singleton,
 ) where
-import Debug.Trace
 import Apropos.Gen.Range
 import Control.Monad (replicateM)
 import Control.Monad.Free
@@ -34,6 +34,8 @@ import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -136,6 +138,17 @@ retryLimit lim g done = go lim
     then pure ()
     else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
+
+forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
+forAllWithRetries lim g = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> H.footnote "global retry limit reached" >> H.failure
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure a
+
+
 forAll :: Show a => Gen a -> PropertyT IO a
 forAll g = do
   (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
@@ -149,10 +162,10 @@ data GenException = GenException String | Retry deriving stock (Show)
 
 type GenContext = H.Gen
 
-type Generator = ExceptT GenException (WriterT [String] GenContext)
+type Generator = ExceptT GenException (WriterT (Set String) GenContext)
 
 gen :: Gen a -> Generator a
-gen (Free (Label s next)) = lift (tell [s]) >> gen next
+gen (Free (Label s next)) = lift (tell (Set.singleton s)) >> gen next
 gen (Free (FailWithFootnote s _)) = throwE $ GenException s
 gen (Free (GenBool next)) = lift HGen.bool >>= (gen . next)
 gen (Free (GenInt r next)) = do
@@ -175,7 +188,7 @@ gen (Free (GenChoice gs next)) = do
       i <- lift (HGen.int (HRange.linear 0 (l -1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
-  gen (genFilter' c g >>= next)
+  genFilter' c g >>>= next
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)
@@ -199,23 +212,34 @@ gen (Pure a) = pure a
     Right x -> gen $ b x
     Left e -> throwE e
 
-handleRetries :: Int -> Gen a -> Gen a
-handleRetries l g = traceShow l $ do
-  if l < 1
-     then g
-     else onRetry g (handleRetries (l - 1) g)
-
-
-genFilter' :: forall r. (r -> Bool) -> Gen r -> Gen r
-genFilter' condition g = go 100
+handleRetries :: forall a . Int -> Gen a -> Generator a
+handleRetries n g = go n
   where
-    go :: Int -> Gen r
-    go 0 = retry
+    go :: Int -> Generator a
     go l = do
-      res <- g
-      if condition res
-         then pure res
-         else go (l-1)
+      res <- lift $ runExceptT (gen g)
+      case res of
+        Right r -> pure r
+        Left Retry ->
+          if l < 1
+             then throwE Retry
+             else go (l - 1)
+        Left err -> throwE err
+
+genFilter' :: forall r. (r -> Bool) -> Gen r -> Generator r
+genFilter' condition g = go 0
+  where
+    go :: Int -> Generator r
+    go l = do
+      if l > 99
+         then throwE Retry
+         else do
+           let scaleGen = HGen.scale (2 * (HRange.Size l) +)
+           res <- scaleGen $ gen g
+           if condition res
+             then do
+               pure res
+             else go (l + 1)
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

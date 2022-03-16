@@ -87,25 +87,20 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = \moves -> do
+        , morphism = \moves -> genFilter (\ w -> containsWin w
+                                        && satisfiesExpression (Not locationSequenceIsValid) w) $ do
             winlocs <- Set.toList <$> element winTileSets
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
-            let win = join $ transpose whofirst
-            if containsWin win && satisfiesExpression (Not locationSequenceIsValid) win
-              then pure win
-              else retry
+            pure $ join $ transpose whofirst
         }
     , Morphism
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = \moves -> do
+        , morphism = \moves -> genFilter (\w -> containsWin w && satisfiesExpression locationSequenceIsValid w) $ do
             winlocs <- Set.toList <$> element winTileSets
             whofirst <- element [[moves, winlocs], [winlocs, moves]]
-            let win = join $ transpose whofirst
-            if containsWin win && satisfiesExpression locationSequenceIsValid win
-              then pure win
-              else retry
+            pure $ join $ transpose whofirst
         }
     ]
 

@@ -2,6 +2,7 @@ module Main (main) where
 
 import Spec.Int
 import Spec.IntPair
+import Spec.IntEither
 import Spec.IntPermutationGen
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
@@ -32,9 +33,13 @@ tests =
         ]
     , testGroup
         "IntPair composite model"
-        [ intPairGenSelfTests
+        [ intPairGenTests
         , intPairGenSelfTests
         , intPairGenPureTests
+        ]
+    , testGroup
+        "IntEither composite model"
+        [ intEitherGenTests
         ]
     , testGroup
         "TicTacToe"

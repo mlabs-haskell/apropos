@@ -9,6 +9,7 @@ module Apropos.HasPermutationGenerator.Abstraction (
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel.Enumerable
+import Apropos.LogicalModel (Formula((:&&:)))
 import Control.Lens
 import Data.Either (rights)
 import Data.Set (Set)
@@ -22,6 +23,7 @@ data Abstraction ap am bp bm
   }
   | SumAbstraction
   { abstractionName :: String
+  , abstractionMatch :: Formula bp
   , propertyAbstraction :: Prism' bp ap
   , sumModelAbstraction :: Prism' bm am
   }
@@ -41,12 +43,19 @@ abstract abstraction@ProductAbstraction{} edge =
           (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
-    , morphism = \m -> do
-        let n = m ^. productModelAbstraction abstraction
-        nn <- morphism edge n
-        pure $ productModelAbstraction abstraction .~ nn $ m
+    , morphism = productModelAbstraction abstraction $ morphism edge
     }
-abstract abstraction@SumAbstraction{} edge = undefined edge abstraction
+abstract abstraction@SumAbstraction{} edge =
+  Morphism
+    { name = abstractionName abstraction <> name edge
+    , match = abstractionMatch abstraction :&&: ((propertyAbstraction abstraction #) <$> match edge)
+    , contract =
+        abstractContract
+          (abstractionName abstraction)
+          (propertyAbstraction abstraction)
+          $ contract edge
+    , morphism = sumModelAbstraction abstraction $ morphism edge
+    }
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a
 abstractsProperties injection = prism' injection (computeProjection injection)

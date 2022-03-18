@@ -20,9 +20,10 @@ data IntEitherProp
 
 instance LogicalModel IntEitherProp where
   logic =
-    ExactlyOne [ Var IsLeft , Var IsRight ]
-    :&&: (Var IsLeft :->: (L <$> logic) :&&: None (Var . R <$> enumerated))
-    :&&: (Var IsRight :->: (R <$> logic) :&&: None (Var . L <$> enumerated))
+    ExactlyOne
+      [ Var IsLeft :&&: (L <$> logic) :&&: None (Var . R <$> enumerated)
+      , Var IsRight :&&: (R <$> logic) :&&: None (Var . L <$> enumerated)
+      ]
 
 instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsLeft (Left _) = True
@@ -36,39 +37,30 @@ instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty (R _) (Left _) = False
   satisfiesProperty (R p) (Right m) = satisfiesProperty p m
 
-instance HasPermutationGenerator IntEitherProp (Either Int Int) where
-  generators =
-    let l =
+instance HasAbstractions IntEitherProp (Either Int Int) where
+  abstractions =
+    [ WrapAbs $
           SumAbstraction
             { abstractionName = "L"
             , propertyAbstraction = abstractsProperties L
-            , abstractionMatch = Var IsLeft
             , sumModelAbstraction = _Left
+            , propLabel = IsLeft
+            , modelConstructor = Left
+            , propConstructor = L
             }
-        r =
+    , WrapAbs $
           SumAbstraction
             { abstractionName = "R"
             , propertyAbstraction = abstractsProperties R
-            , abstractionMatch = Var IsRight
             , sumModelAbstraction = _Right
+            , propLabel = IsRight
+            , modelConstructor = Right
+            , propConstructor = R
             }
-      in
-        [ Morphism
-          { name = "make left"
-          , match = Var IsRight
-          , contract = remove IsRight >> removeAll (R <$> enumerated) >> add IsLeft >> addAll (L <$> satisfiedBy)
-          , morphism = const $ Left <$> genSatisfying @IntProp (All (Var <$> satisfiedBy))
-          }
-        , Morphism
-          { name = "make right"
-          , match = Var IsLeft
-          , contract = remove IsLeft >> removeAll (L <$> enumerated) >> add IsRight >> addAll (R <$> satisfiedBy)
-          , morphism = const $ Right <$> genSatisfying @IntProp (All (Var <$> satisfiedBy))
-          }
-        ]
-        ++ (abstract l <$> generators)
-        ++ (abstract r <$> generators)
+    ]
 
+instance HasPermutationGenerator IntEitherProp (Either Int Int) where
+  generators = abstractionGenerators
 
 instance HasParameterisedGenerator IntEitherProp (Either Int Int) where
   parameterisedGenerator = buildGen baseGen

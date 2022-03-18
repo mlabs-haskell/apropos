@@ -3,17 +3,20 @@
 module Apropos.HasPermutationGenerator.Abstraction (
   Abstraction (..),
   abstract,
+  gotoSum,
   abstractsProperties,
 ) where
 
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
+import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel.Enumerable
-import Apropos.LogicalModel (Formula((:&&:)))
+import Apropos.LogicalModel (Formula(..),satisfiedBy)
 import Control.Lens
 import Data.Either (rights)
 import Data.Set (Set)
 import Data.Set qualified as Set
+
 
 data Abstraction ap am bp bm
   = ProductAbstraction
@@ -23,9 +26,11 @@ data Abstraction ap am bp bm
   }
   | SumAbstraction
   { abstractionName :: String
-  , abstractionMatch :: Formula bp
   , propertyAbstraction :: Prism' bp ap
   , sumModelAbstraction :: Prism' bm am
+  , propLabel :: bp
+  , modelConstructor :: am -> bm
+  , propConstructor :: ap -> bp
   }
 
 abstract ::
@@ -48,13 +53,30 @@ abstract abstraction@ProductAbstraction{} edge =
 abstract abstraction@SumAbstraction{} edge =
   Morphism
     { name = abstractionName abstraction <> name edge
-    , match = abstractionMatch abstraction :&&: ((propertyAbstraction abstraction #) <$> match edge)
+    , match = Var (propLabel abstraction) :&&: ((propertyAbstraction abstraction #) <$> match edge)
     , contract =
         abstractContract
           (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
     , morphism = sumModelAbstraction abstraction $ morphism edge
+    }
+
+gotoSum ::
+  forall ap am bp bm.
+  Enumerable bp =>
+  HasParameterisedGenerator ap am =>
+  Abstraction ap am bp bm ->
+  Maybe (Morphism bp bm)
+gotoSum ProductAbstraction{} = Nothing
+gotoSum s@SumAbstraction{} = Just $
+  Morphism
+    { name = "goto " <> abstractionName s
+    , match = Not $ Var $ propLabel s
+    , contract = clear >> add (propLabel s) >> addAll (propConstructor s <$> satisfiedBy)
+    , morphism = const $
+        modelConstructor s <$>
+          genSatisfying @ap @am (All $ Var <$> satisfiedBy)
     }
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a

@@ -26,21 +26,25 @@ instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i
   satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
-instance HasPermutationGenerator IntPairProp (Int, Int) where
-  generators =
-    let l =
+instance HasAbstractions IntPairProp (Int, Int) where
+  abstractions =
+    [ WrapAbs $
           ProductAbstraction
             { abstractionName = "L"
             , propertyAbstraction = abstractsProperties L
             , productModelAbstraction = _1
             }
-        r =
+    , WrapAbs $
           ProductAbstraction
             { abstractionName = "R"
             , propertyAbstraction = abstractsProperties R
             , productModelAbstraction = _2
             }
-     in join [abstract l <$> generators, abstract r <$> generators]
+    ]
+
+
+instance HasPermutationGenerator IntPairProp (Int, Int) where
+  generators = abstractionGenerators
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen

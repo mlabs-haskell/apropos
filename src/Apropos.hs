@@ -37,7 +37,11 @@ module Apropos (
   HasPermutationGenerator (..),
   Morphism (..),
   Abstraction (..),
+  HasAbstractions(..),
+  AbstractionFor(..),
   abstract,
+  abstractionGenerators,
+  gotoSum,
   abstractsProperties,
   (|:->),
   -- Apropos.HasPermutationGenerator.Contract

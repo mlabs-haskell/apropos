@@ -32,16 +32,16 @@ instance HasLogicalModel MoveProperty (Int, Int) where
 instance HasPermutationGenerator MoveProperty (Int, Int) where
   generators =
     let l =
-          Abstraction
+          ProductAbstraction
             { abstractionName = "MovePlayer"
             , propertyAbstraction = abstractsProperties MovePlayer
-            , modelAbstraction = _1
+            , productModelAbstraction = _1
             }
         r =
-          Abstraction
+          ProductAbstraction
             { abstractionName = "MoveLocation"
             , propertyAbstraction = abstractsProperties MoveLocation
-            , modelAbstraction = _2
+            , productModelAbstraction = _2
             }
      in join [abstract l <$> generators, abstract r <$> generators]
 

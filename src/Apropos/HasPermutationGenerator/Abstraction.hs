@@ -14,10 +14,16 @@ import Data.Either (rights)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-data Abstraction ap am bp bm = Abstraction
+data Abstraction ap am bp bm
+  = ProductAbstraction
   { abstractionName :: String
   , propertyAbstraction :: Prism' bp ap
-  , modelAbstraction :: Lens' bm am
+  , productModelAbstraction :: Lens' bm am
+  }
+  | SumAbstraction
+  { abstractionName :: String
+  , propertyAbstraction :: Prism' bp ap
+  , sumModelAbstraction :: Prism' bm am
   }
 
 abstract ::
@@ -26,7 +32,7 @@ abstract ::
   Abstraction ap am bp bm ->
   Morphism ap am ->
   Morphism bp bm
-abstract abstraction edge =
+abstract abstraction@ProductAbstraction{} edge =
   Morphism
     { name = abstractionName abstraction <> name edge
     , match = (propertyAbstraction abstraction #) <$> match edge
@@ -36,10 +42,11 @@ abstract abstraction edge =
           (propertyAbstraction abstraction)
           $ contract edge
     , morphism = \m -> do
-        let n = m ^. modelAbstraction abstraction
+        let n = m ^. productModelAbstraction abstraction
         nn <- morphism edge n
-        pure $ modelAbstraction abstraction .~ nn $ m
+        pure $ productModelAbstraction abstraction .~ nn $ m
     }
+abstract abstraction@SumAbstraction{} edge = undefined edge abstraction
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a
 abstractsProperties injection = prism' injection (computeProjection injection)

@@ -48,16 +48,16 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   generators =
     let l =
-          Abstraction
+          ProductAbstraction
             { abstractionName = ""
             , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
-            , modelAbstraction = _1
+            , productModelAbstraction = _1
             }
         r =
-          Abstraction
+          ProductAbstraction
             { abstractionName = ""
             , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
-            , modelAbstraction = _2
+            , productModelAbstraction = _2
             }
      in (abstract l <$> generators) |:-> (abstract r <$> generators)
 

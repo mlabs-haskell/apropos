@@ -29,16 +29,16 @@ instance HasLogicalModel IntPairProp (Int, Int) where
 instance HasPermutationGenerator IntPairProp (Int, Int) where
   generators =
     let l =
-          Abstraction
+          ProductAbstraction
             { abstractionName = "L"
             , propertyAbstraction = abstractsProperties L
-            , modelAbstraction = _1
+            , productModelAbstraction = _1
             }
         r =
-          Abstraction
+          ProductAbstraction
             { abstractionName = "R"
             , propertyAbstraction = abstractsProperties R
-            , modelAbstraction = _2
+            , productModelAbstraction = _2
             }
      in join [abstract l <$> generators, abstract r <$> generators]
 

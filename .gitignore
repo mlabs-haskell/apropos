@@ -9,7 +9,8 @@ result
 result-*
 
 # direnv
-#.envrc
+.envrc
+.direnv
 
 .swp
 

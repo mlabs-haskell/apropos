@@ -21,8 +21,7 @@ data IntEitherProp
 instance LogicalModel IntEitherProp where
   logic =
     ExactlyOne [Var IsLeft, Var IsRight]
-      :&&: (Var IsLeft :->: (L <$> logic) :&&: None (Var . R <$> enumerated))
-      :&&: (Var IsRight :->: (R <$> logic) :&&: None (Var . L <$> enumerated))
+      :&&: abstractionLogic @(Either Int Int)
 
 instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsLeft (Left _) = True
@@ -39,20 +38,16 @@ instance HasAbstractions IntEitherProp (Either Int Int) where
     [ WrapAbs $
         SumAbstraction
           { abstractionName = "L"
-          , propertyAbstraction = abstractsProperties L
           , propLabel = IsLeft
           , sumModelAbstraction = _Left
-          , propConstructor = L
-          , modelConstructor = Left
+          , propertyAbstraction = abstractsProperties L
           }
     , WrapAbs $
         SumAbstraction
           { abstractionName = "R"
-          , propertyAbstraction = abstractsProperties R
           , propLabel = IsRight
           , sumModelAbstraction = _Right
-          , modelConstructor = Right
-          , propConstructor = R
+          , propertyAbstraction = abstractsProperties R
           }
     ]
 

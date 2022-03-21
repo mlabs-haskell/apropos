@@ -20,7 +20,7 @@ data IntPairProp
   deriving anyclass (Enumerable)
 
 instance LogicalModel IntPairProp where
-  logic = (L <$> logic) :&&: (R <$> logic)
+  logic = abstractionLogic @(Int,Int)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i

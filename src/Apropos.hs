@@ -41,6 +41,7 @@ module Apropos (
   AbstractionFor (..),
   abstract,
   abstractionGenerators,
+  abstractionLogic,
   gotoSum,
   abstractsProperties,
   (|:->),
@@ -78,6 +79,7 @@ import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
+import Apropos.HasAbstractions
 import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Type

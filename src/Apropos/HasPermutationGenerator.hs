@@ -362,4 +362,3 @@ edgeFailsContract tr m nm expected observed =
         $+$ hang "OutputModel:" 4 (ppDoc (ppDoc nm))
         $+$ hang "ExpectedProperties:" 4 (ppDoc (Set.toList expected))
         $+$ hang "ObservedProperties:" 4 (ppDoc (Set.toList observed))
-

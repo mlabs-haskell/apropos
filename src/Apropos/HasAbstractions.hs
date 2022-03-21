@@ -1,30 +1,31 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Apropos.HasAbstractions(
+module Apropos.HasAbstractions (
   HasAbstractions (..),
   AbstractionFor (..),
   abstractionLogic,
   abstractionGenerators,
-  ) where
+) where
 
-
-import Apropos.HasParameterisedGenerator
-    ( HasParameterisedGenerator )
-import Apropos.HasPermutationGenerator
-    ( Morphism,
-      abstract,
-      gotoSum,
-      Abstraction,
-      HasPermutationGenerator(generators) )
+import Apropos.HasParameterisedGenerator (
+  HasParameterisedGenerator,
+ )
+import Apropos.HasPermutationGenerator (
+  Abstraction,
+  HasPermutationGenerator (generators),
+  Morphism,
+  abstract,
+  gotoSum,
+  (|:->),
+ )
 import Apropos.HasPermutationGenerator.Abstraction (abstractLogic)
-import Apropos.LogicalModel ( Enumerable, Formula(All) )
-import Data.Maybe (catMaybes)
-import Control.Monad(join)
+import Apropos.LogicalModel (Enumerable, Formula (All))
+import Control.Monad (join)
 
-class HasAbstractions bp bm where
-  abstractions :: [AbstractionFor bp bm]
+class HasAbstractions p m where
+  abstractions :: [AbstractionFor p m]
 
-data AbstractionFor bp bm where
+data AbstractionFor p m where
   WrapAbs ::
     forall ap am bp bm.
     ( Enumerable ap
@@ -35,12 +36,20 @@ data AbstractionFor bp bm where
     Abstraction ap am bp bm ->
     AbstractionFor bp bm
 
-abstractionGenerators :: forall bp bm. HasAbstractions bp bm => [Morphism bp bm]
+abstractionGenerators :: forall p m. HasAbstractions p m => [Morphism p m]
 abstractionGenerators =
-  let gotos = catMaybes $ (\(WrapAbs a) -> gotoSum a) <$> abstractions @bp @bm
-      abstractMorphisms = (\(WrapAbs a) -> abstract a <$> generators) <$> abstractions @bp @bm
-   in gotos ++ join abstractMorphisms
+  let gotos = [morphism | WrapAbs abstraction <- abstractions @p @m, Just morphism <- pure $ gotoSum abstraction]
+      abstractMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction <- abstractions @p @m]
+   in gotos
+        ++ join abstractMorphisms
+        ++ join
+          [ (abstract a1 <$> generators) |:-> (abstract a2 <$> generators)
+          | (WrapAbs a1, WrapAbs a2) <- pairsIn $ abstractions @p @m
+          ]
+  where
+    pairsIn :: [a] -> [(a, a)]
+    pairsIn [] = []
+    pairsIn (x : xs) = [(x, y) | y <- xs] ++ pairsIn xs
 
-abstractionLogic :: forall bm bp. HasAbstractions bp bm => Formula bp
-abstractionLogic = All $ (\(WrapAbs a) -> abstractLogic @bp @bm a) <$> (abstractions @bp @bm)
-
+abstractionLogic :: forall m p. HasAbstractions p m => Formula p
+abstractionLogic = All [abstractLogic @p @m abstraction | WrapAbs abstraction <- abstractions @p @m]

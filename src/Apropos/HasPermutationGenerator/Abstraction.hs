@@ -11,7 +11,7 @@ module Apropos.HasPermutationGenerator.Abstraction (
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
-import Apropos.LogicalModel (Formula (..), LogicalModel(logic), satisfiedBy)
+import Apropos.LogicalModel (Formula (..), LogicalModel (logic), satisfiedBy)
 import Apropos.LogicalModel.Enumerable
 import Control.Lens
 import Data.Either (rights)
@@ -29,8 +29,6 @@ data Abstraction ap am bp bm
       , propertyAbstraction :: Prism' bp ap
       , sumModelAbstraction :: Prism' bm am
       , propLabel :: bp
-      --, modelConstructor :: am -> bm
-      --, propConstructor :: ap -> bp
       }
 
 abstract ::
@@ -77,7 +75,7 @@ gotoSum s@SumAbstraction {} =
       , contract = clear >> add (propLabel s) >> addAll ((propertyAbstraction s #) <$> satisfiedBy)
       , morphism =
           const $
-            (sumModelAbstraction s  #)
+            (sumModelAbstraction s #)
               <$> genSatisfying @ap @am (All $ Var <$> satisfiedBy)
       }
 
@@ -110,8 +108,7 @@ abstractContract prefix a c = do
     maskProperties pa = Set.filter (isn't pa)
 
 abstractLogic :: forall bp bm ap am. LogicalModel ap => Abstraction ap am bp bm -> Formula bp
-abstractLogic s@ProductAbstraction{} = (propertyAbstraction s #) <$> logic
-abstractLogic s@SumAbstraction{} =
+abstractLogic s@ProductAbstraction {} = (propertyAbstraction s #) <$> logic
+abstractLogic s@SumAbstraction {} =
   (Var (propLabel s) :->: (propertyAbstraction s #) <$> logic)
-  :&&: (Not (Var (propLabel s)) :->: None (Var . (propertyAbstraction s #) <$> enumerated))
-
+    :&&: (Not (Var (propLabel s)) :->: None (Var . (propertyAbstraction s #) <$> enumerated))

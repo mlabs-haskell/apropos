@@ -75,11 +75,11 @@ module Apropos (
 ) where
 
 import Apropos.Gen
+import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.HasAbstractions
 import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Type

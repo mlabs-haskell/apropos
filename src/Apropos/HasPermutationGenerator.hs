@@ -2,8 +2,8 @@ module Apropos.HasPermutationGenerator (
   HasPermutationGenerator (..),
   Morphism (..),
   Abstraction (..),
-  HasAbstractions(..),
-  AbstractionFor(..),
+  HasAbstractions (..),
+  AbstractionFor (..),
   abstract,
   gotoSum,
   abstractionGenerators,
@@ -21,9 +21,9 @@ import Apropos.LogicalModel
 import Apropos.Type
 import Control.Monad (join)
 import Data.Graph (Graph, buildG, path, scc)
-import Data.Maybe (catMaybes)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -372,15 +372,18 @@ class HasAbstractions bp bm where
   abstractions :: [AbstractionFor bp bm]
 
 data AbstractionFor bp bm where
-  WrapAbs :: forall ap am bp bm.
-    (Enumerable ap
-    ,Enumerable bp
-    ,HasParameterisedGenerator ap am
-    ,HasPermutationGenerator ap am
-    ) => Abstraction ap am bp bm -> AbstractionFor bp bm
+  WrapAbs ::
+    forall ap am bp bm.
+    ( Enumerable ap
+    , Enumerable bp
+    , HasParameterisedGenerator ap am
+    , HasPermutationGenerator ap am
+    ) =>
+    Abstraction ap am bp bm ->
+    AbstractionFor bp bm
 
 abstractionGenerators :: forall bp bm. HasAbstractions bp bm => [Morphism bp bm]
-abstractionGenerators = let
-  gotos = catMaybes $ (\(WrapAbs a) -> gotoSum a) <$> abstractions @bp @bm
-  abstractMorphisms = (\(WrapAbs a) -> abstract a <$> generators) <$> abstractions @bp @bm
-                         in gotos ++ join abstractMorphisms
+abstractionGenerators =
+  let gotos = catMaybes $ (\(WrapAbs a) -> gotoSum a) <$> abstractions @bp @bm
+      abstractMorphisms = (\(WrapAbs a) -> abstract a <$> generators) <$> abstractions @bp @bm
+   in gotos ++ join abstractMorphisms

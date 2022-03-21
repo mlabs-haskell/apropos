@@ -21,7 +21,7 @@ class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   satisfiedBy = Set.toList $
     case enumerateSolutions logic of
       [] -> error "no solutions found for model logic"
-      (sol:_) -> sol
+      (sol : _) -> sol
 
 enumerateScenariosWhere :: forall p. LogicalModel p => Formula p -> [Set p]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPresentInFormula

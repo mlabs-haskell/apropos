@@ -29,19 +29,18 @@ instance HasLogicalModel IntPairProp (Int, Int) where
 instance HasAbstractions IntPairProp (Int, Int) where
   abstractions =
     [ WrapAbs $
-          ProductAbstraction
-            { abstractionName = "L"
-            , propertyAbstraction = abstractsProperties L
-            , productModelAbstraction = _1
-            }
+        ProductAbstraction
+          { abstractionName = "L"
+          , propertyAbstraction = abstractsProperties L
+          , productModelAbstraction = _1
+          }
     , WrapAbs $
-          ProductAbstraction
-            { abstractionName = "R"
-            , propertyAbstraction = abstractsProperties R
-            , productModelAbstraction = _2
-            }
+        ProductAbstraction
+          { abstractionName = "R"
+          , propertyAbstraction = abstractsProperties R
+          , productModelAbstraction = _2
+          }
     ]
-
 
 instance HasPermutationGenerator IntPairProp (Int, Int) where
   generators = abstractionGenerators

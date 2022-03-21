@@ -1,8 +1,8 @@
 module Main (main) where
 
 import Spec.Int
-import Spec.IntPair
 import Spec.IntEither
+import Spec.IntPair
 import Spec.IntPermutationGen
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence

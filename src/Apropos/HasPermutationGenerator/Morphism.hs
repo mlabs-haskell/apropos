@@ -7,7 +7,7 @@ module Apropos.HasPermutationGenerator.Morphism (
 
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel.Formula
+import Apropos.LogicalModel
 import Control.Monad ((>=>))
 
 data Morphism p m = Morphism

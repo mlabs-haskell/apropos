@@ -5,13 +5,14 @@ module Apropos.HasAbstractions (
   AbstractionFor (..),
   abstractionLogic,
   abstractionGenerators,
+  parallelAbstractionMorphisms,
 ) where
 
 import Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator,
  )
 import Apropos.HasPermutationGenerator (
-  Abstraction,
+  Abstraction(..),
   HasPermutationGenerator (generators),
   Morphism,
   abstract,
@@ -19,7 +20,7 @@ import Apropos.HasPermutationGenerator (
   (|:->),
  )
 import Apropos.HasPermutationGenerator.Abstraction (abstractLogic)
-import Apropos.LogicalModel (Enumerable, Formula (All))
+import Apropos.LogicalModel (Enumerable, Formula (All), LogicalModel)
 import Control.Monad (join)
 
 class HasAbstractions p m where
@@ -36,20 +37,23 @@ data AbstractionFor p m where
     Abstraction ap am bp bm ->
     AbstractionFor bp bm
 
-abstractionGenerators :: forall p m. HasAbstractions p m => [Morphism p m]
+abstractionGenerators :: forall p m. (LogicalModel p,HasAbstractions p m) => [Morphism p m]
 abstractionGenerators =
   let gotos = [morphism | WrapAbs abstraction <- abstractions @p @m, Just morphism <- pure $ gotoSum abstraction]
       abstractMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction <- abstractions @p @m]
    in gotos
         ++ join abstractMorphisms
-        ++ join
-          [ (abstract a1 <$> generators) |:-> (abstract a2 <$> generators)
-          | (WrapAbs a1, WrapAbs a2) <- pairsIn $ abstractions @p @m
-          ]
-  where
-    pairsIn :: [a] -> [(a, a)]
-    pairsIn [] = []
-    pairsIn (x : xs) = [(x, y) | y <- xs] ++ pairsIn xs
+
+parallelAbstractionMorphisms :: forall p m. (LogicalModel p,HasAbstractions p m) => [Morphism p m]
+parallelAbstractionMorphisms =
+  let abstractProductMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction@ProductAbstraction{} <- abstractions @p @m]
+  in join
+        [ foldl  (|:->) m ms
+        | m:ms@(_:_) <- seqs abstractProductMorphisms ]
+ where
+   seqs :: [a] -> [[a]]
+   seqs [] = [[]]
+   seqs (x:xs) = let xs' = seqs xs in xs' ++ ((x:) <$> xs')
 
 abstractionLogic :: forall m p. HasAbstractions p m => Formula p
 abstractionLogic = All [abstractLogic @p @m abstraction | WrapAbs abstraction <- abstractions @p @m]

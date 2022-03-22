@@ -63,7 +63,7 @@ instance HasAbstractions PlayerLocationSequencePairProperty ([Int], [Int]) where
     ]
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
-  generators = abstractionGenerators
+  generators = abstractionGenerators ++ parallelAbstractionMorphisms
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen

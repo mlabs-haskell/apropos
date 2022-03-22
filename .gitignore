@@ -47,3 +47,7 @@ Thumbs.db
 
 # Local configuration files
 cabal.project.local*
+
+# ctags 
+tags 
+TAGS

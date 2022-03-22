@@ -93,9 +93,11 @@ label s = liftF (Label s ())
 failWithFootnote :: String -> Gen a
 failWithFootnote s = liftF (FailWithFootnote s id)
 
+-- | Simple generator for `Bool`s.
 bool :: Gen Bool
 bool = liftF (GenBool id)
 
+-- | Given a `Range` returns a generator for `Int`s within that range.
 int :: Range -> Gen Int
 int r = liftF (GenInt r id)
 

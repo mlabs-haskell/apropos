@@ -50,7 +50,7 @@ abstract abstraction@ProductAbstraction {} edge =
     }
 abstract abstraction@SumAbstraction {} edge =
   Morphism
-    { name = abstractionName abstraction <> name edge
+    { name = abstractionName abstraction <> " of ( " <> name edge <> " )"
     , match = Var (propLabel abstraction) :&&: ((propertyAbstraction abstraction #) <$> match edge)
     , contract =
         abstractContract

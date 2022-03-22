@@ -52,7 +52,7 @@ instance HasAbstractions IntEitherProp (Either Int Int) where
     ]
 
 instance HasPermutationGenerator IntEitherProp (Either Int Int) where
-  generators = abstractionGenerators
+  generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntEitherProp (Either Int Int) where
   parameterisedGenerator = buildGen baseGen

@@ -43,7 +43,7 @@ instance HasAbstractions IntPairProp (Int, Int) where
     ]
 
 instance HasPermutationGenerator IntPairProp (Int, Int) where
-  generators = abstractionGenerators
+  generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen

@@ -5,6 +5,7 @@ Description: Defines logical properties of locations on a TicTacToe grid.
 module Spec.TicTacToe.Location (
   LocationProperty (..),
   locationPermutationGenSelfTest,
+  Location,
 ) where
 
 import Apropos.Gen
@@ -16,6 +17,11 @@ import Apropos.LogicalModel
 import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+
+{- | Type synonym defining a location on a TicTacToe grid as an Int.
+     Zero through eight are valid squares, all others are invalid.
+-}
+type Location = Int
 
 -- | Properties of a "Location" (or grid space) in a game of TicTacToe.
 data LocationProperty

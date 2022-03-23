@@ -5,6 +5,7 @@ Description: TicTacToe player properties and model.
 module Spec.TicTacToe.Player (
   PlayerProperty (..),
   playerPermutationGenSelfTest,
+  Player,
 ) where
 
 import Apropos.Gen
@@ -15,6 +16,12 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+
+{- | Type synonym defining a TicTacToe player as an `Int`.
+     A value of zero denotes the noughts player and a value of one
+     the crosses player. All other values are invalid.
+-}
+type Player = Int
 
 -- | Properties which may be true of a TicTacToe player.
 data PlayerProperty

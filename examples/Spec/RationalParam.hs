@@ -65,41 +65,34 @@ instance HasParameterisedGenerator RatProp Rat where
     let r = Rational n d
     if | prop RatLarge && satisfiesProperty RatLarge r -> pure r
        | prop RatSmall && satisfiesProperty RatSmall r -> pure r
-       | prop RatLarge && not (satisfiesProperty RatLarge r) ->
-          if | prop (Num IsSmall) && prop (Den IsSmall) -> pure $ Rational (10 * signum n) (signum d)
-             | prop (Num IsLarge) && prop (Den IsSmall) -> pure $ Rational (101 * signum n) d
+       | prop RatLarge && not (satisfiesProperty RatLarge r) -> -- should be large but isn't
+          if | prop (Num IsSmall) && prop (Den IsSmall) -> pure $ Rational (10 * signum n) (signum d) -- only way for it to be large with both small
+             | prop (Num IsLarge) && prop (Den IsSmall) -> pure $ Rational (101 * signum n) d -- num must have been quite small, 101 is always large enough
              | prop (Num IsLarge) && prop (Den IsLarge) ->
-               if | (abs d < maxBound `div` 10) -> do
-                    n' <- int (linear (abs d * 10+1) maxBound)
-                    pure $ Rational (n' * signum n) d
-                  | prop (Num IsMaxBound) || prop (Num IsMinBound)-> do
-                      d' <- int (linear 11 (maxBound `div` 10 - 1))
-                      pure $ Rational n (d' * signum d)
-                  | abs n > 101 -> do
-                    d' <- int (linear 11 (abs n `div` 10 - 1))
+                if prop (Num IsMaxBound) || prop (Num IsMinBound)
+                  then do
+                    d' <- int (linear 11 (maxBound `div` 10))
                     pure $ Rational n (d' * signum d)
-                  | otherwise -> error $ "unexpected model" ++ show s
+                  else do
+                    n' <- int (linear 111 maxBound)
+                    d' <- int (linear 11 (n' `div` 10))
+                    pure $ Rational (n' * signum n) (d' * signum d)
              | otherwise -> error $ "unexpected model" ++ show s
-       | prop RatSmall && not (satisfiesProperty RatSmall r) ->
-          if | prop (Num IsSmall) && prop (Den IsSmall) -> pure $ Rational (9 * signum n) d
+       | prop RatSmall && not (satisfiesProperty RatSmall r) -> -- should be small but isn't
+         if | prop (Num IsSmall) && prop (Den IsSmall) -> pure $ Rational (9 * signum n) d -- abs n was 10 needs to be <= 9
              | prop (Num IsLarge) && prop (Den IsSmall) -> do
-               let d' = max (abs d) 2
-               n' <- int (linear 11 (10*d'-1))
+               let d' = max (abs d) 2 -- make d at least 2
+               n' <- int (linear 11 (10*d'-1)) -- new n
                pure $ Rational (n' * signum n) (d' * signum d)
              | prop (Num IsLarge) && prop (Den IsLarge) ->
-               if | not (prop (Num IsMinBound)) && not (prop (Num IsMaxBound)) && (abs d > (maxBound -1) `div` 10) -> do
-                      n' <- int (linear 10 (10*abs d+1))
-                      pure $ Rational (n' * signum n) d
-                  | prop (Num IsMaxBound) || prop (Num IsMinBound)-> do
-                      d' <- int (linear (maxBound `div` 10 + 1) (maxBound -1))
-                      pure $ Rational n (d' * signum d)
-                  | abs n > 101 -> do
-                      d' <- int (linear (abs n `div` 10 + 1) (maxBound -1))
-                      pure $ Rational n (d' * signum d)
-                  | otherwise -> do
-                    d' <- int (linear 11 (maxBound `div` 10))
-                    n' <- int (linear 11 (10*d'+1))
-                    pure $ Rational (n' * signum n) (d' * signum d)
+               if prop (Num IsMaxBound) || prop (Num IsMinBound)
+                 then do -- n is fixed so generate valid d
+                   d' <- int (linear (maxBound `div` 10 + 1) (maxBound -1))
+                   pure $ Rational n (d' * signum d)
+                 else do -- generate new values from scratch
+                   d' <- int (linear 11 (maxBound `div` 10))
+                   n' <- int (linear 11 (10*d'+1))
+                   pure $ Rational (n' * signum n) (d' * signum d)
              | otherwise -> error $ "unexpected model" ++ show s
        | otherwise -> error $ "unexpected model " ++ show s
 

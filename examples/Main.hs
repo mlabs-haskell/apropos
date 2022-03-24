@@ -11,6 +11,7 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
+import Spec.Rational
 import Test.Tasty
 
 main :: IO ()
@@ -40,6 +41,10 @@ tests =
     , testGroup
         "IntEither composite model"
         [ intEitherGenTests
+        ]
+    , testGroup
+        "Rational composite model"
+        [ ratGenSelfTests
         ]
     , testGroup
         "TicTacToe"

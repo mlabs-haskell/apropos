@@ -40,6 +40,7 @@ instance LogicalModel RatProp where
     :&&: (Var (Num IsZero) :<->: Var RatZero)
     :&&: ExactlyOne [ Var RatPos, Var RatZero, Var RatNeg ]
     :&&: (Not (Var RatZero) :->: (ExactlyOne [ Var (Num IsNegative) , Var (Den IsNegative)] :<->: Var RatNeg ))
+    :&&: (((Var (Num IsMaxBound) :||: Var (Num IsMinBound)) :&&: Var RatSmall) :->: Var (Den IsLarge))
 
 instance HasLogicalModel RatProp Rat where
   satisfiesProperty RatPos r = asRational r > 0
@@ -84,15 +85,16 @@ instance HasPermutationGenerator RatProp Rat where
       }
     , Morphism
       { name = "negate den"
-      , match = Yes
+      , match = Not (Var (Den IsMinBound)) :&&: Not (Var (Den IsMaxBound))
       , contract = do
         branches
-          [has (Den IsNegative) >> remove (Den IsNegative) >> add (Den IsPositive)
-          ,has (Den IsPositive) >> remove (Den IsPositive) >> add (Den IsNegative)
+          [ has (Den IsNegative) >> remove (Den IsNegative) >> add (Den IsPositive)
+          , has (Den IsPositive) >> remove (Den IsPositive) >> add (Den IsNegative)
           ]
         branches
-          [has RatNeg >> remove RatNeg >> add RatPos
-          ,has RatPos >> remove RatPos >> add RatNeg
+          [ has RatNeg >> remove RatNeg >> add RatPos
+          , has RatPos >> remove RatPos >> add RatNeg
+          , has RatZero
           ]
       , morphism = \(Rational n d) -> pure $ Rational n (negate d)
       }
@@ -119,20 +121,64 @@ instance HasPermutationGenerator RatProp Rat where
            else pure $ Rational 100 10
       }
     , Morphism
-      { name = "small num"
+      { name = "small pos num"
       , match = Var $ Num IsLarge
-      , contract = remove (Num IsLarge) >> add (Num IsSmall)
+      , contract = removeAll (Num <$> enumerated) >> addAll [Num IsSmall,Num IsPositive]
       , morphism = \(Rational _ d) -> do
-        n <- genSatisfying (Var IsSmall)
+        n <- genSatisfying (Var IsSmall :&&: Var IsPositive)
         return $ Rational n d
       }
     , Morphism
-      { name = "small den"
+      { name = "small pos den"
       , match = Var $ Den IsLarge
-      , contract = remove (Den IsLarge) >> add (Den IsSmall)
+      , contract = removeAll (Den <$> enumerated) >> addAll [Den IsSmall,Den IsPositive]
       , morphism = \(Rational n _) -> do
-        d <- genSatisfying (Var IsSmall)
+        d <- genSatisfying (Var IsSmall :&&: Var IsPositive)
         return $ Rational n d
+      }
+    , Morphism
+      { name = "large pos num"
+      , match = Var (Num IsSmall)
+      , contract = removeAll (Num <$> enumerated) >> addAll [Num IsLarge,Num IsPositive]
+      , morphism = \(Rational _ d) -> do
+        n <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
+        return $ Rational n d
+      }
+    , Morphism
+      { name = "large pos den"
+      , match = Var (Den IsSmall)
+      , contract = removeAll (Den <$> enumerated) >> addAll [Den IsLarge,Den IsPositive]
+      , morphism = \(Rational n _) -> do
+        d <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
+        return $ Rational n d
+      }
+    , Morphism
+      { name = "make den minBound"
+      , match = Yes
+      , contract = removeAll (Den <$> enumerated) >> addAll [Den IsNegative,Den IsLarge,Den IsMinBound]
+      , morphism = \(Rational n _) -> do
+        return $ Rational n minBound
+      }
+    , Morphism
+      { name = "make num minBound"
+      , match = Yes
+      , contract = removeAll (Num <$> enumerated) >> addAll [Num IsNegative,Num IsLarge,Num IsMinBound]
+      , morphism = \(Rational _ d) -> do
+        return $ Rational minBound d
+      }
+    , Morphism
+      { name = "make den maxBound"
+      , match = Yes
+      , contract = removeAll (Den <$> enumerated) >> addAll [Den IsPositive,Den IsLarge,Den IsMaxBound]
+      , morphism = \(Rational n _) -> do
+        return $ Rational n maxBound
+      }
+    , Morphism
+      { name = "make num maxBound"
+      , match = Yes
+      , contract = removeAll (Num <$> enumerated) >> addAll [Num IsPositive,Num IsLarge,Num IsMaxBound]
+      , morphism = \(Rational _ d) -> do
+        return $ Rational maxBound d
       }
     ]
     -- ++ abstractionMorphisms

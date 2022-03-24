@@ -11,7 +11,7 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
-import Spec.Rational
+import Spec.RationalParam
 import Test.Tasty
 
 main :: IO ()

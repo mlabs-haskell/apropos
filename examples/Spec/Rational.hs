@@ -1,5 +1,5 @@
 module Spec.Rational (
-  ratGenSelfTests,
+  ratPermGenSelfTests,
   RatProp(..),
   Rat(..),
                      ) where
@@ -96,7 +96,11 @@ instance HasPermutationGenerator RatProp Rat where
           , has RatPos >> remove RatPos >> add RatNeg
           , has RatZero
           ]
-      , morphism = \(Rational n d) -> pure $ Rational n (negate d)
+      , morphism = \(Rational n d) ->
+        let d' = negate d
+          in if d' == maxBound
+                then pure $ Rational n (d'-1)
+                else pure $ Rational n d'
       }
     , Morphism
       { name = "make zero"
@@ -121,32 +125,48 @@ instance HasPermutationGenerator RatProp Rat where
            else pure $ Rational 100 10
       }
     , Morphism
-      { name = "small pos num"
-      , match = Var $ Num IsLarge
+      { name = "small rat small pos num"
+      , match = Var (Num IsLarge) :&&: Var RatSmall
       , contract = removeAll (Num <$> enumerated) >> addAll [Num IsSmall,Num IsPositive]
       , morphism = \(Rational _ d) -> do
         n <- genSatisfying (Var IsSmall :&&: Var IsPositive)
         return $ Rational n d
       }
     , Morphism
-      { name = "small pos den"
-      , match = Var $ Den IsLarge
+      { name = "large rat small pos den"
+      , match = Var (Den IsLarge) :&&: Var RatLarge
       , contract = removeAll (Den <$> enumerated) >> addAll [Den IsSmall,Den IsPositive]
       , morphism = \(Rational n _) -> do
         d <- genSatisfying (Var IsSmall :&&: Var IsPositive)
         return $ Rational n d
       }
     , Morphism
-      { name = "large pos num"
-      , match = Var (Num IsSmall)
+      { name = "large rat large pos num"
+      , match = Var (Num IsSmall) :&&: Var RatLarge
       , contract = removeAll (Num <$> enumerated) >> addAll [Num IsLarge,Num IsPositive]
       , morphism = \(Rational _ d) -> do
         n <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
         return $ Rational n d
       }
     , Morphism
-      { name = "large pos den"
-      , match = Var (Den IsSmall)
+      { name = "small rat large pos num"
+      , match = Var (Num IsSmall) :&&: Var RatSmall
+      , contract = removeAll (Num <$> enumerated) >> addAll [Num IsLarge,Num IsPositive]
+      , morphism = \(Rational _ d) -> do
+        n <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
+        return $ Rational n d
+      }
+    , Morphism
+      { name = "small rat large pos den"
+      , match = Var (Den IsSmall) :&&: Var RatSmall
+      , contract = removeAll (Den <$> enumerated) >> addAll [Den IsLarge,Den IsPositive]
+      , morphism = \(Rational n _) -> do
+        d <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
+        return $ Rational n d
+      }
+    , Morphism
+      { name = "large rat large pos den"
+      , match = Var (Den IsSmall) :&&: Var RatLarge
       , contract = removeAll (Den <$> enumerated) >> addAll [Den IsLarge,Den IsPositive]
       , morphism = \(Rational n _) -> do
         d <- genSatisfying (Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound))
@@ -190,9 +210,9 @@ baseGen :: Gen Rat
 baseGen = Rational <$> genSatisfying @IntProp Yes <*> genSatisfying (Not $ Var IsZero)
 
 
-ratGenSelfTests :: TestTree
-ratGenSelfTests =
-  testGroup "ratGenSelfTests" $
+ratPermGenSelfTests :: TestTree
+ratPermGenSelfTests =
+  testGroup "ratPermGenSelfTests" $
     fromGroup
       <$> permutationGeneratorSelfTest
         True

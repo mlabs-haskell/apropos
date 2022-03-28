@@ -101,5 +101,5 @@ ratGenSelfTests =
     fromGroup
       $ runGeneratorTestsWhere
         (Apropos :: Rat :+ RatProp)
-        "rat tests"
+        "rational tests"
         Yes

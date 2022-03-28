@@ -9,7 +9,8 @@ result
 result-*
 
 # direnv
-#.envrc
+.envrc
+.direnv
 
 .swp
 
@@ -46,3 +47,7 @@ Thumbs.db
 
 # Local configuration files
 cabal.project.local*
+
+# ctags 
+tags 
+TAGS

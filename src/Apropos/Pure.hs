@@ -11,7 +11,10 @@ import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
-class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m where
+class
+  (HasLogicalModel p m, HasParameterisedGenerator p m) =>
+  HasPureRunner p m
+  where
   expect :: m :+ p -> Formula p
   script :: m :+ p -> (m -> Bool)
 

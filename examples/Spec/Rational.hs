@@ -70,21 +70,8 @@ instance HasAbstractions RatProp Rat where
     ]
 
 instance HasPermutationGenerator RatProp Rat where
+  allowRedundentEdges _ = True
   generators =
-    filter (\m -> name m `notElem`
-            -- TODO this is kind of a hack
-            -- we probably want something like filter validMorphism
-             ["((denominator of (MakeMaxBound)) >>> (fix sign)) >>> (fix large)"
-             ,"((denominator of (MakeMinBound)) >>> (fix sign)) >>> (fix large)"
-             ,"((denominator of (MakeZero)) >>> (fix sign)) >>> (fix large)"
-             ,"((denominator of (MakeZero)) >>> (fix sign)) >>> (fix small)"
-             ,"((make Large) >>> (fix sign)) >>> (fix small)"
-             ,"((make Small) >>> (fix sign)) >>> (fix large)"
-             ,"((numerator of (MakeZero)) >>> (fix sign)) >>> (fix large)"
-             ,"((numerator of (MakeLarge)) >>> (fix sign)) >>> (fix large)"
-             ,"((numerator of (MakeSmall)) >>> (fix sign)) >>> (fix large)"
-             ]
-           ) $
     (abstractionMorphisms
       ++
         [ Morphism

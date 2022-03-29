@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiWayIf #-}
 module Spec.Rational (
-  ratPermGenSelfTests,
+  ratGenSelfTests,
   RatProp(..),
   Rat(..),
                      ) where
@@ -167,8 +167,8 @@ baseGen :: Gen Rat
 baseGen = Rational <$> genSatisfying @IntProp Yes <*> genSatisfying (Not $ Var IsZero)
 
 
-ratPermGenSelfTests :: TestTree
-ratPermGenSelfTests =
+ratGenSelfTests :: TestTree
+ratGenSelfTests =
   testGroup "ratPermGenSelfTests" $
     fromGroup
       <$> permutationGeneratorSelfTest

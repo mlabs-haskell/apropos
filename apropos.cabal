@@ -90,7 +90,6 @@ test-suite examples
     Spec.IntPair
     Spec.IntEither
     Spec.Rational
-    Spec.RationalParam
     Spec.TicTacToe.Player
     Spec.TicTacToe.PlayerSequence
     Spec.TicTacToe.Location

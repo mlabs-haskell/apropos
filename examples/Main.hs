@@ -11,7 +11,6 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
---import Spec.RationalParam
 import Spec.Rational
 import Test.Tasty
 
@@ -45,8 +44,7 @@ tests =
         ]
     , testGroup
         "Rational model"
-        [ ratPermGenSelfTests
-        --, ratGenSelfTests
+        [ ratGenSelfTests
         ]
     , testGroup
         "TicTacToe"

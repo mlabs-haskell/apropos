@@ -2,7 +2,8 @@
 
 module Apropos.HasPermutationGenerator.Morphism (
   Morphism (..),
-  (|:->),
+  (&&&),
+  (>>>),
 ) where
 
 import Apropos.Gen
@@ -23,16 +24,28 @@ instance Eq (Morphism p m) where
 instance Show (Morphism p m) where
   show = name
 
-(|:->) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
-(|:->) as bs = [composeMorphisms a b | a <- as, b <- bs]
+(&&&) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
+(&&&) as bs = [addMorphism a b | a <- as, b <- bs]
 
-composeMorphisms :: Morphism p m -> Morphism p m -> Morphism p m
-composeMorphisms a b =
+(>>>) :: Enumerable p => [Morphism p m] -> [Morphism p m] -> [Morphism p m]
+(>>>) as bs = [seqMorphism a b | a <- as, b <- bs]
+
+addMorphism :: Morphism p m -> Morphism p m -> Morphism p m
+addMorphism a b =
   Morphism
-    { -- composing morphisms is analogous to >=>
-      name = "(" <> name a <> ") >=> (" <> name b <> ")"
-    , -- TODO is this correct in the case where contract a changes rather match b matches?
-      match = match a :&&: match b
+    { -- adding morphisms is analogous to &&&
+      name = "(" <> name a <> ") &&& (" <> name b <> ")"
+    , match = match a :&&: match b
     , contract = contract a >> contract b
+    , morphism = morphism a >=> morphism b
+    }
+
+seqMorphism :: Enumerable p => Morphism p m -> Morphism p m -> Morphism p m
+seqMorphism a b =
+  Morphism
+    { -- sequencing morphisms is analogous to >>>
+      name = "(" <> name a <> ") >>> (" <> name b <> ")"
+    , match = match a
+    , contract = contract a >> matches (match b) >> contract b
     , morphism = morphism a >=> morphism b
     }

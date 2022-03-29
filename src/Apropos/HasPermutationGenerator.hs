@@ -5,7 +5,8 @@ module Apropos.HasPermutationGenerator (
   abstract,
   gotoSum,
   abstractsProperties,
-  (|:->),
+  (&&&),
+  (>>>),
 ) where
 
 import Apropos.Gen
@@ -154,7 +155,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     (Set p, Set p)
   findNoPath _ m g =
     minimumBy
-      (compare `on` (uncurry score))
+      (compare `on` uncurry score)
       [ (lut m a, lut m b)
       | a <- Map.keys m
       , b <- Map.keys m

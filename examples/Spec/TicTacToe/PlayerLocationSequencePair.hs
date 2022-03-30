@@ -10,6 +10,7 @@ import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
 import GHC.Generics (Generic)
+import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
@@ -38,14 +39,14 @@ instance LogicalModel PlayerLocationSequencePairProperty where
                 ]
            )
 
-instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Location]) where
   satisfiesProperty (PlayerLocationSequencePairLocation prop) mseq =
     satisfiesProperty prop (snd mseq)
   satisfiesProperty (PlayerLocationSequencePairPlayer prop) mseq =
     satisfiesProperty prop (fst mseq)
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
-instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Location]) where
   generators =
     let l =
           Abstraction
@@ -61,14 +62,21 @@ instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int
             }
      in (abstract l <$> generators) |:-> (abstract r <$> generators)
 
-instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Location]) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen ([Int], [Int])
+baseGen :: Gen ([Int], [Location])
 baseGen = do
   l <- int (linear 0 10)
   l1 <- list (singleton l) $ int (linear minBound maxBound)
-  l2 <- list (singleton l) $ int (linear minBound maxBound)
+  l2 <- list (singleton l) $ do
+    x <- int (linear minBound maxBound)
+    y <- int (linear minBound maxBound)
+    return $
+      Location
+        { row = x
+        , column = y
+        }
   pure (l1, l2)
 
 playerLocationSequencePairPermutationGenSelfTest :: TestTree
@@ -77,5 +85,5 @@ playerLocationSequencePairPermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         False
-        (\(_ :: Morphism PlayerLocationSequencePairProperty ([Int], [Int])) -> True)
+        (\(_ :: Morphism PlayerLocationSequencePairProperty ([Int], [Location])) -> True)
         baseGen

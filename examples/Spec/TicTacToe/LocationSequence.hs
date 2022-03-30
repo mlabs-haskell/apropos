@@ -40,11 +40,11 @@ instance LogicalModel LocationSequenceProperty where
               :->: Var SomeLocationIsOccupiedTwice
            )
 
-someLocationIsOccupiedTwice :: [Int] -> Bool
+someLocationIsOccupiedTwice :: [Location] -> Bool
 someLocationIsOccupiedTwice locationSeq =
   Set.size (Set.fromList locationSeq) < length locationSeq
 
-instance HasLogicalModel LocationSequenceProperty [Int] where
+instance HasLogicalModel LocationSequenceProperty [Location] where
   satisfiesProperty AllLocationsAreInBounds m =
     all (satisfiesProperty LocationIsWithinBounds) m
   satisfiesProperty SomeLocationIsOutOfBounds m =
@@ -54,7 +54,7 @@ instance HasLogicalModel LocationSequenceProperty [Int] where
   satisfiesProperty LocationSequenceIsSingleton m = length m == 1
   satisfiesProperty LocationSequenceIsLongerThanGame m = length m > 9
 
-instance HasPermutationGenerator LocationSequenceProperty [Int] where
+instance HasPermutationGenerator LocationSequenceProperty [Location] where
   generators =
     [ Morphism
         { name = "MakeLocationSequenceNull"
@@ -81,7 +81,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               >> add AllLocationsAreInBounds
         , morphism = \locations -> do
             let locationsLen = min 9 (length locations)
-            locations' <- shuffle [0 .. 8]
+            locations' <- shuffle $ do
+              x <- [0 .. 2]
+              y <- [0 .. 2]
+              return $
+                Location
+                  { row = x
+                  , column = y
+                  }
             pure $ take locationsLen locations'
         }
     , Morphism
@@ -98,7 +105,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                 ]
         , morphism = \locations -> do
             let locationsLen = max 2 (length locations)
-            locations' <- shuffle [0 .. 8]
+            locations' <- shuffle $ do
+              x <- [0 .. 2]
+              y <- [0 .. 2]
+              return $
+                Location
+                  { row = x
+                  , column = y
+                  }
             let locations'' = take (locationsLen - 1) locations'
             list (singleton locationsLen) $ element locations''
         }
@@ -116,8 +130,38 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
         , morphism = \_ ->
             list (singleton 1) $
               choice
-                [ int (linear minBound (-1))
-                , int (linear 9 maxBound)
+                [ do
+                    x <- int (linear minBound (-1))
+                    y <- int (linear 0 2)
+                    return $
+                      Location
+                        { row = x
+                        , column = y
+                        }
+                , do
+                    x <- int (linear 3 maxBound)
+                    y <- int (linear 0 2)
+                    return $
+                      Location
+                        { row = x
+                        , column = y
+                        }
+                , do
+                    x <- int (linear 0 2)
+                    y <- int (linear minBound (-1))
+                    return $
+                      Location
+                        { row = x
+                        , column = y
+                        }
+                , do
+                    x <- int (linear 0 2)
+                    y <- int (linear 3 maxBound)
+                    return $
+                      Location
+                        { row = x
+                        , column = y
+                        }
                 ]
         }
     , Morphism
@@ -131,7 +175,15 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
               , LocationSequenceIsLongerThanGame
               ]
               >> addAll [AllLocationsAreInBounds, LocationSequenceIsSingleton]
-        , morphism = \_ -> list (singleton 1) $ int (linear 0 8)
+        , morphism = \_ -> list (singleton 1) $
+            do
+              x <- int (linear 0 2)
+              y <- int (linear 0 2)
+              return $
+                Location
+                  { row = x
+                  , column = y
+                  }
         }
     , Morphism
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
@@ -154,7 +206,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
                   let locationsLen = length locations
                   genFilter f $
                     list (singleton locationsLen) $
-                      int (linear minBound maxBound)
+                      do
+                        x <- int (linear minBound maxBound)
+                        y <- int (linear minBound maxBound)
+                        return $
+                          Location
+                            { row = x
+                            , column = y
+                            }
         }
     , Morphism
         { name = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
@@ -174,7 +233,14 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
             let locationsLen = 10
             locations' <-
               list (singleton (locationsLen - 1)) $
-                int (linear minBound maxBound)
+                do
+                  x <- int (linear minBound maxBound)
+                  y <- int (linear minBound maxBound)
+                  return $
+                    Location
+                      { row = x
+                      , column = y
+                      }
             list (singleton locationsLen) $ element locations'
         }
     , Morphism
@@ -194,17 +260,31 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
             let locationsLen = length locations
             locations' <-
               list (singleton (locationsLen - 1)) $
-                int (linear minBound maxBound)
+                do
+                  x <- int (linear minBound maxBound)
+                  y <- int (linear minBound maxBound)
+                  return $
+                    Location
+                      { row = x
+                      , column = y
+                      }
             list (singleton locationsLen) $ element locations'
         }
     ]
 
-instance HasParameterisedGenerator LocationSequenceProperty [Int] where
+instance HasParameterisedGenerator LocationSequenceProperty [Location] where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen [Int]
+baseGen :: Gen [Location]
 baseGen =
-  let g = int (linear minBound maxBound)
+  let g = do
+        x <- int (linear minBound maxBound)
+        y <- int (linear minBound maxBound)
+        return $
+          Location
+            { row = x
+            , column = y
+            }
    in list (linear 0 10) g
 
 locationSequencePermutationGenSelfTest :: TestTree
@@ -213,5 +293,5 @@ locationSequencePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: Morphism LocationSequenceProperty [Int]) -> True)
+        (\(_ :: Morphism LocationSequenceProperty [Location]) -> True)
         baseGen

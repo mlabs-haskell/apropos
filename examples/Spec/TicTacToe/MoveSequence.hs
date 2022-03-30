@@ -13,6 +13,7 @@ import Data.List (transpose)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
+import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -23,29 +24,61 @@ data MoveSequenceProperty
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable)
 
-splitPlayers :: [Int] -> ([Int], [Int])
+splitPlayers :: [a] -> ([a], [a])
 splitPlayers locationSeq = go locationSeq ([], [])
   where
     go [] p = p
     go [s] (a, b) = (s : a, b)
     go (h : i : j) (a, b) = go j (h : a, i : b)
 
-containsWin :: [Int] -> Bool
+containsWin :: [Location] -> Bool
 containsWin locationSeq =
   let (x, o) = splitPlayers locationSeq
    in any (all (`elem` x)) winTileSets || any (all (`elem` o)) winTileSets
 
-winTileSets :: [Set Int]
+winTileSets :: [Set Location]
 winTileSets =
   Set.fromList
-    <$> [ [0, 1, 2]
-        , [3, 4, 5]
-        , [6, 7, 8]
-        , [0, 3, 6]
-        , [1, 4, 7]
-        , [2, 5, 8]
-        , [0, 4, 8]
-        , [2, 4, 6]
+    <$> [
+          [ Location {row = 0, column = 0}
+          , Location {row = 0, column = 1}
+          , Location {row = 0, column = 2}
+          ]
+        ,
+          [ Location {row = 1, column = 0}
+          , Location {row = 1, column = 1}
+          , Location {row = 1, column = 2}
+          ]
+        ,
+          [ Location {row = 2, column = 0}
+          , Location {row = 2, column = 1}
+          , Location {row = 2, column = 2}
+          ]
+        ,
+          [ Location {row = 0, column = 0}
+          , Location {row = 1, column = 0}
+          , Location {row = 2, column = 0}
+          ]
+        ,
+          [ Location {row = 0, column = 1}
+          , Location {row = 1, column = 1}
+          , Location {row = 2, column = 1}
+          ]
+        ,
+          [ Location {row = 0, column = 2}
+          , Location {row = 1, column = 2}
+          , Location {row = 2, column = 2}
+          ]
+        ,
+          [ Location {row = 0, column = 0}
+          , Location {row = 1, column = 1}
+          , Location {row = 2, column = 2}
+          ]
+        ,
+          [ Location {row = 0, column = 2}
+          , Location {row = 1, column = 1}
+          , Location {row = 2, column = 0}
+          ]
         ]
 
 instance LogicalModel MoveSequenceProperty where
@@ -56,14 +89,14 @@ locationSequenceIsValid =
   Var AllLocationsAreInBounds
     :&&: Not (Var SomeLocationIsOccupiedTwice)
 
-instance HasLogicalModel MoveSequenceProperty [Int] where
+instance HasLogicalModel MoveSequenceProperty [Location] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
   satisfiesProperty MoveSequenceContainsWin ms = containsWin ms
 
-baseGen :: Gen [Int]
+baseGen :: Gen [Location]
 baseGen = genSatisfying (Yes :: Formula LocationSequenceProperty)
 
-instance HasPermutationGenerator MoveSequenceProperty [Int] where
+instance HasPermutationGenerator MoveSequenceProperty [Location] where
   generators =
     [ Morphism
         { name = "InvalidNoWin"
@@ -107,7 +140,7 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         }
     ]
 
-instance HasParameterisedGenerator MoveSequenceProperty [Int] where
+instance HasParameterisedGenerator MoveSequenceProperty [Location] where
   parameterisedGenerator = buildGen baseGen
 
 moveSequencePermutationGenSelfTest :: TestTree
@@ -116,5 +149,5 @@ moveSequencePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: Morphism MoveSequenceProperty [Int]) -> True)
+        (\(_ :: Morphism MoveSequenceProperty [Location]) -> True)
         baseGen

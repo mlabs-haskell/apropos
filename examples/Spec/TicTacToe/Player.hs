@@ -1,5 +1,5 @@
 module Spec.TicTacToe.Player (
-  Player(..),
+  Player (..),
   PlayerProperty (..),
   playerPermutationGenSelfTest,
 ) where

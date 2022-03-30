@@ -25,11 +25,11 @@ data MoveProperty
 instance LogicalModel MoveProperty where
   logic = (MoveLocation <$> logic) :&&: (MovePlayer <$> logic)
 
-instance HasLogicalModel MoveProperty (Int, Location) where
+instance HasLogicalModel MoveProperty (Player, Location) where
   satisfiesProperty (MoveLocation prop) (_, location) = satisfiesProperty prop location
   satisfiesProperty (MovePlayer prop) (player, _) = satisfiesProperty prop player
 
-instance HasPermutationGenerator MoveProperty (Int, Location) where
+instance HasPermutationGenerator MoveProperty (Player, Location) where
   generators =
     let l =
           Abstraction
@@ -45,12 +45,12 @@ instance HasPermutationGenerator MoveProperty (Int, Location) where
             }
      in join [abstract l <$> generators, abstract r <$> generators]
 
-instance HasParameterisedGenerator MoveProperty (Int, Location) where
+instance HasParameterisedGenerator MoveProperty (Player, Location) where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen (Int, Location)
+baseGen :: Gen (Player, Location)
 baseGen =
-  let gi = int (linear minBound maxBound)
+  let gp = element [X, O]
       gl = do
         x <- int (linear minBound maxBound)
         y <- int (linear minBound maxBound)
@@ -59,7 +59,7 @@ baseGen =
             { row = x
             , column = y
             }
-   in (,) <$> gi <*> gl
+   in (,) <$> gp <*> gl
 
 movePermutationGenSelfTest :: TestTree
 movePermutationGenSelfTest =
@@ -67,5 +67,5 @@ movePermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: Morphism MoveProperty (Int, Location)) -> True)
+        (\(_ :: Morphism MoveProperty (Player, Location)) -> True)
         baseGen

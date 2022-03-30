@@ -1,4 +1,5 @@
 module Spec.TicTacToe.Player (
+  Player(..),
   PlayerProperty (..),
   playerPermutationGenSelfTest,
 ) where
@@ -12,53 +13,45 @@ import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
+data Player = X | O
+  deriving stock (Eq, Show)
+
 data PlayerProperty
   = PlayerIsX
   | PlayerIsO
-  | PlayerIsInvalid
   deriving stock (Eq, Ord, Enum, Show, Bounded)
 
 instance Enumerable PlayerProperty where
   enumerated = [minBound .. maxBound]
 
 instance LogicalModel PlayerProperty where
-  logic = ExactlyOne $ Var <$> [PlayerIsInvalid, PlayerIsX, PlayerIsO]
+  logic = ExactlyOne $ Var <$> [PlayerIsX, PlayerIsO]
 
-instance HasLogicalModel PlayerProperty Int where
-  satisfiesProperty PlayerIsX player = player == 1
-  satisfiesProperty PlayerIsO player = player == 0
-  satisfiesProperty PlayerIsInvalid player =
-    not (satisfiesAny [PlayerIsX, PlayerIsO] player)
+instance HasLogicalModel PlayerProperty Player where
+  satisfiesProperty PlayerIsX player = player == X
+  satisfiesProperty PlayerIsO player = player == O
 
-instance HasPermutationGenerator PlayerProperty Int where
+instance HasPermutationGenerator PlayerProperty Player where
   generators =
     [ Morphism
         { name = "MakePlayerX"
         , match = Not $ Var PlayerIsX
-        , contract = removeAll [PlayerIsO, PlayerIsInvalid] >> add PlayerIsX
-        , morphism = \_ -> pure 1
+        , contract = remove PlayerIsO >> add PlayerIsX
+        , morphism = \_ -> pure X
         }
     , Morphism
         { name = "MakePlayerO"
         , match = Not $ Var PlayerIsO
-        , contract = removeAll [PlayerIsX, PlayerIsInvalid] >> add PlayerIsO
-        , morphism = \_ -> pure 0
-        }
-    , Morphism
-        { name = "MakePlayerInvalid"
-        , match = Not $ Var PlayerIsInvalid
-        , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , morphism = \_ ->
-            genFilter (\i -> i `notElem` [0, 1]) $
-              int (linear minBound maxBound)
+        , contract = remove PlayerIsX >> add PlayerIsO
+        , morphism = \_ -> pure O
         }
     ]
 
-instance HasParameterisedGenerator PlayerProperty Int where
+instance HasParameterisedGenerator PlayerProperty Player where
   parameterisedGenerator = buildGen baseGen
 
-baseGen :: Gen Int
-baseGen = int (linear minBound maxBound)
+baseGen :: Gen Player
+baseGen = element [X, O]
 
 playerPermutationGenSelfTest :: TestTree
 playerPermutationGenSelfTest =
@@ -66,5 +59,5 @@ playerPermutationGenSelfTest =
     fromGroup
       <$> permutationGeneratorSelfTest
         True
-        (\(_ :: Morphism PlayerProperty Int) -> True)
+        (\(_ :: Morphism PlayerProperty Player) -> True)
         baseGen

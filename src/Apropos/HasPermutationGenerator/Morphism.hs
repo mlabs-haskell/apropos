@@ -31,8 +31,7 @@ composeMorphisms a b =
   Morphism
     { -- composing morphisms is analogous to >=>
       name = "(" <> name a <> ") >=> (" <> name b <> ")"
-    , -- TODO is this correct in the case where contract a changes rather match b matches?
-      match = match a :&&: match b
+    , match = match a :&&: match b
     , contract = contract a >> contract b
     , morphism = morphism a >=> morphism b
     }

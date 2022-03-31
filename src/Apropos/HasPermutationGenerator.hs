@@ -15,7 +15,9 @@ import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
 import Control.Monad (join)
+import Data.Function (on)
 import Data.Graph (Graph, buildG, path, scc)
+import Data.List (minimumBy)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -150,12 +152,22 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     Graph ->
     (Set p, Set p)
   findNoPath _ m g =
-    head
+    minimumBy
+      (compare `on` (uncurry score))
       [ (lut m a, lut m b)
       | a <- Map.keys m
       , b <- Map.keys m
       , not (path g a b)
       ]
+    where
+      -- The score function is designed to favor sets which are similar and small
+      -- The assumption being that smaller morphims are more general
+      score :: Ord a => Set a -> Set a -> (Int, Int)
+      score l r = (hamming l r, length $ l `Set.intersection` r)
+      hamming :: Ord a => Set a -> Set a -> Int
+      hamming l r = length (l `setXor` r)
+      setXor :: Ord a => Set a -> Set a -> Set a
+      setXor l r = (l `Set.difference` r) `Set.union` (r `Set.difference` l)
 
   transformModel ::
     Map (Set p) Int ->

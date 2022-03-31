@@ -4,12 +4,12 @@ module Spec.TicTacToe.Move (
 ) where
 
 import Apropos.Gen
+import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
-import Control.Monad (join)
 import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
@@ -23,27 +23,30 @@ data MoveProperty
   deriving anyclass (Enumerable)
 
 instance LogicalModel MoveProperty where
-  logic = (MoveLocation <$> logic) :&&: (MovePlayer <$> logic)
+  logic = abstractionLogic @(Int, Int)
 
 instance HasLogicalModel MoveProperty (Int, Int) where
   satisfiesProperty (MoveLocation prop) (_, location) = satisfiesProperty prop location
   satisfiesProperty (MovePlayer prop) (player, _) = satisfiesProperty prop player
 
+instance HasAbstractions MoveProperty (Int, Int) where
+  abstractions =
+    [ WrapAbs $
+        ProductAbstraction
+          { abstractionName = "MovePlayer"
+          , propertyAbstraction = abstractsProperties MovePlayer
+          , productModelAbstraction = _1
+          }
+    , WrapAbs $
+        ProductAbstraction
+          { abstractionName = "MoveLocation"
+          , propertyAbstraction = abstractsProperties MoveLocation
+          , productModelAbstraction = _2
+          }
+    ]
+
 instance HasPermutationGenerator MoveProperty (Int, Int) where
-  generators =
-    let l =
-          Abstraction
-            { abstractionName = "MovePlayer"
-            , propertyAbstraction = abstractsProperties MovePlayer
-            , modelAbstraction = _1
-            }
-        r =
-          Abstraction
-            { abstractionName = "MoveLocation"
-            , propertyAbstraction = abstractsProperties MoveLocation
-            , modelAbstraction = _2
-            }
-     in join [abstract l <$> generators, abstract r <$> generators]
+  generators = abstractionMorphisms
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
   parameterisedGenerator = buildGen baseGen

@@ -147,7 +147,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasScriptRunner p 
         "Parameters"
           $+$ ppDoc model
       dumpLogs :: [Text] -> Doc
-      dumpLogs logs = vcat . fmap go . zip [1 ..] $ logs
+      dumpLogs = vcat . fmap go . zip [1 ..]
       go :: (Int, Text) -> Doc
       go (ix, line) = (PP.int ix <> colon) <+> (text . show $ line)
 

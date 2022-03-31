@@ -3,6 +3,7 @@ module Apropos.HasPermutationGenerator (
   Morphism (..),
   Abstraction (..),
   abstract,
+  gotoSum,
   abstractsProperties,
   (|:->),
 ) where

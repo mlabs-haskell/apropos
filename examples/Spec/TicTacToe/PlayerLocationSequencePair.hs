@@ -4,6 +4,7 @@ module Spec.TicTacToe.PlayerLocationSequencePair (
 ) where
 
 import Apropos.Gen
+import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
@@ -45,21 +46,24 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
     satisfiesProperty prop (fst mseq)
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
+instance HasAbstractions PlayerLocationSequencePairProperty ([Int], [Int]) where
+  abstractions =
+    [ WrapAbs $
+        ProductAbstraction
+          { abstractionName = ""
+          , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+          , productModelAbstraction = _1
+          }
+    , WrapAbs $
+        ProductAbstraction
+          { abstractionName = ""
+          , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+          , productModelAbstraction = _2
+          }
+    ]
+
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
-  generators =
-    let l =
-          Abstraction
-            { abstractionName = ""
-            , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
-            , modelAbstraction = _1
-            }
-        r =
-          Abstraction
-            { abstractionName = ""
-            , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
-            , modelAbstraction = _2
-            }
-     in (abstract l <$> generators) |:-> (abstract r <$> generators)
+  generators = abstractionMorphisms ++ parallelAbstractionMorphisms
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
   parameterisedGenerator = buildGen baseGen

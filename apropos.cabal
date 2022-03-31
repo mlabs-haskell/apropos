@@ -61,20 +61,21 @@ common lang
 library
   import:          lang
   exposed-modules: Apropos
-                 , Apropos.Type
-                 , Apropos.LogicalModel
-                 , Apropos.LogicalModel.Formula
-                 , Apropos.LogicalModel.Enumerable
+                 , Apropos.Gen
+                 , Apropos.Gen.Enumerate
+                 , Apropos.Gen.Range
+                 , Apropos.HasAbstractions
                  , Apropos.HasLogicalModel
                  , Apropos.HasParameterisedGenerator
                  , Apropos.HasPermutationGenerator
                  , Apropos.HasPermutationGenerator.Abstraction
                  , Apropos.HasPermutationGenerator.Contract
                  , Apropos.HasPermutationGenerator.Morphism
-                 , Apropos.Gen
-                 , Apropos.Gen.Enumerate
-                 , Apropos.Gen.Range
+                 , Apropos.LogicalModel
+                 , Apropos.LogicalModel.Enumerable
+                 , Apropos.LogicalModel.Formula
                  , Apropos.Pure
+                 , Apropos.Type
   hs-source-dirs:  src
 
 test-suite examples
@@ -87,6 +88,7 @@ test-suite examples
     Spec.Int
     Spec.IntPermutationGen
     Spec.IntPair
+    Spec.IntEither
     Spec.TicTacToe.Player
     Spec.TicTacToe.PlayerSequence
     Spec.TicTacToe.Location

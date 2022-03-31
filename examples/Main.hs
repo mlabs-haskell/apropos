@@ -4,6 +4,7 @@ import Spec.Int
 import Spec.IntEither
 import Spec.IntPair
 import Spec.IntPermutationGen
+import Spec.Rational
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.Move
@@ -11,7 +12,6 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
-import Spec.Rational
 import Test.Tasty
 
 main :: IO ()

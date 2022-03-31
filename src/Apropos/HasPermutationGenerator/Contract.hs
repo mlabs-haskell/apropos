@@ -27,8 +27,7 @@ module Apropos.HasPermutationGenerator.Contract (
   matches,
 ) where
 
-import Apropos.LogicalModel (Formula,Enumerable,satisfiesFormula)
---import Control.Monad (unless)
+import Apropos.LogicalModel (Enumerable, Formula, satisfiesFormula)
 import Control.Monad.Free
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State (StateT, get, put, runStateT)
@@ -198,5 +197,5 @@ matches :: Enumerable p => Formula p -> Contract p ()
 matches f = do
   p <- readContractOutput
   if satisfiesFormula f p
-     then pure ()
-     else terminal
+    then pure ()
+    else terminal

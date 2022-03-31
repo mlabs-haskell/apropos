@@ -15,6 +15,9 @@ import Data.Ratio
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
+-- Note: this is probably not an ideal way to model rational numbers
+-- this example is used to ilustrate both trivial and non-trivial relations between
+-- the model props and the submodel props
 data Rat = Rational{num :: Int,den :: Int}
   deriving stock Show
 
@@ -70,7 +73,10 @@ instance HasAbstractions RatProp Rat where
     ]
 
 instance HasPermutationGenerator RatProp Rat where
-  allowRedundentEdges _ = True
+  -- Some of the morphisms generated are nonsensicle ie. make Large >>> fix sign >>> fix small
+  -- so we set this to true to disable the check that each morphism is usefull
+  allowRedundentMorphisms _ = True
+
   generators =
     (abstractionMorphisms
       ++
@@ -88,6 +94,9 @@ instance HasPermutationGenerator RatProp Rat where
           }
         ]
     )
+        -- The relationship between RatNet, RatPos and RatZero and the sub model properties
+        -- is simple and fully described by the model, so it's possible to fix the invalid morphisms like numerator of negate
+        -- by simply branching to any rational sign and failing on the branches where the logic is not satisfied
         >>>
         [
          Morphism
@@ -101,6 +110,9 @@ instance HasPermutationGenerator RatProp Rat where
          , morphism = pure
          }
         ] >>>
+        -- The RatLarge and rat small properties are less trivial
+        -- they can be fixed with morphisms that don't change the properties
+        --  but check the various cases and fix the model to satisfiy its properties
         [ Morphism
           { name = "fix large"
           , match = Var RatLarge
@@ -165,7 +177,6 @@ instance HasParameterisedGenerator RatProp Rat where
 
 baseGen :: Gen Rat
 baseGen = Rational <$> genSatisfying @IntProp Yes <*> genSatisfying (Not $ Var IsZero)
-
 
 ratGenSelfTests :: TestTree
 ratGenSelfTests =

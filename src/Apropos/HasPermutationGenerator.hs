@@ -38,8 +38,8 @@ import Text.Show.Pretty (ppDoc)
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
-  allowRedundentEdges :: (p :+ m) -> Bool
-  allowRedundentEdges = const False
+  allowRedundentMorphisms :: (p :+ m) -> Bool
+  allowRedundentMorphisms = const False
 
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
@@ -110,7 +110,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
           runRequiredTest = genProp $ do
-            if isRequired || allowRedundentEdges (Apropos :: p :+ m)
+            if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
               then pure ()
               else
                 failWithFootnote $

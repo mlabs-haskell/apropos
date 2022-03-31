@@ -39,7 +39,7 @@ common lang
     TypeSynonymInstances
     UndecidableInstances
 
-  build-depends:      base ^>=4.14
+  build-depends:      base >=4.14
                     , containers
                     , hedgehog
                     , free

@@ -6,6 +6,7 @@ module Spec.IntPermutationGen (
 ) where
 
 import Apropos
+import GHC.Generics
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -17,10 +18,8 @@ data IntProp
   | IsSmall
   | IsMaxBound
   | IsMinBound
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
-
-instance Enumerable IntProp where
-  enumerated = [minBound .. maxBound]
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntProp where
   logic =

@@ -3,22 +3,33 @@
 module Apropos.HasPermutationGenerator.Abstraction (
   Abstraction (..),
   abstract,
+  gotoSum,
+  abstractLogic,
   abstractsProperties,
 ) where
 
+import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
+import Apropos.LogicalModel (Formula (..), LogicalModel (logic), satisfiedBy)
 import Apropos.LogicalModel.Enumerable
 import Control.Lens
 import Data.Either (rights)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-data Abstraction ap am bp bm = Abstraction
-  { abstractionName :: String
-  , propertyAbstraction :: Prism' bp ap
-  , modelAbstraction :: Lens' bm am
-  }
+data Abstraction ap am bp bm
+  = ProductAbstraction
+      { abstractionName :: String
+      , propertyAbstraction :: Prism' bp ap
+      , productModelAbstraction :: Lens' bm am
+      }
+  | SumAbstraction
+      { abstractionName :: String
+      , propertyAbstraction :: Prism' bp ap
+      , sumModelAbstraction :: Prism' bm am
+      , propLabel :: bp
+      }
 
 abstract ::
   Enumerable ap =>
@@ -26,7 +37,7 @@ abstract ::
   Abstraction ap am bp bm ->
   Morphism ap am ->
   Morphism bp bm
-abstract abstraction edge =
+abstract abstraction@ProductAbstraction {} edge =
   Morphism
     { name = abstractionName abstraction <> name edge
     , match = (propertyAbstraction abstraction #) <$> match edge
@@ -35,11 +46,38 @@ abstract abstraction edge =
           (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
-    , morphism = \m -> do
-        let n = m ^. modelAbstraction abstraction
-        nn <- morphism edge n
-        pure $ modelAbstraction abstraction .~ nn $ m
+    , morphism = productModelAbstraction abstraction $ morphism edge
     }
+abstract abstraction@SumAbstraction {} edge =
+  Morphism
+    { name = abstractionName abstraction <> " of ( " <> name edge <> " )"
+    , match = Var (propLabel abstraction) :&&: ((propertyAbstraction abstraction #) <$> match edge)
+    , contract =
+        abstractContract
+          (abstractionName abstraction)
+          (propertyAbstraction abstraction)
+          $ contract edge
+    , morphism = sumModelAbstraction abstraction $ morphism edge
+    }
+
+gotoSum ::
+  forall ap am bp bm.
+  Enumerable bp =>
+  HasParameterisedGenerator ap am =>
+  Abstraction ap am bp bm ->
+  Maybe (Morphism bp bm)
+gotoSum ProductAbstraction {} = Nothing
+gotoSum s@SumAbstraction {} =
+  Just $
+    Morphism
+      { name = "goto " <> abstractionName s
+      , match = Not $ Var $ propLabel s
+      , contract = clear >> add (propLabel s) >> addAll ((propertyAbstraction s #) <$> satisfiedBy)
+      , morphism =
+          const $
+            (sumModelAbstraction s #)
+              <$> genSatisfying @ap @am (All $ Var <$> satisfiedBy)
+      }
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a
 abstractsProperties injection = prism' injection (computeProjection injection)
@@ -68,3 +106,9 @@ abstractContract prefix a c = do
     projectProperties pa s = Set.fromList $ rights (matching pa <$> Set.toList s)
     maskProperties :: Prism' b a -> Set b -> Set b
     maskProperties pa = Set.filter (isn't pa)
+
+abstractLogic :: forall bp bm ap am. LogicalModel ap => Abstraction ap am bp bm -> Formula bp
+abstractLogic s@ProductAbstraction {} = (propertyAbstraction s #) <$> logic
+abstractLogic s@SumAbstraction {} =
+  (Var (propLabel s) :->: (propertyAbstraction s #) <$> logic)
+    :&&: (Not (Var (propLabel s)) :->: None (Var . (propertyAbstraction s #) <$> enumerated))

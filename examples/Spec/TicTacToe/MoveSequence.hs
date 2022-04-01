@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Spec.TicTacToe.MoveSequence (
   moveSequencePermutationGenSelfTest,
 ) where
@@ -14,6 +12,7 @@ import Control.Monad (join)
 import Data.List (transpose)
 import Data.Set (Set)
 import Data.Set qualified as Set
+import GHC.Generics (Generic)
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -21,9 +20,8 @@ import Test.Tasty.Hedgehog (fromGroup)
 data MoveSequenceProperty
   = MoveSequenceValid
   | MoveSequenceContainsWin
-  deriving stock (Eq, Ord, Show)
-
-$(genEnumerable ''MoveSequenceProperty)
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Enumerable)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])

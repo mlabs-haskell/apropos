@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
@@ -10,6 +8,7 @@ import Apropos
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
+import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -17,32 +16,34 @@ import Test.Tasty.Hedgehog (fromGroup)
 data IntPairProp
   = L IntProp
   | R IntProp
-  deriving stock (Eq, Ord, Show)
-
-$(genEnumerable ''IntPairProp)
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntPairProp where
-  logic = (L <$> logic) :&&: (R <$> logic)
+  logic = abstractionLogic @(Int, Int)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i
   satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
+instance HasAbstractions IntPairProp (Int, Int) where
+  abstractions =
+    [ WrapAbs $
+        ProductAbstraction
+          { abstractionName = "L"
+          , propertyAbstraction = abstractsProperties L
+          , productModelAbstraction = _1
+          }
+    , WrapAbs $
+        ProductAbstraction
+          { abstractionName = "R"
+          , propertyAbstraction = abstractsProperties R
+          , productModelAbstraction = _2
+          }
+    ]
+
 instance HasPermutationGenerator IntPairProp (Int, Int) where
-  generators =
-    let l =
-          Abstraction
-            { abstractionName = "L"
-            , propertyAbstraction = abstractsProperties L
-            , modelAbstraction = _1
-            }
-        r =
-          Abstraction
-            { abstractionName = "R"
-            , propertyAbstraction = abstractsProperties R
-            , modelAbstraction = _2
-            }
-     in join [abstract l <$> generators, abstract r <$> generators]
+  generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
   parameterisedGenerator = buildGen baseGen

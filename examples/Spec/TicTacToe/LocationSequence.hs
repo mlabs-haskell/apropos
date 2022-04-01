@@ -1,8 +1,3 @@
-{-
-Module: Spec.TicTacToe.LocationSequence
-Description: TODO
-
--}
 module Spec.TicTacToe.LocationSequence (
   LocationSequenceProperty (..),
   locationSequencePermutationGenSelfTest,
@@ -19,20 +14,13 @@ import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
--- | Properties that might hold for a sequence of `Location`s.
 data LocationSequenceProperty
-  = -- | No locations are invalid.
-    AllLocationsAreInBounds
-  | -- | Some locations are invalid.
-    SomeLocationIsOutOfBounds
-  | -- | Some locations are duplicated.
-    SomeLocationIsOccupiedTwice
-  | -- | Sequence is null.
-    LocationSequenceIsNull
-  | -- | Sequence consists of a single step.
-    LocationSequenceIsSingleton
-  | -- | Sequence is longer than nine elements.
-    LocationSequenceIsLongerThanGame
+  = AllLocationsAreInBounds
+  | SomeLocationIsOutOfBounds
+  | SomeLocationIsOccupiedTwice
+  | LocationSequenceIsNull
+  | LocationSequenceIsSingleton
+  | LocationSequenceIsLongerThanGame
   deriving stock (Eq, Ord, Enum, Show, Bounded)
 
 instance Enumerable LocationSequenceProperty where
@@ -40,32 +28,18 @@ instance Enumerable LocationSequenceProperty where
 
 instance LogicalModel LocationSequenceProperty where
   logic =
-    -- It cannot be true that all locations are in bounds but some
-    -- are out of bounds.
     ExactlyOne (Var <$> [AllLocationsAreInBounds, SomeLocationIsOutOfBounds])
-      -- An empty sequence is considered to be wholly in-bounds.
       :&&: (Var LocationSequenceIsNull :->: Var AllLocationsAreInBounds)
       :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOutOfBounds))
-      -- An empty sequence cannot have multiply-occupied locations.
       :&&: (Var LocationSequenceIsNull :->: Not (Var SomeLocationIsOccupiedTwice))
-      -- An empty sequence is not longer than nine moves.
       :&&: (Var LocationSequenceIsNull :->: Not (Var LocationSequenceIsLongerThanGame))
-      -- A singleton sequence does not allow for doubly-occupied squares.
       :&&: (Var LocationSequenceIsSingleton :->: Not (Var SomeLocationIsOccupiedTwice))
-      -- A singleton sequence has a length fewer than nine.
       :&&: (Var LocationSequenceIsSingleton :->: Not (Var LocationSequenceIsLongerThanGame))
-      -- A sequence can be either null or a singleton but not both.
       :&&: AtMostOne [Var LocationSequenceIsNull, Var LocationSequenceIsSingleton]
-      -- If a sequence is longer than nine steps but all locations
-      -- are within bounds, some squares are necessarily
-      -- doubly-occupied.
       :&&: ( (Var LocationSequenceIsLongerThanGame :&&: Var AllLocationsAreInBounds)
               :->: Var SomeLocationIsOccupiedTwice
            )
 
-{- | Returns `True` if duplicate locations are present in list,
-     `False` otherwise.
--}
 someLocationIsOccupiedTwice :: [Int] -> Bool
 someLocationIsOccupiedTwice locationSeq =
   Set.size (Set.fromList locationSeq) < length locationSeq

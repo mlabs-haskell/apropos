@@ -41,6 +41,8 @@
           shell = {
             withHoogle = true;
 
+            tools.haskell-language-server = { };
+
             exactDeps = true;
 
             # We use the ones from Nixpkgs, since they are cached reliably.

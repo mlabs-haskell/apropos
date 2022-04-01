@@ -51,3 +51,7 @@ cabal.project.local*
 # ctags 
 tags 
 TAGS
+
+# direnv 
+.envrc 
+.direnv

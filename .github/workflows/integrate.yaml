@@ -27,7 +27,7 @@ jobs:
           key: ${{ runner.os }}-stack-formatting
           restore-keys: ${{ runner.os }}-stack-
 
-      - run: stack install fourmolu
+      - run: stack install fourmolu-0.3.0.0
         name: Setup
 
       - run: ./.github/format.sh

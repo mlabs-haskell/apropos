@@ -5,7 +5,7 @@
 SHELL := /usr/bin/env bash
 
 .PHONY: hoogle build test watch ghci readme_contents \
-	format lint refactor requires_nix_shell
+	format lint refactor requires_nix_shell haddock
 
 usage:
 	@echo "usage: make <command> [OPTIONS]"
@@ -33,7 +33,10 @@ usage:
 	@echo "  update_plutus       -- Update plutus version with niv"
 
 hoogle: requires_nix_shell
-	hoogle server --local
+	pkill hoogle || true
+	hoogle generate --local=.haddock --database=.hoogle/local.hoo
+	hoogle server --local -p 8080 >> /dev/null &
+	hoogle server --local --database=.hoogle/local.hoo -p 8081 >> /dev/null &
 
 STACK_EXE_PATH = $(shell stack $(STACK_FLAGS) path --local-install-root)/bin
 
@@ -118,3 +121,6 @@ update_plutus:
 	@echo "Make sure to update the plutus rev in cabal.project with:"
 	@echo "    commit: $(PLUTUS_REV)"
 	@echo "This may require further resolution of dependency versions."
+
+haddock: requires_nix_shell
+	cabal haddock --haddock-html --haddock-hoogle --builddir=.haddock

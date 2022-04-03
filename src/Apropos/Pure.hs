@@ -17,7 +17,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
 
   runPureTest :: m :+ p -> Set p -> Property
   runPureTest apropos s = property $ do
-    (m :: m) <- forAllWithRetries numRetries $ parameterisedGenerator s
+    (m :: m) <- morphContainRetry numRetries $ parameterisedGenerator s
     satisfiesFormula (expect apropos) s === script apropos m
     where
       numRetries :: Int
@@ -35,7 +35,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   enumeratePureTest :: m :+ p -> Set p -> Property
   enumeratePureTest apropos s = withTests (1 :: TestLimit) $
     property $ do
-      let (ms :: [m]) = enumerate $ parameterisedGenerator s
+      let (ms :: [m]) = enumerate $ morphAsGen $ parameterisedGenerator s
           run m = satisfiesFormula (expect apropos) s === script apropos m
       sequence_ (run <$> ms)
 

@@ -1,4 +1,8 @@
 module Apropos.Gen (
+  Morph(..),
+  morphAsGen,
+  morphContain,
+  morphContainRetry,
   FreeGen (..),
   Gen,
   GenException,
@@ -24,7 +28,7 @@ module Apropos.Gen (
   singleton,
 ) where
 import Apropos.Gen.Range
-import Control.Monad (replicateM)
+import Control.Monad (replicateM,(>=>))
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -36,6 +40,66 @@ import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
 import Data.Set (Set)
 import Data.Set qualified as Set
+
+
+forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
+forAllWithRetries lim g = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure a
+
+
+forAllNoShrink :: Show a => Gen a -> PropertyT IO a
+forAllNoShrink g = do
+  (ee,labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure a
+
+forAll :: Show a => Gen a -> PropertyT IO a
+forAll g = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure a
+
+data Morph m where
+  Source :: Gen m -> Morph m
+  Morph :: Morph m -> (m -> Gen [m -> Gen m]) -> Morph m
+
+--TODO use Morphism instead then we can print the Morphism name
+--i.e. Morph :: Morph p m -> (m -> Gen [Morphism p m]) -> Morph p m
+--also Source has been introduced - we want to be able to partition the space with a set of sources! XD
+instance Show (m -> Gen m) where
+  show _ = "GenMorphism"
+
+morphAsGen :: Morph m -> Gen m
+morphAsGen (Source g) = g
+morphAsGen (Morph m g) = do
+  n <- morphAsGen m
+  t <- g n
+  foldl (>=>) pure t n
+
+morphContain :: Show m => Morph m -> PropertyT IO m
+morphContain (Source g) = forAll g
+morphContain (Morph m g) = do
+  n <- morphContain m
+  t <- forAllNoShrink $ g n
+  foldl (\a b -> a >>= forAll . b) (pure n) t
+
+morphContainRetry :: Show m => Int -> Morph m -> PropertyT IO m
+morphContainRetry retries (Source g) = forAllWithRetries retries g
+morphContainRetry retries (Morph m g) = do
+  n <- morphContainRetry retries m
+  t <- forAllNoShrink $ g n
+  foldl (\a b -> a >>= forAllWithRetries retries . b) (pure n) t
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -138,26 +202,6 @@ retryLimit lim g done = go lim
     then pure ()
     else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
-
-forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
-forAllWithRetries lim g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> H.footnote "global retry limit reached" >> H.failure
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure a
-
-
-forAll :: Show a => Gen a -> PropertyT IO a
-forAll g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> H.footnote "global retry limit reached" >> H.failure
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure a
-
 data GenException = GenException String | Retry deriving stock (Show)
 
 type GenContext = H.Gen
@@ -173,7 +217,7 @@ gen (Free (GenInt r next)) = do
   gen $ next i
 gen (Free (GenList r g next)) = do
   let gs = int r >>= \l -> replicateM l g
-  gen gs >>>= next
+  gen gs >=>= next
 gen (Free (GenShuffle ls next)) = do
   s <- lift $ HGen.shuffle ls
   gen $ next s
@@ -188,7 +232,15 @@ gen (Free (GenChoice gs next)) = do
       i <- lift (HGen.int (HRange.linear 0 (l -1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
-  genFilter' c g >>>= next
+  let liftC :: forall a. (a -> Bool) -> (Either GenException a, Set String) -> Bool
+      liftC f (Right a, _) = f a
+      liftC _ _ = False
+  -- This stops the doom shrinking but we really want HGen.filter to throw a retry when it fails
+  -- instead its failure mode fails the whole generator when we may be in a recoverable position if we were to retry.
+  (ee,labels) <- lift $ lift $ HGen.filter (liftC c) $  runWriterT (runExceptT $ gen g)
+  case ee of
+    Left e -> throwE e
+    Right a -> lift (tell labels) >> gen (next a)
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)
@@ -205,8 +257,8 @@ gen (Pure a) = pure a
     Right x -> gen $ b x
     Left e -> throwE e
 
-(>>>=) :: Generator r -> (r -> Gen a) -> Generator a
-(>>>=) a b = do
+(>=>=) :: Generator r -> (r -> Gen a) -> Generator a
+(>=>=) a b = do
   r <- lift (runExceptT a)
   case r of
     Right x -> gen $ b x
@@ -225,21 +277,6 @@ handleRetries n g = go n
              then throwE Retry
              else go (l - 1)
         Left err -> throwE err
-
-genFilter' :: forall r. (r -> Bool) -> Gen r -> Generator r
-genFilter' condition g = go 0
-  where
-    go :: Int -> Generator r
-    go l = do
-      if l > 99
-         then throwE Retry
-         else do
-           let scaleGen = HGen.scale (2 * (HRange.Size l) +)
-           res <- scaleGen $ gen g
-           if condition res
-             then do
-               pure res
-             else go (l + 1)
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

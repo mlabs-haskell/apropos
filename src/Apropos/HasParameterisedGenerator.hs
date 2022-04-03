@@ -18,7 +18,7 @@ import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: Set p -> Gen m
+  parameterisedGenerator :: Set p -> Morph m
   rootRetryLimit :: m :+ p -> Int
   rootRetryLimit _ = 100
 
@@ -30,7 +30,7 @@ runGeneratorTest ::
   Set p ->
   Property
 runGeneratorTest _ s = property $ do
-  (m :: m) <- forAllWithRetries numRetries $ parameterisedGenerator s
+  (m :: m) <- morphContainRetry numRetries $ parameterisedGenerator s
   properties m === s
   where
     numRetries :: Int
@@ -56,7 +56,7 @@ enumerateGeneratorTest ::
   Property
 enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
   property $ do
-    let (ms :: [m]) = enumerate $ parameterisedGenerator s
+    let (ms :: [m]) = enumerate $ morphAsGen $ parameterisedGenerator s
         run m = properties m === s
     sequence_ (run <$> ms)
 
@@ -76,4 +76,4 @@ genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  parameterisedGenerator s
+  morphAsGen $ parameterisedGenerator s --TODO this doesn't do shrink containment...

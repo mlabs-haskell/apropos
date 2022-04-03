@@ -27,7 +27,7 @@ enumerate (Free (GenElement ls next)) =
 enumerate (Free (GenChoice gs next)) = do
   (>>== next) =<< gs
 enumerate (Free (GenFilter c g next)) = do
-  filter c (enumerate g) >>>= next
+  filter c (enumerate g) >=>= next
 enumerate (Free (ThrowRetry _)) = error "enumerate can't retry"
 enumerate (Free OnRetry {}) = error "maybe it can..."
 enumerate (Pure a) = pure a
@@ -35,5 +35,5 @@ enumerate (Pure a) = pure a
 (>>==) :: Gen r -> (r -> Gen a) -> [a]
 (>>==) a b = (enumerate . b) =<< enumerate a
 
-(>>>=) :: [r] -> (r -> Gen a) -> [a]
-(>>>=) a b = (enumerate . b) =<< a
+(>=>=) :: [r] -> (r -> Gen a) -> [a]
+(>=>=) a b = (enumerate . b) =<< a

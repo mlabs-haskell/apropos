@@ -15,7 +15,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (join)
+import Control.Monad (join, void)
 import Data.Function (on)
 import Data.Graph (Graph, buildG, path, scc)
 import Data.List (minimumBy)
@@ -33,7 +33,6 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
-import Control.Monad (void)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
@@ -88,7 +87,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         Bool ->
         Map Int (Set p) ->
         Map (Int, Int) [Morphism p m] ->
-        (Set p -> Gen m) ->
+        (Set p -> Morph m) ->
         Morphism p m ->
         Group
       testEdge testRequired ns pem mGen pe =
@@ -114,25 +113,24 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                   renderStyle ourStyle $
                     fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = property $ forAllWithRetries 100 $ do
-            om <- mGen (lut ns f)
-            nm <- morphism pe om
+          runEdgeTest f t = property $ do
+            om <- morphContainRetry 100 $ mGen (lut ns f)
+            nm <- forAll $ morphism pe om
             let expected = lut ns t
                 observed = properties nm
             if expected == observed
               then pure ()
-              else edgeFailsContract pe om nm expected observed
+              else forAll $ edgeFailsContract pe om nm expected observed
 
-  buildGen :: Gen m -> Set p -> Gen m
-  buildGen g = do
+  buildGen :: Gen m -> Set p -> Morph m
+  buildGen s tp = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         distmap = distanceMap edges
         (sn, ns) = numberNodes (Apropos :: m :+ p)
         graph = buildGraph pedges
         isco = isStronglyConnected graph
-        go targetProperties = do
-          m <- g
+        go targetProperties m = do
           if null pedges
             then failWithFootnote "no Morphisms defined"
             else pure ()
@@ -146,7 +144,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                         $+$ hang "No Edge Between here:" 4 (ppDoc a)
                         $+$ hang "            and here:" 4 (ppDoc b)
           transformModel sn pedges edges distmap m targetProperties
-     in go
+     in Morph (Source s) (go tp)
 
   findNoPath ::
     m :+ p ->
@@ -155,7 +153,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     (Set p, Set p)
   findNoPath _ m g =
     minimumBy
-      (compare `on` (uncurry score))
+      (compare `on` uncurry score)
       [ (lut m a, lut m b)
       | a <- Map.keys m
       , b <- Map.keys m
@@ -178,48 +176,48 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     Map Int (Map Int Int) ->
     m ->
     Set p ->
-    Gen m
+    Gen [m -> Gen m]
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
-    traversePath pedges pathOptions m
+    pure $ traversePath pedges pathOptions
 
   traversePath ::
     Map (Int, Int) [Morphism p m] ->
     [(Int, Int)] ->
-    m ->
-    Gen m
-  traversePath _ [] m = pure m
-  traversePath edges (h : r) m = do
-    pe <- case Map.lookup h edges of
-      Nothing -> failWithFootnote "this should never happen"
-      Just so -> pure so
-    tr <- element pe
-    let inprops = properties m
-        mexpected = runContract (contract tr) (name tr) inprops
-    case mexpected of
-      Left e -> failWithFootnote e
-      Right Nothing ->
-        failWithFootnote $
-          renderStyle ourStyle $
-            "Morphism doesn't work. This is a model error"
-              $+$ "This should never happen at this point in the program."
-      Right (Just expected) -> do
-        if satisfiesFormula logic expected
-          then pure ()
-          else
-            failWithFootnote $
-              renderStyle ourStyle $
-                "Morphism contract produces invalid model"
-                  $+$ hang "Edge:" 4 (ppDoc $ name tr)
-                  $+$ hang "Input:" 4 (ppDoc inprops)
-                  $+$ hang "Output:" 4 (ppDoc expected)
-        label $ fromString $ name tr
-        nm <- morphism tr m
-        let observed = properties nm
-        if expected == observed
-          then pure ()
-          else edgeFailsContract tr m nm expected observed
-        traversePath edges r nm
+    [m -> Gen m]
+  traversePath edges es = go <$> es
+    where
+      go :: (Int,Int) -> m -> Gen m
+      go h m = do
+        pe <- case Map.lookup h edges of
+          Nothing -> failWithFootnote "this should never happen"
+          Just so -> pure so
+        tr <- element pe
+        let inprops = properties m
+            mexpected = runContract (contract tr) (name tr) inprops
+        case mexpected of
+          Left e -> failWithFootnote e
+          Right Nothing ->
+              failWithFootnote $
+                renderStyle ourStyle $
+                  "Morphism doesn't work. This is a model error"
+                    $+$ "This should never happen at this point in the program."
+          Right (Just expected) -> do
+            if satisfiesFormula logic expected
+              then pure ()
+              else
+                  failWithFootnote $
+                    renderStyle ourStyle $
+                      "Morphism contract produces invalid model"
+                        $+$ hang "Edge:" 4 (ppDoc $ name tr)
+                        $+$ hang "Input:" 4 (ppDoc inprops)
+                        $+$ hang "Output:" 4 (ppDoc expected)
+            label $ fromString $ name tr
+            nm <- morphism tr m
+            let observed = properties nm
+            if expected == observed
+              then pure nm
+              else edgeFailsContract tr m nm expected observed
 
   findPathOptions ::
     m :+ p ->
@@ -356,7 +354,7 @@ distanceMap edges =
                 _ -> ma
 
 edgeFailsContract ::
-  forall m p.
+  forall m p a.
   HasLogicalModel p m =>
   Show m =>
   Morphism p m ->
@@ -364,7 +362,7 @@ edgeFailsContract ::
   m ->
   Set p ->
   Set p ->
-  Gen ()
+  Gen a
 edgeFailsContract tr m nm expected observed =
   failWithFootnote $
     renderStyle ourStyle $

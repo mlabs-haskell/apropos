@@ -12,6 +12,7 @@ module Apropos (
   HasLogicalModel (..),
   -- Apropos.Gen
   Gen,
+  Morph(..),
   label,
   failWithFootnote,
   bool,

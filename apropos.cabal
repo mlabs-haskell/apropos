@@ -96,6 +96,8 @@ test-suite examples
     Spec.TicTacToe.PlayerLocationSequencePair
     Spec.TicTacToe.Move
     Spec.TicTacToe.MoveSequence
+    Spec.IntPairity
+    Spec.PairityPair
   build-depends:
     base,
     apropos,

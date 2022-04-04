@@ -31,6 +31,7 @@ enumerate (Free (GenFilter c g next)) = do
 enumerate (Free (ThrowRetry _)) = error "enumerate can't retry"
 enumerate (Free OnRetry {}) = error "maybe it can..."
 enumerate (Pure a) = pure a
+enumerate _ = error "enumerate can't do that"
 
 (>>==) :: Gen r -> (r -> Gen a) -> [a]
 (>>==) a b = (enumerate . b) =<< enumerate a

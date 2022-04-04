@@ -293,7 +293,8 @@ ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
 genRandomPath :: [(Int, Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen [Int]
-genRandomPath edges m from to = go [] from
+genRandomPath edges m from to | from == to = pure []
+                              | otherwise = go [] from
   where
     go breadcrumbs f =
       let shopasto = lut m f

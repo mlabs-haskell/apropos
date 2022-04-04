@@ -19,6 +19,8 @@ module Apropos.Gen (
   element,
   choice,
   genFilter,
+  freeze,
+  scale,
   retry,
   onRetry,
   retryLimit,
@@ -28,7 +30,7 @@ module Apropos.Gen (
   singleton,
 ) where
 import Apropos.Gen.Range
-import Control.Monad (replicateM,(>=>))
+import Control.Monad (replicateM,(>=>),guard)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -38,6 +40,8 @@ import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
+import Hedgehog.Internal.Tree qualified as HIT
+import Hedgehog.Internal.Gen qualified as HIG
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -136,6 +140,9 @@ data FreeGen next where
     Gen a ->
     (a -> next) ->
     FreeGen next
+  Scale :: forall a next. (Int -> Int) -> Gen a -> (a -> next) -> FreeGen next
+  Freeze :: forall a next. Gen a -> ((a, Gen a) -> next) -> FreeGen next
+  GenWrap :: forall a next. Generator a -> (a -> next) -> FreeGen next
   ThrowRetry :: forall a next. (a -> next) -> FreeGen next
   OnRetry :: forall a next. Gen a -> Gen a -> (a -> next) -> FreeGen next
 
@@ -149,6 +156,9 @@ instance Functor FreeGen where
   fmap f (GenElement ls next) = GenElement ls (f . next)
   fmap f (GenChoice gs next) = GenChoice gs (f . next)
   fmap f (GenFilter c g next) = GenFilter c g (f . next)
+  fmap f (Scale s g next) = Scale s g (f . next)
+  fmap f (Freeze g next) = Freeze g (f . next)
+  fmap f (GenWrap g next) = GenWrap g (f . next)
   fmap f (ThrowRetry next) = ThrowRetry (f . next)
   fmap f (OnRetry a b next) = OnRetry a b (f . next)
 
@@ -180,6 +190,16 @@ choice g = liftF (GenChoice g id)
 
 genFilter :: Show a => (a -> Bool) -> Gen a -> Gen a
 genFilter c g = liftF (GenFilter c g id)
+
+scale :: (Int -> Int) -> Gen a -> Gen a
+scale s g = liftF (Scale s g id)
+
+freeze :: Gen a -> Gen (a, Gen a)
+freeze g = liftF (Freeze g id)
+
+-- let's keep this internal
+genWrap :: Generator a -> Gen a
+genWrap g = liftF (GenWrap g id)
 
 retry :: Gen a
 retry = liftF (ThrowRetry id)
@@ -232,15 +252,14 @@ gen (Free (GenChoice gs next)) = do
       i <- lift (HGen.int (HRange.linear 0 (l -1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
-  let liftC :: forall a. (a -> Bool) -> (Either GenException a, Set String) -> Bool
-      liftC f (Right a, _) = f a
-      liftC _ _ = False
-  -- This stops the doom shrinking but we really want HGen.filter to throw a retry when it fails
-  -- instead its failure mode fails the whole generator when we may be in a recoverable position if we were to retry.
-  (ee,labels) <- lift $ lift $ HGen.filter (liftC c) $  runWriterT (runExceptT $ gen g)
-  case ee of
-    Left e -> throwE e
-    Right a -> lift (tell labels) >> gen (next a)
+  res <- filter' c $ gen g
+  gen $ next res
+gen (Free (Scale s g next)) =
+  HGen.scale (\(HRange.Size x) -> HRange.Size (s x)) (gen g) >>= gen . next
+gen (Free (Freeze g next)) = do
+  (x, gw) <- HGen.freeze (gen g)
+  gen $ next (x, genWrap gw)
+gen (Free (GenWrap g next)) = g >>= gen . next
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)
@@ -277,6 +296,35 @@ handleRetries n g = go n
              then throwE Retry
              else go (l - 1)
         Left err -> throwE err
+
+
+fromPred :: (a -> Bool) -> a -> Maybe a
+fromPred p a = a <$ guard (p a)
+
+filter' :: (a -> Bool) -> Generator a -> Generator a
+filter' p =
+  mapMaybe (fromPred p)
+
+mapMaybe :: forall a b . (a -> Maybe b) -> Generator a -> Generator b
+mapMaybe p gen0 =
+  let
+    try k =
+      if k > 100 then
+        throwE Retry
+      else do
+        (x, g) <- lift $ lift $ HGen.freeze $ HGen.scale (2 * k +) (runWriterT (runExceptT gen0))
+        case (p <$>) $ fst x of
+          Right (Just _) -> do
+            let withGenT f = H.fromGenT . f . H.toGenT
+            let toMaybe' z = case fst z of
+                               Right a -> a
+                               Left _ -> error "This should be impossible."
+            lift $ tell $ snd x
+            lift $ lift $ withGenT (HIG.mapGenT (HIT.mapMaybeMaybeT p)) (toMaybe' <$> g)
+          Left (GenException e) -> throwE $ GenException e
+          _ -> try (k + 1)
+  in
+    try 0
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

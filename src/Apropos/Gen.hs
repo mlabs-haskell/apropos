@@ -99,11 +99,60 @@ morphContain (Morph m g) = do
   foldl (\a b -> a >>= forAll . b) (pure n) t
 
 morphContainRetry :: Show m => Int -> Morph m -> PropertyT IO m
-morphContainRetry retries (Source g) = forAllWithRetries retries g
-morphContainRetry retries (Morph m g) = do
-  n <- morphContainRetry retries m
-  t <- forAllNoShrink $ g n
-  foldl (\a b -> a >>= forAllWithRetries retries . b) (pure n) t
+morphContainRetry retries m = do
+  r <- morphContainRetry' retries m
+  case r of
+    Nothing -> H.footnote ("retry limit (" <> show retries <> ") reached") >> H.failure
+    Just so -> pure so
+
+-- hmmmmm - let's refactor Morph
+morphContainRetry' :: Show m => Int -> Morph m -> PropertyT IO (Maybe m)
+morphContainRetry' _ (Source g) = forAllRetryToMaybe g
+morphContainRetry' retries (Morph m g) = do
+  handleRetries' retries (morphContainRetry' retries m) $ \a -> do
+    t <- forAllNoShrink $ g a
+    let c = steps' retries t
+    c a
+
+-- naming here is not great
+steps :: Int -> [a -> PropertyT IO (Maybe a)] -> (a -> PropertyT IO (Maybe a))
+steps _ [] = pure . Just
+steps retries (c:cs) = \x -> handleRetries' retries (c x) (steps retries cs)
+
+-- TODO we want to pass in a scale parameter that scales each step on retry
+steps' :: Show a => Int -> [a -> Gen a] -> (a -> PropertyT IO (Maybe a))
+steps' retries gs = do
+  let rs = (forAllRetryToMaybe .) <$> gs
+  steps retries rs
+
+forAllRetryToMaybe :: Show a => Gen a -> PropertyT IO (Maybe a)
+forAllRetryToMaybe g = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+  mapM_ (H.label . fromString) labels
+  case ee of
+    Left Retry -> pure Nothing
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure $ Just a
+
+
+handleRetries' :: forall m a b. Monad m => Int -> m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
+handleRetries' n g c = go n
+  where
+    go :: Int -> m (Maybe b)
+    go l = do
+      res <- g
+      case res of
+        Just r -> do
+          res2 <- c r
+          case res2 of
+            Nothing -> go (l - 1)
+            Just so -> pure $ Just so
+        Nothing ->
+          if l < 1
+             then pure Nothing
+             else go (l - 1)
+
+
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -288,7 +337,7 @@ handleRetries n g = go n
   where
     go :: Int -> Generator a
     go l = do
-      res <- lift $ runExceptT (gen g)
+      res <- lift $ runExceptT (gen $ scale ((n - l) +) g)
       case res of
         Right r -> pure r
         Left Retry ->

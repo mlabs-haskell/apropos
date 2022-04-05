@@ -20,7 +20,7 @@ import Apropos.HasPermutationGenerator (
   (|:->),
  )
 import Apropos.HasPermutationGenerator.Abstraction (abstractLogic)
-import Apropos.LogicalModel (Enumerable, Formula (All), LogicalModel)
+import Apropos.LogicalModel (Enumerable, Formula (All))
 import Control.Monad (join)
 
 class HasAbstractions p m where
@@ -37,7 +37,7 @@ data AbstractionFor p m where
     Abstraction ap am bp bm ->
     AbstractionFor bp bm
 
-abstractionMorphisms :: forall p m. (LogicalModel p, HasAbstractions p m) => [Morphism p m]
+abstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
 abstractionMorphisms =
   let gotos = [morphism | WrapAbs abstraction <- abstractions @p @m, Just morphism <- pure $ gotoSum abstraction]
       abstractMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction <- abstractions @p @m]
@@ -47,7 +47,7 @@ abstractionMorphisms =
 {- | Product types with additional logic sometimes need to include parallel morphisms
  which change both fields of the product to keep some invariant
 -}
-parallelAbstractionMorphisms :: forall p m. (LogicalModel p, HasAbstractions p m) => [Morphism p m]
+parallelAbstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
 parallelAbstractionMorphisms =
   let abstractProductMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction@ProductAbstraction {} <- abstractions @p @m]
    in join

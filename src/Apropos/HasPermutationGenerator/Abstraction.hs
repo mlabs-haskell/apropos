@@ -62,7 +62,7 @@ abstract abstraction@SumAbstraction {} edge =
 
 gotoSum ::
   forall ap am bp bm.
-  Enumerable bp =>
+  (Enumerable ap, Enumerable bp) =>
   HasParameterisedGenerator ap am =>
   Abstraction ap am bp bm ->
   Maybe (Morphism bp bm)
@@ -107,7 +107,7 @@ abstractContract prefix a c = do
     maskProperties :: Prism' b a -> Set b -> Set b
     maskProperties pa = Set.filter (isn't pa)
 
-abstractLogic :: forall bp bm ap am. LogicalModel ap => Abstraction ap am bp bm -> Formula bp
+abstractLogic :: forall bp bm ap am. (LogicalModel ap, Enumerable ap) => Abstraction ap am bp bm -> Formula bp
 abstractLogic s@ProductAbstraction {} = (propertyAbstraction s #) <$> logic
 abstractLogic s@SumAbstraction {} =
   (Var (propLabel s) :->: (propertyAbstraction s #) <$> logic)

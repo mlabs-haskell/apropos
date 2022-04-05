@@ -16,10 +16,11 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Data.DiGraph (ShortestPathCache, fromEdges, shortestPathCache, shortestPath_)
+import Data.DiGraph (DiGraph,ShortestPathCache, fromEdges, shortestPathCache, shortestPath_,diameter_,distance_)
 import Data.Function (on)
-import Data.Graph (Graph, buildG, path, scc)
+import Data.Hashable.Class (Hashable)
 import Data.List (minimumBy)
+import Data.Maybe(isJust,isNothing)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -35,7 +36,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
@@ -44,10 +45,10 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
     let pedges = findMorphisms (Apropos :: m :+ p)
-        (_, ns) = numberNodes (Apropos :: m :+ p)
-        mGen = buildGen bgen
         graph = buildGraph pedges
-        isco = isStronglyConnected graph
+        cache = shortestPathCache graph
+        mGen = buildGen bgen
+        isco = isStronglyConnected cache
      in if null (Map.keys pedges)
           then
             [ Group
@@ -62,7 +63,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
             if isco
               then case findDupEdgeNames of
                 [] ->
-                  testEdge testForSuperfluousEdges ns pedges mGen
+                  testEdge testForSuperfluousEdges pedges mGen
                     <$> filter pefilter generators
                 dups ->
                   [ Group "HasPermutationGenerator edge names must be unique." $
@@ -73,11 +74,11 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               else
                 [ Group
                     "HasPermutationGenerator Graph Not Strongly Connected"
-                    [(fromString "Not strongly connected", abortNotSCC ns graph)]
+                    [(fromString "Not strongly connected", abortNotSCC cache)]
                 ]
     where
-      abortNotSCC ns graph =
-        let (a, b) = findNoPath (Apropos :: m :+ p) ns graph
+      abortNotSCC graph =
+        let (a, b) = findNoPath (Apropos :: m :+ p) graph
          in genProp $
               failWithFootnote $
                 renderStyle ourStyle $
@@ -89,12 +90,11 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         ]
       testEdge ::
         Bool ->
-        Map Int (Set p) ->
-        Map (Int, Int) [Morphism p m] ->
+        Map (Set p,Set p) [Morphism p m] ->
         (Set p -> Gen m) ->
         Morphism p m ->
         Group
-      testEdge testRequired ns pem mGen pe =
+      testEdge testRequired pem mGen pe =
         Group (fromString (name pe)) $
           addRequiredTest
             testRequired
@@ -105,7 +105,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           addRequiredTest False l = l
           addRequiredTest True l = (fromString "Is Required", runRequiredTest) : l
           matchesEdges = [e | (e, v) <- Map.toList pem, pe `elem` v]
-          edgeTestName f t = fromString $ name pe <> " : " <> show (Set.toList (lut ns f)) <> " -> " <> show (Set.toList (lut ns t))
+          edgeTestName f t = fromString $ name pe <> " : " <> show (Set.toList f) <> " -> " <> show (Set.toList t)
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
@@ -118,9 +118,9 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                     fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = genProp $ do
-            om <- mGen (lut ns f)
+            om <- mGen f
             nm <- morphism pe om
-            let expected = lut ns t
+            let expected = t
                 observed = properties nm
             if expected == observed
               then pure ()
@@ -131,11 +131,11 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         --distmap = distanceMap edges
-        (sn, ns) = numberNodes (Apropos :: m :+ p)
-        graph = buildGraph pedges -- TODO remove all Data.Graph?
-        isco = isStronglyConnected graph
-        graph' = fromEdges edges
-        cache = shortestPathCache graph'
+        --(sn, ns) = numberNodes (Apropos :: m :+ p)
+        --graph = buildGraph pedges -- TODO remove all Data.Graph?
+        graph = fromEdges edges
+        isco = isStronglyConnected cache
+        cache = shortestPathCache graph
         go targetProperties = do
           m <- g
           if null pedges
@@ -144,27 +144,26 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           if isco
             then pure ()
             else
-              let (a, b) = findNoPath (Apropos :: m :+ p) ns graph
+              let (a, b) = findNoPath (Apropos :: m :+ p) cache
                in failWithFootnote $
                     renderStyle ourStyle $
                       "Morphisms do not form a strongly connected graph."
                         $+$ hang "No Edge Between here:" 4 (ppDoc a)
                         $+$ hang "            and here:" 4 (ppDoc b)
-          transformModel cache sn pedges edges m targetProperties
+          transformModel cache pedges m targetProperties
      in go
 
   findNoPath ::
     m :+ p ->
-    Map Int (Set p) ->
-    Graph ->
+    ShortestPathCache (Set p) ->
     (Set p, Set p)
-  findNoPath _ m g =
+  findNoPath _ cache =
     minimumBy
       (compare `on` uncurry score)
-      [ (lut m a, lut m b)
-      | a <- Map.keys m
-      , b <- Map.keys m
-      , not (path g a b)
+      [ (a,b)
+      | a <- scenarios
+      , b <- scenarios
+      , isNothing (distance_ a b cache)
       ]
     where
       -- The score function is designed to favor sets which are similar and small
@@ -177,20 +176,18 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       setXor l r = (l `Set.difference` r) `Set.union` (r `Set.difference` l)
 
   transformModel ::
-    ShortestPathCache Int ->
-    Map (Set p) Int ->
-    Map (Int, Int) [Morphism p m] ->
-    [(Int, Int)] ->
+    ShortestPathCache (Set p) ->
+    Map (Set p,Set p) [Morphism p m] ->
     m ->
     Set p ->
     Gen m
-  transformModel cache nodes pedges edges m to = do
-    pathOptions <- findPathOptions (Apropos :: m :+ p) cache edges nodes (properties m) to
+  transformModel cache pedges m to = do
+    pathOptions <- findPathOptions (Apropos :: m :+ p) cache (properties m) to
     traversePath pedges pathOptions m
 
   traversePath ::
-    Map (Int, Int) [Morphism p m] ->
-    [(Int, Int)] ->
+    Map (Set p,Set p) [Morphism p m] ->
+    [(Set p,Set p)] ->
     m ->
     Gen m
   traversePath _ [] m = pure m
@@ -228,95 +225,49 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   findPathOptions ::
     m :+ p ->
-    ShortestPathCache Int ->
-    [(Int, Int)] ->
-    Map (Set p) Int ->
+    ShortestPathCache (Set p) ->
     Set p ->
     Set p ->
-    Gen [(Int, Int)]
-  findPathOptions _ cache edges ns from to = do
-    fn <- case Map.lookup from ns of
-      Nothing ->
-        failWithFootnote $
-          renderStyle ourStyle $
-            "Model logic inconsistency found."
-              $+$ hang "A model was found that satisfies these properties:" 4 (ppDoc from)
-      Just so -> pure so
-    tn <- case Map.lookup to ns of
-      Nothing -> failWithFootnote "to node not found"
-      Just so -> pure so
-    rpath <- genRandomPath cache fn tn
-    let ppath = pairPath rpath
-    if and [e `elem` edges | e <- ppath]
-      then pure ppath
-      else
-        error $
-          "path used an edge which doesn't exist?\n"
-            ++ "edges: "
-            ++ show edges
-            ++ "\n"
-            ++ "path: "
-            ++ show ppath
-            ++ "\n"
-            ++ "fn: "
-            ++ show fn
-            ++ "\n"
-            ++ "tn: "
-            ++ show tn
-            ++ "\n"
+    Gen [(Set p,Set p)]
+  findPathOptions _ cache from to = do
+    rpath <- genRandomPath cache from to
+    return $ pairPath rpath
 
-  buildGraph :: Map (Int, Int) [Morphism p m] -> Graph
+  buildGraph :: Map (Set p,Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
     let edges = Map.keys pedges
-        ub = max (maximum (fst <$> edges)) (maximum (snd <$> edges))
-     in buildG (0, ub) edges
+     in fromEdges edges
 
-  mapsBetween :: Map Int (Set p) -> Int -> Int -> Morphism p m -> Bool
-  mapsBetween m a b pedge =
-    case runContract (contract pedge) (name pedge) (lut m a) of
+  mapsBetween :: Set p -> Set p -> Morphism p m -> Bool
+  mapsBetween a b pedge =
+    case runContract (contract pedge) (name pedge) a of
       Left e -> error e
       Right Nothing -> False
-      Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == lut m b
+      Right (Just so) -> satisfiesFormula (match pedge) a && so == b
 
   findMorphisms ::
     m :+ p ->
-    Map (Int, Int) [Morphism p m]
-  findMorphisms apropos =
-    let nodemap = snd $ numberNodes apropos
-        nodes = Map.keys nodemap
-     in Map.fromList
+    Map (Set p,Set p) [Morphism p m]
+  findMorphisms _ = Map.fromList
           [ ((a, b), options)
-          | a <- nodes
-          , b <- nodes
-          , let options = filter (mapsBetween nodemap a b) generators
+          | a <- scenarios
+          , b <- scenarios
+          , let options = filter (mapsBetween a b) generators
           , not (null options)
           ]
-  numberNodes ::
-    m :+ p ->
-    (Map (Set p) Int, Map Int (Set p))
-  numberNodes _ =
-    let scenarios = enumerateScenariosWhere (logic :: Formula p)
-        scennums = Map.fromList $ zip scenarios [0 ..]
-        numsscen = Map.fromList $ zip [0 ..] scenarios
-     in (scennums, numsscen)
 
-pairPath :: [Int] -> [(Int, Int)]
+pairPath :: [a] -> [(a,a)]
 pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
-isStronglyConnected :: Graph -> Bool
-isStronglyConnected g = 1 == length (scc g)
-
-lut :: Show a => Show b => Ord a => Map a b -> a -> b
-lut m i = case Map.lookup i m of
-  Nothing -> error $ "Not found: " <> show i <> " in " <> show m <> "\nthis should never happen..."
-  Just so -> so
+isStronglyConnected :: ShortestPathCache a -> Bool
+isStronglyConnected cache = isJust $ diameter_ cache
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: ShortestPathCache Int -> Int -> Int -> Gen [Int]
+genRandomPath :: ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
 genRandomPath cache from to =
   let mpath = shortestPath_ from to cache
    in case mpath of

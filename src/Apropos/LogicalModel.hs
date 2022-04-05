@@ -17,9 +17,12 @@ import Data.Set qualified as Set
 class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p
 
+  scenarios :: [Set p]
+  scenarios = enumerateScenariosWhere (logic :: Formula p)
+
   satisfiedBy :: [p]
   satisfiedBy = Set.toList $
-    case enumerateSolutions logic of
+    case scenarios of
       [] -> error "no solutions found for model logic"
       (sol : _) -> sol
 

@@ -51,7 +51,9 @@
             # Eventually we will probably want to build these with haskell.nix.
             nativeBuildInputs =
               [ pkgs.cabal-install pkgs.hlint pkgs.haskellPackages.fourmolu ];
-
+            additional = ps: [
+              ps.digraph
+            ];
           };
           sha256map = {
             "https://github.com/Geometer1729/digraph"."d4dfec22f6a6eb646dcfa9591eaca0a9be88d260" = "sha256-ytQkJ18tYs13rt66s4jdbaGa5mLNEIerF8u24PvyPLA=";

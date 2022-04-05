@@ -54,6 +54,7 @@ common lang
     , text
     , transformers
     , digraph
+    , hashable
 
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints

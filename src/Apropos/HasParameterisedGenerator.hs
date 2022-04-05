@@ -61,7 +61,7 @@ enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
     sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
-  (HasParameterisedGenerator p m, Enumerable p)=>
+  (HasParameterisedGenerator p m, Enumerable p) =>
   m :+ p ->
   String ->
   Formula p ->

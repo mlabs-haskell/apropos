@@ -257,7 +257,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       Right Nothing -> False
       Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == lut m b
 
-  findMorphisms ::    
+  findMorphisms ::
     (Enumerable p) =>
     m :+ p ->
     Map (Int, Int) [Morphism p m]

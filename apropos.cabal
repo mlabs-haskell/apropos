@@ -11,7 +11,7 @@ common lang
     ConstraintKinds
     DataKinds
     DefaultSignatures
-   DeriveAnyClass
+    DeriveAnyClass
     DeriveFunctor
     DeriveGeneric
     DeriveTraversable
@@ -52,6 +52,7 @@ common lang
                     , template-haskell
                     , text
                     , transformers
+                    , digraph
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates

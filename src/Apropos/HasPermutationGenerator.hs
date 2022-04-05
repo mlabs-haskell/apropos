@@ -16,7 +16,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (join)
+import Data.DiGraph (ShortestPathCache, fromEdges, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Graph (Graph, buildG, path, scc)
 import Data.List (minimumBy)
@@ -130,10 +130,12 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   buildGen g = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
-        distmap = distanceMap edges
+        --distmap = distanceMap edges
         (sn, ns) = numberNodes (Apropos :: m :+ p)
-        graph = buildGraph pedges
+        graph = buildGraph pedges -- TODO remove all Data.Graph?
         isco = isStronglyConnected graph
+        graph' = fromEdges edges
+        cache = shortestPathCache graph'
         go targetProperties = do
           m <- g
           if null pedges
@@ -148,7 +150,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                       "Morphisms do not form a strongly connected graph."
                         $+$ hang "No Edge Between here:" 4 (ppDoc a)
                         $+$ hang "            and here:" 4 (ppDoc b)
-          transformModel sn pedges edges distmap m targetProperties
+          transformModel cache sn pedges edges m targetProperties
      in go
 
   findNoPath ::
@@ -175,15 +177,15 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       setXor l r = (l `Set.difference` r) `Set.union` (r `Set.difference` l)
 
   transformModel ::
+    ShortestPathCache Int ->
     Map (Set p) Int ->
     Map (Int, Int) [Morphism p m] ->
     [(Int, Int)] ->
-    Map Int (Map Int Int) ->
     m ->
     Set p ->
     Gen m
-  transformModel nodes pedges edges distmap m to = do
-    pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
+  transformModel cache nodes pedges edges m to = do
+    pathOptions <- findPathOptions (Apropos :: m :+ p) cache edges nodes (properties m) to
     traversePath pedges pathOptions m
 
   traversePath ::
@@ -226,13 +228,13 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   findPathOptions ::
     m :+ p ->
+    ShortestPathCache Int ->
     [(Int, Int)] ->
-    Map Int (Map Int Int) ->
     Map (Set p) Int ->
     Set p ->
     Set p ->
     Gen [(Int, Int)]
-  findPathOptions _ edges distmap ns from to = do
+  findPathOptions _ cache edges ns from to = do
     fn <- case Map.lookup from ns of
       Nothing ->
         failWithFootnote $
@@ -243,8 +245,25 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     tn <- case Map.lookup to ns of
       Nothing -> failWithFootnote "to node not found"
       Just so -> pure so
-    rpath <- genRandomPath edges distmap fn tn
-    pure $ pairPath rpath
+    rpath <- genRandomPath cache fn tn
+    let ppath = pairPath rpath
+    if and [e `elem` edges | e <- ppath]
+      then pure ppath
+      else
+        error $
+          "path used an edge which doesn't exist?\n"
+            ++ "edges: "
+            ++ show edges
+            ++ "\n"
+            ++ "path: "
+            ++ show ppath
+            ++ "\n"
+            ++ "fn: "
+            ++ show fn
+            ++ "\n"
+            ++ "tn: "
+            ++ show tn
+            ++ "\n"
 
   buildGraph :: Map (Int, Int) [Morphism p m] -> Graph
   buildGraph pedges =
@@ -297,66 +316,12 @@ lut m i = case Map.lookup i m of
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: [(Int, Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen [Int]
-genRandomPath edges m from to = go [] from
-  where
-    go breadcrumbs f =
-      let shopasto = lut m f
-          shopa = lut shopasto to
-          awayfrom = snd <$> filter ((== f) . fst) edges
-          diston = (\af -> (af, lut (lut m af) to)) <$> awayfrom
-          options = fst <$> filter ((<= shopa) . snd) diston
-          options' = filter (`notElem` breadcrumbs) options
-          options'' = case options' of
-            [] -> options
-            _ -> options'
-       in case shopa of
-            0 -> pure []
-            1 -> pure [f, to]
-            _ -> do
-              p <- element options''
-              (f :) <$> go (p : breadcrumbs) p
-
--- TODO is this a performance bottleneck?
-distanceMap :: [(Int, Int)] -> Map Int (Map Int Int)
-distanceMap edges =
-  let initial = foldr ($) Map.empty (insertEdge <$> edges)
-      nodes = Map.keys initial
-      algo = distanceMapUpdate <$> nodes
-   in go (foldr ($) initial algo) algo
-  where
-    go m algo =
-      if distanceMapComplete m
-        then m
-        else foldr ($) m algo
-    insertEdge :: (Int, Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)
-    insertEdge (f, t) m =
-      case Map.lookup f m of
-        Nothing -> Map.insert f (Map.fromList [(f, 0), (t, 1)]) m
-        Just so -> Map.insert f (Map.insert t 1 so) m
-    distanceMapComplete :: Map Int (Map Int Int) -> Bool
-    distanceMapComplete m =
-      let nodes = Map.keys m
-       in not $ any (> length nodes) $ join [snd <$> Map.toList (lut m node) | node <- nodes]
-    distanceMapUpdate :: Int -> Map Int (Map Int Int) -> Map Int (Map Int Int)
-    distanceMapUpdate node m =
-      let nodes = Map.keys m
-          know = Map.toList $ lut m node
-          unknown = filter (not . (`elem` (fst <$> know))) $ Map.keys m
-          news =
-            join $
-              [ (\(t, d) -> (t, d + dist)) <$> Map.toList (lut m known)
-              | (known, dist) <- know <> zip unknown (repeat (length nodes + 1))
-              ]
-       in foldr updateDistance m news
-      where
-        updateDistance :: (Int, Int) -> Map Int (Map Int Int) -> Map Int (Map Int Int)
-        updateDistance (t, d) ma =
-          let curdists = lut ma node
-           in case Map.lookup t curdists of
-                Nothing -> Map.insert node (Map.insert t d curdists) ma
-                Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
-                _ -> ma
+genRandomPath :: ShortestPathCache Int -> Int -> Int -> Gen [Int]
+genRandomPath cache from to =
+  let mpath = shortestPath_ from to cache
+   in case mpath of
+        Just p -> pure $ from : p
+        Nothing -> error "failed to find path despite graph being connected?"
 
 edgeFailsContract ::
   forall m p.

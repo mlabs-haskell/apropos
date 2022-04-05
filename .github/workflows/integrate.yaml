@@ -4,7 +4,7 @@ on:
       - '**.hs'
       - '**.nix'
       - 'nix/sources.json'
-      - 'apropos-tx.cabal'
+      - 'apropos.cabal'
       - '.github/*'
       - '.github/workflows/*'
     branches:
@@ -16,7 +16,7 @@ on:
       - '**.hs'
       - '**.nix'
       - 'nix/sources.json'
-      - 'apropos-tx.cabal'
+      - 'apropos.cabal'
 jobs:
   fourmolu-check: 
     runs-on: ubuntu-latest

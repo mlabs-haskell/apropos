@@ -34,7 +34,7 @@ import Text.Show.Pretty (ppDoc)
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
-  permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
+  permutationGeneratorSelfTest :: (Enumerable p) => Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
     let pedges = findMorphisms (Apropos :: m :+ p)
         (_, ns) = numberNodes (Apropos :: m :+ p)
@@ -119,7 +119,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               then pure ()
               else edgeFailsContract pe om nm expected observed
 
-  buildGen :: Gen m -> Set p -> Gen m
+  buildGen :: (Enumerable p) => Gen m -> Set p -> Gen m
   buildGen g = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
@@ -158,6 +158,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       ]
 
   transformModel ::
+    (Enumerable p) =>
     Map (Set p) Int ->
     Map (Int, Int) [Morphism p m] ->
     [(Int, Int)] ->
@@ -170,6 +171,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     traversePath pedges pathOptions m
 
   traversePath ::
+    (Enumerable p) =>
     Map (Int, Int) [Morphism p m] ->
     [(Int, Int)] ->
     m ->
@@ -235,14 +237,15 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         ub = max (maximum (fst <$> edges)) (maximum (snd <$> edges))
      in buildG (0, ub) edges
 
-  mapsBetween :: Map Int (Set p) -> Int -> Int -> Morphism p m -> Bool
+  mapsBetween :: (Enumerable p) => Map Int (Set p) -> Int -> Int -> Morphism p m -> Bool
   mapsBetween m a b pedge =
     case runContract (contract pedge) (name pedge) (lut m a) of
       Left e -> error e
       Right Nothing -> False
       Right (Just so) -> satisfiesFormula (match pedge) (lut m a) && so == lut m b
 
-  findMorphisms ::
+  findMorphisms ::    
+    (Enumerable p) =>
     m :+ p ->
     Map (Int, Int) [Morphism p m]
   findMorphisms apropos =
@@ -256,6 +259,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           , not (null options)
           ]
   numberNodes ::
+    (Enumerable p) =>
     m :+ p ->
     (Map (Set p) Int, Map Int (Set p))
   numberNodes _ =

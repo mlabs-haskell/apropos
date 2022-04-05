@@ -37,7 +37,7 @@ runGeneratorTest _ s = property $ do
     numRetries = rootRetryLimit (Apropos :: Apropos (m, p))
 
 runGeneratorTestsWhere ::
-  HasParameterisedGenerator p m =>
+  (HasParameterisedGenerator p m, Enumerable p) =>
   m :+ p ->
   String ->
   Formula p ->
@@ -61,7 +61,7 @@ enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
     sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
-  HasParameterisedGenerator p m =>
+  (HasParameterisedGenerator p m, Enumerable p)=>
   m :+ p ->
   String ->
   Formula p ->
@@ -72,7 +72,7 @@ enumerateGeneratorTestsWhere proxy name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
+genSatisfying :: (HasParameterisedGenerator p m, Enumerable p) => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)

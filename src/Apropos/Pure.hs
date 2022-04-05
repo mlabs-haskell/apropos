@@ -15,7 +15,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   expect :: m :+ p -> Formula p
   script :: m :+ p -> (m -> Bool)
 
-  runPureTest :: m :+ p -> Set p -> Property
+  runPureTest :: (Enumerable p) => m :+ p -> Set p -> Property
   runPureTest apropos s = property $ do
     (m :: m) <- handleRootRetries numRetries $ gen $ parameterisedGenerator s
     satisfiesFormula (expect apropos) s === script apropos m
@@ -23,7 +23,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
       numRetries :: Int
       numRetries = rootRetryLimit (Apropos :: m :+ p)
 
-  runPureTestsWhere :: m :+ p -> String -> Formula p -> Group
+  runPureTestsWhere :: (Enumerable p) => m :+ p -> String -> Formula p -> Group
   runPureTestsWhere pm name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario
@@ -32,14 +32,14 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
       | scenario <- enumerateScenariosWhere condition
       ]
 
-  enumeratePureTest :: m :+ p -> Set p -> Property
+  enumeratePureTest :: (Enumerable p) => m :+ p -> Set p -> Property
   enumeratePureTest apropos s = withTests (1 :: TestLimit) $
     property $ do
       let (ms :: [m]) = enumerate $ parameterisedGenerator s
           run m = satisfiesFormula (expect apropos) s === script apropos m
       sequence_ (run <$> ms)
 
-  enumeratePureTestsWhere :: m :+ p -> String -> Formula p -> Group
+  enumeratePureTestsWhere :: (Enumerable p) => m :+ p -> String -> Formula p -> Group
   enumeratePureTestsWhere pm name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario

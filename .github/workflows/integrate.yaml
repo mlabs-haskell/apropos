@@ -4,8 +4,11 @@ on:
       - '**.hs'
       - '**.nix'
       - 'nix/sources.json'
-      - 'apropos.cabal'
+      - 'apropos-tx.cabal'
+      - '.github/*'
+      - '.github/workflows/*'
     branches:
+      - main
       - master
       - staging
   pull_request:
@@ -13,66 +16,63 @@ on:
       - '**.hs'
       - '**.nix'
       - 'nix/sources.json'
-      - 'apropos.cabal'
+      - 'apropos-tx.cabal'
 jobs:
-  check-formatting:
+  fourmolu-check: 
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2.1.4
-        name: Cache Stack
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-formatting
-          restore-keys: ${{ runner.os }}-stack-
-
-      - run: stack install fourmolu
-        name: Setup
-
-      - run: ./.github/format.sh
-        name: "Run fourmolu"
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2.1.4
-        name: Cache Stack
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-stack-lint
-          restore-keys: ${{ runner.os }}-stack-
-
-      - run: stack install hlint
-        name: Setup
-
-      - run: ~/.local/bin/hlint $(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')
-        name: Lint
-  build:
-    runs-on: ubuntu-latest
-    steps:
+    steps: 
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v13
         name: Set up nix and IOHK cache
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
+          nix_path: nixpkgs=channel:nixos-21.11
           extra_nix_config: |
             trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
             substituters = https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/
+            experimental-features = nix-command flakes
       - uses: cachix/cachix-action@v10
         with:
           name: mlabs
           authToken: ${{ secrets.CACHIX_KEY }}
-      - name: Cache cabal folder
-        id: cabal
-        uses: actions/cache@v2.1.4
+      - run: nix-env -iA haskellPackages.fourmolu -f '<nixpkgs>'
+        name: Install fourmolu
+      - run: ./.github/format.sh
+        name: Format
+  hlint-check: 
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v13
+        name: Set up nix and IOHK cache
         with:
-          path: |
-            ~/.cabal/packages
-            ~/.cabal/store
-            dist-newstyle
-          key: ${{ runner.os }}-cabal
+          nix_path: nixpkgs=channel:nixos-21.11
+          extra_nix_config: |
+            trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+            substituters = https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/
+            experimental-features = nix-command flakes
+      - uses: cachix/cachix-action@v10
+        with:
+          name: mlabs
+          authToken: ${{ secrets.CACHIX_KEY }}
+      - run: nix-env -iA hlint -f '<nixpkgs>'
+        name: Install hlint
+      - run: hlint $(git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.hs')
+        name: Lint
+  cabal-check: 
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+      - uses: cachix/install-nix-action@v13
+        name: Set up nix and IOHK cache
+        with:
+          nix_path: nixpkgs=channel:nixos-21.11
+          extra_nix_config: |
+            trusted-public-keys = hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= iohk.cachix.org-1:DpRUyj7h7V830dp/i6Nti+NEO2/nhblbov/8MW7Rqoo= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
+            substituters = https://hydra.iohk.io https://iohk.cachix.org https://cache.nixos.org/
+            experimental-features = nix-command flakes
+      - uses: cachix/cachix-action@v10
+        with:
+          name: mlabs
+          authToken: ${{ secrets.CACHIX_KEY }}
       - name: Build the full ci derivation
-        run: nix build .#check.x86_64-linux --extra-experimental-features nix-command --extra-experimental-features flakes
+        run: nix build .#check.x86_64-linux

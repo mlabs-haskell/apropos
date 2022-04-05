@@ -46,3 +46,11 @@ Thumbs.db
 
 # Local configuration files
 cabal.project.local*
+
+# direnv 
+.envrc 
+.direnv
+
+# Hoogle 
+.hoogle/
+.haddock/

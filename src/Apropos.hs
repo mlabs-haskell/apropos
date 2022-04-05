@@ -38,8 +38,15 @@ module Apropos (
   Morphism (..),
   Abstraction (..),
   abstract,
+  gotoSum,
   abstractsProperties,
   (|:->),
+  -- Apropos.HasAbstractions
+  HasAbstractions (abstractions),
+  AbstractionFor (WrapAbs),
+  abstractionMorphisms,
+  parallelAbstractionMorphisms,
+  abstractionLogic,
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
   runContract,
@@ -70,6 +77,7 @@ module Apropos (
 ) where
 
 import Apropos.Gen
+import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator

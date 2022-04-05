@@ -11,7 +11,7 @@ common lang
     ConstraintKinds
     DataKinds
     DefaultSignatures
-   DeriveAnyClass
+    DeriveAnyClass
     DeriveFunctor
     DeriveGeneric
     DeriveTraversable
@@ -39,67 +39,73 @@ common lang
     TypeSynonymInstances
     UndecidableInstances
 
-  build-depends:      base ^>=4.14
-                    , containers
-                    , hedgehog
-                    , free
-                    , lens
-                    , minisat-solver
-                    , mtl
-                    , pretty
-                    , pretty-show
-                    , safe
-                    , template-haskell
-                    , text
-                    , transformers
+  build-depends:
+    , base              >=4.14
+    , containers
+    , free
+    , hedgehog
+    , lens
+    , minisat-solver
+    , mtl
+    , pretty
+    , pretty-show
+    , safe
+    , template-haskell
+    , text
+    , transformers
+
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
-    -Wmissing-deriving-strategies
-    -ddump-splices
+    -Wmissing-deriving-strategies -ddump-splices
 
 library
   import:          lang
-  exposed-modules: Apropos
-                 , Apropos.Type
-                 , Apropos.LogicalModel
-                 , Apropos.LogicalModel.Formula
-                 , Apropos.LogicalModel.Enumerable
-                 , Apropos.HasLogicalModel
-                 , Apropos.HasParameterisedGenerator
-                 , Apropos.HasPermutationGenerator
-                 , Apropos.HasPermutationGenerator.Abstraction
-                 , Apropos.HasPermutationGenerator.Contract
-                 , Apropos.HasPermutationGenerator.Morphism
-                 , Apropos.Gen
-                 , Apropos.Gen.Enumerate
-                 , Apropos.Gen.Range
-                 , Apropos.Pure
+  exposed-modules:
+    Apropos
+    Apropos.Gen
+    Apropos.Gen.Enumerate
+    Apropos.Gen.Range
+    Apropos.HasAbstractions
+    Apropos.HasLogicalModel
+    Apropos.HasParameterisedGenerator
+    Apropos.HasPermutationGenerator
+    Apropos.HasPermutationGenerator.Abstraction
+    Apropos.HasPermutationGenerator.Contract
+    Apropos.HasPermutationGenerator.Morphism
+    Apropos.LogicalModel
+    Apropos.LogicalModel.Enumerable
+    Apropos.LogicalModel.Formula
+    Apropos.Pure
+    Apropos.Type
+
   hs-source-dirs:  src
 
 test-suite examples
-  import: lang
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
+  import:         lang
+  type:           exitcode-stdio-1.0
+  main-is:        Main.hs
   hs-source-dirs: examples
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules:
     Spec.Int
-    Spec.IntPermutationGen
+    Spec.IntEither
     Spec.IntPair
-    Spec.TicTacToe.Player
-    Spec.TicTacToe.PlayerSequence
+    Spec.IntPermutationGen
     Spec.TicTacToe.Location
     Spec.TicTacToe.LocationSequence
-    Spec.TicTacToe.PlayerLocationSequencePair
     Spec.TicTacToe.Move
     Spec.TicTacToe.MoveSequence
+    Spec.TicTacToe.Player
+    Spec.TicTacToe.PlayerLocationSequencePair
+    Spec.TicTacToe.PlayerSequence
+
   build-depends:
-    base,
-    apropos,
-    tasty,
-    tasty-hedgehog,
-    hedgehog,
-    text,
-    containers,
-    mtl,
+    , apropos
+    , base
+    , containers
+    , hedgehog
+    , mtl
+    , tasty
+    , tasty-hedgehog
+    , text

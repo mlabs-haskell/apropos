@@ -1,7 +1,2 @@
 cradle:
   cabal:
-    - path: "./src"
-      component: "lib:apropos"
-
-    - path: "./examples"
-      component: "apropos:test:examples"

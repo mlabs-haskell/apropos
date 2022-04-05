@@ -50,7 +50,7 @@
             # We use the ones from Nixpkgs, since they are cached reliably.
             # Eventually we will probably want to build these with haskell.nix.
             nativeBuildInputs =
-              [ pkgs.cabal-install pkgs.hlint pkgs.haskellPackages.fourmolu pkgs.haskellPackages.implicit-hie];
+              [ pkgs.cabal-install pkgs.hlint pkgs.haskellPackages.fourmolu ];
 
             additional = ps: [ ];
           };

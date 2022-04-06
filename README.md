@@ -31,6 +31,7 @@ data IntProp
   deriving stock (Eq, Ord, Enum, Show, Bounded)
 
 instance Enumerable IntProp where
+  enumerated :: [IntProp]
   enumerated = [minBound .. maxBound]
 ```
 Here is a model for integers. We have partitioned the space of integers into a smaller easier to manage space. This will be a sufficient description to test the example function defined later. It is sufficient since the function should return true/false according to a formula defined in terms of the above propositions. By modelling integers like this we also make sure that we test some specific extremal values in the space.
@@ -39,6 +40,7 @@ Some of these propositions don't make sense in combination. For example an integ
 
 ```Haskell
 instance LogicalModel IntProp where
+  logic :: Formula IntProp
   logic =
     ExactlyOne [Var IsNegative, Var IsPositive, Var IsZero]
       :&&: ExactlyOne [Var IsLarge, Var IsSmall]
@@ -51,6 +53,7 @@ In order for this to be a model of a type we need to specify what each propositi
 
 ```Haskell
 instance HasLogicalModel IntProp Int where
+  satisfiesProperty :: IntProp -> Int -> Bool
   satisfiesProperty IsNegative i = i < 0
   satisfiesProperty IsPositive i = i > 0
   satisfiesProperty IsMaxBound i = i == maxBound
@@ -66,6 +69,7 @@ This generator implements the class `HasParameterisedGenerator`.
 
 ```Haskell
 instance HasParameterisedGenerator IntProp Int where
+  parameterisedGenerator :: Set IntProp -> Gen Int
   parameterisedGenerator = buildGen baseGen
 
 baseGen :: Gen Int
@@ -81,6 +85,7 @@ Each PermutationEdge must have a unique name. It can match on a subset of the pr
 
 ```Haskell
 instance HasPermutationGenerator IntProp Int where
+  generators :: [Morphism IntProp Int]
   generators =
     [ Morphism
         { name = "MakeZero"
@@ -151,7 +156,10 @@ We can now run the test suite against some pure function that returns `Bool`. It
 ```Haskell
 
 instance HasPureRunner IntProp Int where
+  expect :: (Int :+ IntProp) -> Formula IntProp
   expect _ = Var IsSmall :&&: Var IsNegative
+
+  script :: (Int :+ IntProp) -> Bool
   script _ i = i < 0 && i >= -10
 
 intPermutationGenPureTests :: TestTree

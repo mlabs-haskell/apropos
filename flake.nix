@@ -15,7 +15,7 @@
   outputs = { self, nixpkgs, haskell-nix, flake-compat, flake-compat-ci }:
     let
       supportedSystems =
-        [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+        [ "x86_64-linux" ];
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 

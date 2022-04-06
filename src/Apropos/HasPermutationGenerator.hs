@@ -16,6 +16,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
+import Control.Monad (liftM2)
 import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)
@@ -130,9 +131,6 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   buildGen g = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
-        --distmap = distanceMap edges
-        --(sn, ns) = numberNodes (Apropos :: m :+ p)
-        --graph = buildGraph pedges -- TODO remove all Data.Graph?
         graph = fromEdges edges
         isco = isStronglyConnected cache
         cache = shortestPathCache graph
@@ -193,7 +191,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   traversePath _ [] m = pure m
   traversePath edges (h : r) m = do
     pe <- case Map.lookup h edges of
-      Nothing -> failWithFootnote "this should never happen"
+      Nothing -> failWithFootnote "tried to travel edge with no morphism"
       Just so -> pure so
     tr <- element pe
     let inprops = properties m
@@ -230,8 +228,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Set p ->
     Gen [(Set p, Set p)]
   findPathOptions _ cache from to = do
-    rpath <- genRandomPath cache from to
-    return $ pairPath rpath
+    pairPath <$> genRandomPath cache from to
 
   buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
@@ -268,10 +265,12 @@ isStronglyConnected cache = isJust $ diameter_ cache
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: (Eq p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
-genRandomPath cache from to =
-  let mpath = shortestPath_ from to cache
-   in case mpath of
+genRandomPath :: (LogicalModel p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
+genRandomPath cache from to = do
+  mid <- element scenarios
+  let p1 = shortestPath_ from mid cache
+  let p2 = shortestPath_ mid to cache
+   in case liftM2 (<>) p1 p2 of
         Just p -> pure $ from : p
         Nothing -> error "failed to find path despite graph being connected?"
 

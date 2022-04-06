@@ -9,10 +9,10 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import GHC.Generics (Generic)
-import Data.Hashable (Hashable)
 
 data PlayerSequenceProperty
   = TakeTurns

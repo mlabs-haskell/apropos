@@ -9,12 +9,12 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Data.Hashable (Hashable)
 import Data.Set qualified as Set
+import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
 
 data LocationSequenceProperty
   = AllLocationsAreInBounds

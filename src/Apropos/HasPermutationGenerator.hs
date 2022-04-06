@@ -16,13 +16,13 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Data.DiGraph (DiGraph,ShortestPathCache, fromEdges, shortestPathCache, shortestPath_,diameter_,distance_)
+import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)
 import Data.List (minimumBy)
-import Data.Maybe(isJust,isNothing)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe (isJust, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -36,7 +36,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
@@ -90,7 +90,7 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
         ]
       testEdge ::
         Bool ->
-        Map (Set p,Set p) [Morphism p m] ->
+        Map (Set p, Set p) [Morphism p m] ->
         (Set p -> Gen m) ->
         Morphism p m ->
         Group
@@ -160,7 +160,7 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
   findNoPath _ cache =
     minimumBy
       (compare `on` uncurry score)
-      [ (a,b)
+      [ (a, b)
       | a <- scenarios
       , b <- scenarios
       , isNothing (distance_ a b cache)
@@ -177,7 +177,7 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
 
   transformModel ::
     ShortestPathCache (Set p) ->
-    Map (Set p,Set p) [Morphism p m] ->
+    Map (Set p, Set p) [Morphism p m] ->
     m ->
     Set p ->
     Gen m
@@ -186,8 +186,8 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
     traversePath pedges pathOptions m
 
   traversePath ::
-    Map (Set p,Set p) [Morphism p m] ->
-    [(Set p,Set p)] ->
+    Map (Set p, Set p) [Morphism p m] ->
+    [(Set p, Set p)] ->
     m ->
     Gen m
   traversePath _ [] m = pure m
@@ -228,12 +228,12 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
     ShortestPathCache (Set p) ->
     Set p ->
     Set p ->
-    Gen [(Set p,Set p)]
+    Gen [(Set p, Set p)]
   findPathOptions _ cache from to = do
     rpath <- genRandomPath cache from to
     return $ pairPath rpath
 
-  buildGraph :: Map (Set p,Set p) [Morphism p m] -> DiGraph (Set p)
+  buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
     let edges = Map.keys pedges
      in fromEdges edges
@@ -247,16 +247,17 @@ class (Hashable p,HasLogicalModel p m, Show m) => HasPermutationGenerator p m wh
 
   findMorphisms ::
     m :+ p ->
-    Map (Set p,Set p) [Morphism p m]
-  findMorphisms _ = Map.fromList
-          [ ((a, b), options)
-          | a <- scenarios
-          , b <- scenarios
-          , let options = filter (mapsBetween a b) generators
-          , not (null options)
-          ]
+    Map (Set p, Set p) [Morphism p m]
+  findMorphisms _ =
+    Map.fromList
+      [ ((a, b), options)
+      | a <- scenarios
+      , b <- scenarios
+      , let options = filter (mapsBetween a b) generators
+      , not (null options)
+      ]
 
-pairPath :: [a] -> [(a,a)]
+pairPath :: [a] -> [(a, a)]
 pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)

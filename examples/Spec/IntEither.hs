@@ -5,11 +5,11 @@ module Spec.IntEither (
 
 import Apropos
 import Control.Lens (_Left, _Right)
+import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Data.Hashable (Hashable)
 
 data IntEitherProp
   = IsLeft
@@ -17,7 +17,7 @@ data IntEitherProp
   | L IntProp
   | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable,Hashable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntEitherProp where
   logic =

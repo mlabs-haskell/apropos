@@ -9,6 +9,7 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Control.Monad (join)
+import Data.Hashable (Hashable)
 import Data.List (transpose)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -16,13 +17,12 @@ import GHC.Generics (Generic)
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Data.Hashable (Hashable)
 
 data MoveSequenceProperty
   = MoveSequenceValid
   | MoveSequenceContainsWin
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable,Hashable)
+  deriving anyclass (Enumerable, Hashable)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])

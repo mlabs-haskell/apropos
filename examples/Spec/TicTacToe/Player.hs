@@ -9,10 +9,10 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.Hedgehog (fromGroup)
 
 data PlayerProperty
   = PlayerIsX

@@ -13,15 +13,15 @@ import Control.Lens (lens)
 import Data.Ratio
 import GHC.Generics
 
+import Data.Hashable (Hashable)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Data.Hashable (Hashable)
 
 -- Note: this is probably not an ideal way to model rational numbers
 -- this example is used to ilustrate both trivial and non-trivial relations between
 -- the model props and the submodel props
 data Rat = Rational {num :: Int, den :: Int}
-  deriving stock (Show,Generic)
+  deriving stock (Show, Generic)
   deriving anyclass (Hashable)
 
 asRational :: Rat -> Rational
@@ -36,7 +36,7 @@ data RatProp
   | Num IntProp
   | Den IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable,Hashable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel RatProp where
   logic =

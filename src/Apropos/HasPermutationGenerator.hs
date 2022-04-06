@@ -37,7 +37,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (Hashable (Set p), HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
@@ -265,7 +265,7 @@ isStronglyConnected cache = isJust $ diameter_ cache
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: (LogicalModel p, Hashable (Set p)) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
+genRandomPath :: (LogicalModel p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
 genRandomPath cache from to = do
   mid <- element scenarios
   let p1 = shortestPath_ from mid cache

@@ -54,7 +54,8 @@ common lang
     , text
     , transformers
     , digraph
-    , hashable
+    , hashable >= 1.3.4.0
+    -- added Hashable v => Hashable (Set v)
 
 
   ghc-options:

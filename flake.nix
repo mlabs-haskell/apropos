@@ -56,7 +56,7 @@
             # We use the ones from Nixpkgs, since they are cached reliably.
             # Eventually we will probably want to build these with haskell.nix.
             nativeBuildInputs =
-              [ pkgs.cabal-install pkgs.hlint (fourmoluFor system) pkgs.nixpkgs-fmt pkgs.haskellPackages.cabal-fmt ];
+              [ pkgs.cabal-install pkgs.hlint (fourmoluFor system) pkgs.nixpkgs-fmt pkgs.haskellPackages.cabal-fmt pkgs.fd ];
 
             additional = ps: [ ];
           };
@@ -69,18 +69,8 @@
         in
         pkgs.runCommand "format-check"
           {
-            nativeBuildInputs = [
-              pkgs.git
-              pkgs.fd
-              pkgs.haskellPackages.cabal-fmt
-              pkgs.nixpkgs-fmt
-              (fourmoluFor system)
-              pkgs.hlint
-            ];
+            nativeBuildInputs = [ self.devShell.${system}.nativeBuildInputs ];
           } ''
-          export LC_CTYPE=C.UTF-8
-          export LC_ALL=C.UTF-8
-          export LANG=C.UTF-8
           cd ${self}
 
           EXTENSIONS="-o -XTypeApplications -o -XTemplateHaskell -o -XImportQualifiedPost -o -XPatternSynonyms -o -fplugin=RecordDotPreprocessor -o -XBangPatterns"

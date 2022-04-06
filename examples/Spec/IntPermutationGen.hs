@@ -9,6 +9,7 @@ import Apropos
 import GHC.Generics
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
 
 data IntProp
   = IsNegative
@@ -19,7 +20,7 @@ data IntProp
   | IsMaxBound
   | IsMinBound
   deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable,Hashable)
 
 instance LogicalModel IntProp where
   logic =

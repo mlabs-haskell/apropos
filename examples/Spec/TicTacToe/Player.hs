@@ -11,12 +11,15 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
 
 data PlayerProperty
   = PlayerIsX
   | PlayerIsO
   | PlayerIsInvalid
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Hashable)
 
 instance Enumerable PlayerProperty where
   enumerated = [minBound .. maxBound]

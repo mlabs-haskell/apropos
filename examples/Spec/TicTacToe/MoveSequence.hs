@@ -16,12 +16,13 @@ import GHC.Generics (Generic)
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
 
 data MoveSequenceProperty
   = MoveSequenceValid
   | MoveSequenceContainsWin
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable,Hashable)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])

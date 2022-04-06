@@ -11,6 +11,8 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import GHC.Generics (Generic)
+import Data.Hashable (Hashable)
 
 data PlayerSequenceProperty
   = TakeTurns
@@ -18,7 +20,8 @@ data PlayerSequenceProperty
   | PlayerSequenceNull
   | PlayerSequenceSingleton
   | PlayerSequenceIsLongerThanGame
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Hashable)
 
 instance Enumerable PlayerSequenceProperty where
   enumerated = [minBound .. maxBound]

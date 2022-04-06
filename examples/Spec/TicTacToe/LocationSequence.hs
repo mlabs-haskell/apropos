@@ -13,6 +13,8 @@ import Data.Set qualified as Set
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
 
 data LocationSequenceProperty
   = AllLocationsAreInBounds
@@ -21,7 +23,8 @@ data LocationSequenceProperty
   | LocationSequenceIsNull
   | LocationSequenceIsSingleton
   | LocationSequenceIsLongerThanGame
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Hashable)
 
 instance Enumerable LocationSequenceProperty where
   enumerated = [minBound .. maxBound]

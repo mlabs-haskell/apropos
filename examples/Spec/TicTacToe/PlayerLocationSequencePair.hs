@@ -15,13 +15,14 @@ import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
 
 data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
   | PlayerLocationSequencePairPlayer PlayerSequenceProperty
   | PlayerLocationSequencePairLengthsAreEqual
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable,Hashable)
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =

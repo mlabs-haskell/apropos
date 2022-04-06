@@ -18,7 +18,7 @@ import Apropos.LogicalModel
 import Apropos.Type
 import Data.DiGraph (DiGraph,ShortestPathCache, fromEdges, shortestPathCache, shortestPath_,diameter_,distance_)
 import Data.Function (on)
-import Data.Hashable.Class (Hashable)
+import Data.Hashable (Hashable)
 import Data.List (minimumBy)
 import Data.Maybe(isJust,isNothing)
 import Data.Map (Map)
@@ -267,7 +267,7 @@ isStronglyConnected cache = isJust $ diameter_ cache
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
+genRandomPath :: (Eq p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
 genRandomPath cache from to =
   let mpath = shortestPath_ from to cache
    in case mpath of

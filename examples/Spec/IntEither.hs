@@ -9,6 +9,7 @@ import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Data.Hashable (Hashable)
 
 data IntEitherProp
   = IsLeft
@@ -16,7 +17,7 @@ data IntEitherProp
   | L IntProp
   | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable,Hashable)
 
 instance LogicalModel IntEitherProp where
   logic =

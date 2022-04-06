@@ -37,7 +37,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p,Hashable (Set p), HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
@@ -132,8 +132,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         graph = fromEdges edges
-        isco = isStronglyConnected cache
         cache = shortestPathCache graph
+        isco = isStronglyConnected cache
         go targetProperties = do
           m <- g
           if null pedges

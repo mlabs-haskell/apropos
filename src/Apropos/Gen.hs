@@ -100,34 +100,36 @@ morphContain (Morph m g) = do
 
 morphContainRetry :: Show m => Int -> Morph m -> PropertyT IO m
 morphContainRetry retries m = do
-  r <- morphContainRetry' retries m
+  r <- morphWithRetries retries m
   case r of
-    Nothing -> H.footnote ("retry limit (" <> show retries <> ") reached") >> H.failure
+    Nothing -> forAllNoShrink $ morphAsGen m -- we don't want to shrink on Retry failure
     Just so -> pure so
 
--- hmmmmm - let's refactor Morph
-morphContainRetry' :: Show m => Int -> Morph m -> PropertyT IO (Maybe m)
-morphContainRetry' _ (Source g) = forAllRetryToMaybe g
-morphContainRetry' retries (Morph m g) = do
-  handleRetries' retries (morphContainRetry' retries m) $ \a -> do
-    t <- forAllNoShrink $ g a
-    let c = steps' retries t
-    c a
+morphWithRetries :: forall a. Show a => Int -> Morph a -> PropertyT IO (Maybe a)
+morphWithRetries retries m =
+  backtrackingRetryTraversals retries (forAllRetryToMaybeScale s) (genTraversal <$> t)
+    where
+      st :: (Gen a, [a -> Gen [a -> Gen a]])
+      st = unMorph m
+      s :: Gen a
+      s = fst st
+      t :: [a -> Gen [a -> Gen a]]
+      t = snd st
+      genTraversal :: (a -> Gen [a -> Gen a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
+      genTraversal gt = \a -> do
+        tr <- forAllNoShrink (gt a)
+        pure $ sizableTr <$> tr
+      sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
+      sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
 
--- naming here is not great
-steps :: Int -> [a -> PropertyT IO (Maybe a)] -> (a -> PropertyT IO (Maybe a))
-steps _ [] = pure . Just
-steps retries (c:cs) = \x -> handleRetries' retries (c x) (steps retries cs)
+unMorph :: Morph a -> (Gen a, [a -> Gen [a -> Gen a]])
+unMorph (Source s) = (s,[])
+unMorph (Morph s t) = case unMorph s of
+                        (s',t') -> (s', t' <> [t])
 
--- TODO we want to pass in a scale parameter that scales each step on retry
-steps' :: Show a => Int -> [a -> Gen a] -> (a -> PropertyT IO (Maybe a))
-steps' retries gs = do
-  let rs = (forAllRetryToMaybe .) <$> gs
-  steps retries rs
-
-forAllRetryToMaybe :: Show a => Gen a -> PropertyT IO (Maybe a)
-forAllRetryToMaybe g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
+forAllRetryToMaybeScale g s = do
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing
@@ -135,22 +137,57 @@ forAllRetryToMaybe g = do
     Right a -> pure $ Just a
 
 
-handleRetries' :: forall m a b. Monad m => Int -> m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
-handleRetries' n g c = go n
+backtrackingRetryTraversals :: forall a m. Monad m => Int
+                                                  -> (Int -> m (Maybe a))
+                                                  -> [a -> m [Int -> a -> m (Maybe a)]]
+                                                  -> m (Maybe a)
+backtrackingRetryTraversals retries g trs = go 1
   where
-    go :: Int -> m (Maybe b)
+    go :: Int -> m (Maybe a)
     go l = do
-      res <- g
+      res <- g l
       case res of
-        Just r -> do
-          res2 <- c r
-          case res2 of
-            Nothing -> go (l - 1)
-            Just so -> pure $ Just so
-        Nothing ->
-          if l < 1
-             then pure Nothing
-             else go (l - 1)
+        Nothing -> if l > retries
+                      then pure Nothing
+                      else go (l+1)
+        Just so -> do
+          res' <- co so 1 trs
+          case res' of
+            Nothing -> if l > retries
+                          then pure Nothing
+                          else go (l+1)
+            Just so' -> pure $ Just so'
+    co :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
+    co s _ [] = pure $ Just s
+    co s l (t:ts) = do
+      ts' <- t s
+      res <- backtrackingRetryTraverse retries s ts'
+      case res of
+        Nothing -> pure Nothing
+        Just so -> do
+          res' <- co so 1 ts
+          case res' of
+            Nothing -> co s (l+1) (t:ts)
+            Just so' -> pure $ Just so'
+
+backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
+backtrackingRetryTraverse _ s [] = pure $ Just s
+backtrackingRetryTraverse retries s (t:ts) = go 1
+  where
+    go :: Int -> m (Maybe a)
+    go l = do
+      res <- t l s
+      case res of
+        Nothing -> if l > retries
+                      then pure Nothing
+                      else go (l+1)
+        Just so -> do
+          res' <- backtrackingRetryTraverse retries so ts
+          case res' of
+            Nothing -> if l > retries
+                          then pure Nothing
+                          else go (l+1)
+            Just so' -> pure $ Just so'
 
 
 

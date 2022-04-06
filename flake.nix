@@ -72,16 +72,7 @@
             nativeBuildInputs = [ self.devShell.${system}.nativeBuildInputs ];
           } ''
           cd ${self}
-
-          EXTENSIONS="-o -XTypeApplications -o -XTemplateHaskell -o -XImportQualifiedPost -o -XPatternSynonyms -o -fplugin=RecordDotPreprocessor -o -XBangPatterns"
-          fourmolu --mode check --check-idempotence -e $(fd -ehs) $EXTENSIONS
-
-          hlint $(fd -ehs)
-
-          nixpkgs-fmt --check $(fd -enix)
-
-          cabal-fmt -c $(fd -ecabal)
-
+          IN_NIX_SHELL=true make format_check cabalfmt_check nixpkgsfmt_check lint
           mkdir $out
         ''
       ;

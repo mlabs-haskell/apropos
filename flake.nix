@@ -15,7 +15,7 @@
   outputs = { self, nixpkgs, haskell-nix, flake-compat, flake-compat-ci }:
     let
       supportedSystems =
-        [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+        [ "x86_64-linux" ];
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -57,6 +57,7 @@
           };
           sha256map = {
             "https://github.com/Geometer1729/digraph"."d4dfec22f6a6eb646dcfa9591eaca0a9be88d260" = "sha256-ytQkJ18tYs13rt66s4jdbaGa5mLNEIerF8u24PvyPLA=";
+
           };
         };
     in {

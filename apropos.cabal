@@ -85,6 +85,27 @@ library
 
   hs-source-dirs:  src
 
+benchmark bench
+  import: lang
+  type:           exitcode-stdio-1.0
+  main-is:        Main.hs
+  hs-source-dirs: bench,examples
+  other-modules:
+    Spec.Rational
+    Spec.IntPermutationGen
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , apropos
+    , base
+    , containers
+    , hedgehog
+    , mtl
+    , tasty
+    , tasty-hedgehog
+    , text
+    , criterion
+
+
 test-suite examples
   import:         lang
   type:           exitcode-stdio-1.0

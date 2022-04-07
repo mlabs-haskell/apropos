@@ -155,7 +155,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     m :+ p ->
     ShortestPathCache (Set p) ->
     (Set p, Set p)
-  findNoPath _ cache =
+  findNoPath _ !cache =
     minimumBy
       (compare `on` uncurry score)
       [ (a, b)
@@ -179,7 +179,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     m ->
     Set p ->
     Gen m
-  transformModel cache pedges m to = do
+  transformModel !cache pedges m to = do
     pathOptions <- findPathOptions (Apropos :: m :+ p) cache (properties m) to
     traversePath pedges pathOptions m
 
@@ -227,7 +227,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Set p ->
     Set p ->
     Gen [(Set p, Set p)]
-  findPathOptions _ cache from to = do
+  findPathOptions _ !cache from to = do
     pairPath <$> genRandomPath cache from to
 
   buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
@@ -260,13 +260,13 @@ pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
 isStronglyConnected :: ShortestPathCache a -> Bool
-isStronglyConnected cache = isJust $ diameter_ cache
+isStronglyConnected !cache = isJust $ diameter_ cache
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
 genRandomPath :: (LogicalModel p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
-genRandomPath cache from to = do
+genRandomPath !cache from to = do
   mid <- element scenarios
   let p1 = shortestPath_ from mid cache
   let p2 = shortestPath_ mid to cache

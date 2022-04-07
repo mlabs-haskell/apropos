@@ -7,6 +7,7 @@ module Apropos.HasPermutationGenerator (
   abstractsProperties,
   (|:->),
 ) where
+
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Abstraction
@@ -51,7 +52,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                 "No permutation edges defined."
                 [
                   ( fromString "no edges defined"
-                  , property $ void $ forAll $ (failWithFootnote "no Morphisms defined" :: Gen String)
+                  , property $ void $ forAll (failWithFootnote "no Morphisms defined" :: Gen String)
                   )
                 ]
             ]
@@ -70,17 +71,20 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
               else
                 [ Group
                     "HasPermutationGenerator Graph Not Strongly Connected"
-                    [( fromString "Not strongly connected"
-                     , property $ void $ forAll $ (abortNotSCC ns graph :: Gen String))]
+                    [
+                      ( fromString "Not strongly connected"
+                      , property $ void $ forAll (abortNotSCC ns graph :: Gen String)
+                      )
+                    ]
                 ]
     where
       abortNotSCC ns graph =
         let (a, b) = findNoPath (Apropos :: m :+ p) ns graph
          in failWithFootnote $
-                renderStyle ourStyle $
-                  "Morphisms do not form a strongly connected graph."
-                    $+$ hang "No Edge Between here:" 4 (ppDoc a)
-                    $+$ hang "            and here:" 4 (ppDoc b)
+              renderStyle ourStyle $
+                "Morphisms do not form a strongly connected graph."
+                  $+$ hang "No Edge Between here:" 4 (ppDoc a)
+                  $+$ hang "            and here:" 4 (ppDoc b)
       findDupEdgeNames =
         [ name g | g <- generators :: [Morphism p m], length (filter (== g) generators) > 1
         ]
@@ -106,22 +110,23 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
-          runRequiredTest = property $ forAll $ do
-            if isRequired
-              then pure ()
-              else
-                failWithFootnote $
-                  renderStyle ourStyle $
-                    fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
-                      $+$ hang "Edge:" 4 (ppDoc $ name pe)
+          runRequiredTest = property $
+            forAll $ do
+              if isRequired
+                then pure ()
+                else
+                  failWithFootnote $
+                    renderStyle ourStyle $
+                      fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
+                        $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = property $ do
             let cont om = do
-                           nm <- morphism pe om
-                           let expected = lut ns t
-                               observed = properties nm
-                           if expected == observed
-                             then pure nm
-                             else edgeFailsContract pe om nm expected observed
+                  nm <- morphism pe om
+                  let expected = lut ns t
+                      observed = properties nm
+                  if expected == observed
+                    then pure nm
+                    else edgeFailsContract pe om nm expected observed
             void $ morphContainRetry (morphRetryLimit (Apropos :: m :+ p)) $ Morph (mGen (lut ns f)) (\_ -> pure [cont])
 
   buildGen :: Gen m -> Set p -> Morph m
@@ -189,7 +194,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     [m -> Gen m]
   traversePath edges es = go <$> es
     where
-      go :: (Int,Int) -> m -> Gen m
+      go :: (Int, Int) -> m -> Gen m
       go h m = do
         pe <- case Map.lookup h edges of
           Nothing -> failWithFootnote "this should never happen"
@@ -200,20 +205,20 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         case mexpected of
           Left e -> failWithFootnote e
           Right Nothing ->
-              failWithFootnote $
-                renderStyle ourStyle $
-                  "Morphism doesn't work. This is a model error"
-                    $+$ "This should never happen at this point in the program."
+            failWithFootnote $
+              renderStyle ourStyle $
+                "Morphism doesn't work. This is a model error"
+                  $+$ "This should never happen at this point in the program."
           Right (Just expected) -> do
             if satisfiesFormula logic expected
               then pure ()
               else
-                  failWithFootnote $
-                    renderStyle ourStyle $
-                      "Morphism contract produces invalid model"
-                        $+$ hang "Edge:" 4 (ppDoc $ name tr)
-                        $+$ hang "Input:" 4 (ppDoc inprops)
-                        $+$ hang "Output:" 4 (ppDoc expected)
+                failWithFootnote $
+                  renderStyle ourStyle $
+                    "Morphism contract produces invalid model"
+                      $+$ hang "Edge:" 4 (ppDoc $ name tr)
+                      $+$ hang "Input:" 4 (ppDoc inprops)
+                      $+$ hang "Output:" 4 (ppDoc expected)
             label $ fromString $ name tr
             nm <- morphism tr m
             let observed = properties nm
@@ -295,8 +300,9 @@ ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
 genRandomPath :: [(Int, Int)] -> Map Int (Map Int Int) -> Int -> Int -> Gen [Int]
-genRandomPath edges m from to | from == to = pure []
-                              | otherwise = go [] from
+genRandomPath edges m from to
+  | from == to = pure []
+  | otherwise = go [] from
   where
     go breadcrumbs f =
       let shopasto = lut m f

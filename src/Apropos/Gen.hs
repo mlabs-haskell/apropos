@@ -1,5 +1,5 @@
 module Apropos.Gen (
-  Morph(..),
+  Morph (..),
   morphAsGen,
   morphContain,
   morphContainRetry,
@@ -30,37 +30,36 @@ module Apropos.Gen (
   linearFrom,
   singleton,
 ) where
+
 import Apropos.Gen.Range
-import Control.Monad (replicateM,(>=>),guard)
+import Control.Monad (guard, replicateM, (>=>))
 import Control.Monad.Free
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (lift, liftIO)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
-import Hedgehog.Range qualified as HRange
-import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Internal.Gen qualified as HIG
 import Hedgehog.Internal.Seed qualified as Seed
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Control.Monad.Trans (liftIO)
+import Hedgehog.Internal.Tree qualified as HIT
+import Hedgehog.Range qualified as HRange
 
 forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
 forAllWithRetries lim g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
+  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
-
 forAllNoShrink :: Show a => Gen a -> PropertyT IO a
 forAllNoShrink g = do
-  (ee,labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
+  (ee, labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> H.footnote "retry limit reached" >> H.discard
@@ -69,7 +68,7 @@ forAllNoShrink g = do
 
 forAll :: Show a => Gen a -> PropertyT IO a
 forAll g = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
+  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> H.footnote "retry limit reached" >> H.discard
@@ -110,24 +109,25 @@ morphContainRetry retries m = do
 morphWithRetries :: forall a. Show a => Int -> Morph a -> PropertyT IO (Maybe a)
 morphWithRetries retries m =
   backtrackingRetryTraversals retries (forAllRetryToMaybeScale s) (genTraversal <$> t)
-    where
-      st :: (Gen a, [a -> Gen [a -> Gen a]])
-      st = unMorph m
-      s :: Gen a
-      s = fst st
-      t :: [a -> Gen [a -> Gen a]]
-      t = snd st
-      genTraversal :: (a -> Gen [a -> Gen a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
-      genTraversal gt = \a -> do
-        tr <- forAllNoShrink (gt a)
-        pure $ sizableTr <$> tr
-      sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
-      sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
+  where
+    st :: (Gen a, [a -> Gen [a -> Gen a]])
+    st = unMorph m
+    s :: Gen a
+    s = fst st
+    t :: [a -> Gen [a -> Gen a]]
+    t = snd st
+    genTraversal :: (a -> Gen [a -> Gen a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
+    genTraversal gt = \a -> do
+      tr <- forAllNoShrink (gt a)
+      pure $ sizableTr <$> tr
+    sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
+    sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
 
 unMorph :: Morph a -> (Gen a, [a -> Gen [a -> Gen a]])
-unMorph (Source s) = (s,[])
+unMorph (Source s) = (s, [])
 unMorph (Morph s t) = case unMorph s of
-                        (s',t') -> (s', t' <> [t])
+  (s', t') -> (s', t' <> [t])
+
 --newtype GenT m a =
 --GenT {
 --    unGenT :: Size -> Seed -> TreeT (MaybeT m) a
@@ -139,38 +139,42 @@ reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
   seed <- liftIO Seed.random
-  (ee,labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
---  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+  (ee, labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
+  --  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure $ Just a
 
-
-backtrackingRetryTraversals :: forall a m. Monad m => Int
-                                                  -> (Int -> m (Maybe a))
-                                                  -> [a -> m [Int -> a -> m (Maybe a)]]
-                                                  -> m (Maybe a)
+backtrackingRetryTraversals ::
+  forall a m.
+  Monad m =>
+  Int ->
+  (Int -> m (Maybe a)) ->
+  [a -> m [Int -> a -> m (Maybe a)]] ->
+  m (Maybe a)
 backtrackingRetryTraversals retries g trs = go 1
   where
     go :: Int -> m (Maybe a)
     go l = do
       res <- g l
       case res of
-        Nothing -> if l > retries
-                      then pure Nothing
-                      else go (l+1)
+        Nothing ->
+          if l > retries
+            then pure Nothing
+            else go (l + 1)
         Just so -> do
           res' <- co so 1 trs
           case res' of
-            Nothing -> if l > retries
-                          then pure Nothing
-                          else go (l+1)
+            Nothing ->
+              if l > retries
+                then pure Nothing
+                else go (l + 1)
             Just so' -> pure $ Just so'
     co :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
     co s _ [] = pure $ Just s
-    co s l (t:ts) = do
+    co s l (t : ts) = do
       ts' <- t s
       res <- backtrackingRetryTraverse retries s ts'
       case res of
@@ -178,31 +182,32 @@ backtrackingRetryTraversals retries g trs = go 1
         Just so -> do
           res' <- co so 1 ts
           case res' of
-            Nothing -> if l > retries
-                          then pure Nothing
-                          else co s (l+1) (t:ts)
+            Nothing ->
+              if l > retries
+                then pure Nothing
+                else co s (l + 1) (t : ts)
             Just so' -> pure $ Just so'
 
 backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
 backtrackingRetryTraverse _ s [] = pure $ Just s
-backtrackingRetryTraverse retries s (t:ts) = go 1
+backtrackingRetryTraverse retries s (t : ts) = go 1
   where
     go :: Int -> m (Maybe a)
     go l = do
       res <- t l s
       case res of
-        Nothing -> if l > retries
-                      then pure Nothing
-                      else go (l+1)
+        Nothing ->
+          if l > retries
+            then pure Nothing
+            else go (l + 1)
         Just so -> do
           res' <- backtrackingRetryTraverse retries so ts
           case res' of
-            Nothing -> if l > retries
-                          then pure Nothing
-                          else go (l+1)
+            Nothing ->
+              if l > retries
+                then pure Nothing
+                else go (l + 1)
             Just so' -> pure $ Just so'
-
-
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -382,7 +387,7 @@ gen (Pure a) = pure a
     Right x -> gen $ b x
     Left e -> throwE e
 
-handleRetries :: forall a . Int -> Gen a -> Generator a
+handleRetries :: forall a. Int -> Gen a -> Generator a
 handleRetries n g = go n
   where
     go :: Int -> Generator a
@@ -392,10 +397,9 @@ handleRetries n g = go n
         Right r -> pure r
         Left Retry ->
           if l < 1
-             then throwE Retry
-             else go (l - 1)
+            then throwE Retry
+            else go (l - 1)
         Left err -> throwE err
-
 
 fromPred :: (a -> Bool) -> a -> Maybe a
 fromPred p a = a <$ guard (p a)
@@ -404,26 +408,24 @@ filter' :: (a -> Bool) -> Generator a -> Generator a
 filter' p =
   mapMaybe (fromPred p)
 
-mapMaybe :: forall a b . (a -> Maybe b) -> Generator a -> Generator b
+mapMaybe :: forall a b. (a -> Maybe b) -> Generator a -> Generator b
 mapMaybe p gen0 =
-  let
-    try k =
-      if k > 100 then
-        throwE Retry
-      else do
-        (x, g) <- lift $ lift $ HGen.freeze $ HGen.scale (2 * k +) (runWriterT (runExceptT gen0))
-        case (p <$>) $ fst x of
-          Right (Just _) -> do
-            let withGenT f = H.fromGenT . f . H.toGenT
-            let toMaybe' z = case fst z of
-                               Right a -> a
-                               Left _ -> error "This should be impossible."
-            lift $ tell $ snd x
-            lift $ lift $ withGenT (HIG.mapGenT (HIT.mapMaybeMaybeT p)) (toMaybe' <$> g)
-          Left (GenException e) -> throwE $ GenException e
-          _ -> try (k + 1)
-  in
-    try 0
+  let try k =
+        if k > 100
+          then throwE Retry
+          else do
+            (x, g) <- lift $ lift $ HGen.freeze $ HGen.scale (2 * k +) (runWriterT (runExceptT gen0))
+            case (p <$>) $ fst x of
+              Right (Just _) -> do
+                let withGenT f = H.fromGenT . f . H.toGenT
+                let toMaybe' z = case fst z of
+                      Right a -> a
+                      Left _ -> error "This should be impossible."
+                lift $ tell $ snd x
+                lift $ lift $ withGenT (HIG.mapGenT (HIT.mapMaybeMaybeT p)) (toMaybe' <$> g)
+              Left (GenException e) -> throwE $ GenException e
+              _ -> try (k + 1)
+   in try 0
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

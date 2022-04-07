@@ -1,6 +1,7 @@
 module Spec.TicTacToe.MoveSequence (
   moveSequencePermutationGenSelfTest,
 ) where
+
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
@@ -84,29 +85,33 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "InvalidWin"
         , match = Not $ Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = \moves -> genFilter (\ w -> containsWin w
-                                        && satisfiesExpression (Not locationSequenceIsValid) w) $ do
-            if length moves < 2
-               then retry
-               else do
-                 winlocs <- Set.toList <$> element winTileSets
-                 whofirst <- element [[moves, winlocs], [winlocs, moves]]
-                 pure $ join $ transpose whofirst
+        , morphism = \moves -> genFilter
+            ( \w ->
+                containsWin w
+                  && satisfiesExpression (Not locationSequenceIsValid) w
+            )
+            $ do
+              if length moves < 2
+                then retry
+                else do
+                  winlocs <- Set.toList <$> element winTileSets
+                  whofirst <- element [[moves, winlocs], [winlocs, moves]]
+                  pure $ join $ transpose whofirst
         }
     , Morphism
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , morphism = \moves ->
-               genFilter (\w -> containsWin w && satisfiesExpression locationSequenceIsValid w) $ do
-                 let wts = filter (not . any (`elem` moves)) winTileSets
-                 if null wts || length moves < 2 || length moves > 6
-                    then retry
-                    else do
-                      winlocs <- Set.toList <$> element winTileSets
-                      whofirst <- element [[moves, winlocs], [winlocs, moves]]
-                      let res = join $ transpose whofirst
-                      pure res
+            genFilter (\w -> containsWin w && satisfiesExpression locationSequenceIsValid w) $ do
+              let wts = filter (not . any (`elem` moves)) winTileSets
+              if null wts || length moves < 2 || length moves > 6
+                then retry
+                else do
+                  winlocs <- Set.toList <$> element winTileSets
+                  whofirst <- element [[moves, winlocs], [winlocs, moves]]
+                  let res = join $ transpose whofirst
+                  pure res
         }
     ]
 

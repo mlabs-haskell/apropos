@@ -50,3 +50,7 @@ cabal.project.local*
 # direnv 
 .envrc 
 .direnv
+
+# Hoogle 
+.hoogle/
+.haddock/

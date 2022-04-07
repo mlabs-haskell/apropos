@@ -42,7 +42,8 @@ module Apropos (
   abstract,
   gotoSum,
   abstractsProperties,
-  (|:->),
+  (&&&),
+  (>>>),
   -- Apropos.HasAbstractions
   HasAbstractions (abstractions),
   AbstractionFor (WrapAbs),
@@ -74,6 +75,7 @@ module Apropos (
   output,
   contractError,
   terminal,
+  matches,
   -- Apropos.Pure
   HasPureRunner (..),
 ) where

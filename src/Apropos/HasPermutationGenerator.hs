@@ -5,7 +5,8 @@ module Apropos.HasPermutationGenerator (
   abstract,
   gotoSum,
   abstractsProperties,
-  (|:->),
+  (&&&),
+  (>>>),
 ) where
 
 import Apropos.Gen
@@ -38,6 +39,9 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
   morphRetryLimit :: (m :+ p) -> Int
   morphRetryLimit _ = 100
+
+  allowRedundentMorphisms :: (p :+ m) -> Bool
+  allowRedundentMorphisms = const False
 
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
@@ -112,7 +116,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
              in elem 1 inEdges
           runRequiredTest = property $
             forAll $ do
-              if isRequired
+              if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
                 then pure ()
                 else
                   failWithFootnote $

@@ -39,7 +39,7 @@ enumerateSolutions f = fromSolution <$> solveAll f
       where
         isInSet k = Just True == Map.lookup k m
 
-satisfiesFormula :: forall p. LogicalModel p => Formula p -> Set p -> Bool
+satisfiesFormula :: forall p. Enumerable p => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
   where
     set :: [p]

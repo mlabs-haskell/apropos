@@ -26,6 +26,7 @@ module Apropos (
   -- Apropos.Gen.Range
   Range,
   linear,
+  linearFrom,
   singleton,
   -- Apropos.HasParameterisedGenerator
   HasParameterisedGenerator (..),

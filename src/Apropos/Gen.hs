@@ -27,6 +27,7 @@ module Apropos.Gen (
   (===),
   Range,
   linear,
+  linearFrom,
   singleton,
 ) where
 import Apropos.Gen.Range
@@ -42,8 +43,10 @@ import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
 import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Internal.Gen qualified as HIG
+import qualified Hedgehog.Internal.Seed as Seed
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Control.Monad.Trans (liftIO)
 
 
 forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
@@ -127,9 +130,20 @@ unMorph (Source s) = (s,[])
 unMorph (Morph s t) = case unMorph s of
                         (s',t') -> (s', t' <> [t])
 
+--newtype GenT m a =
+--GenT {
+--    unGenT :: Size -> Seed -> TreeT (MaybeT m) a
+--  }
+
+reseed :: Seed.Seed -> HIG.GenT m a -> HIG.GenT m a
+reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
+
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+  seed <- liftIO Seed.random
+  (ee,labels) <- H.forAll $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+--  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing
@@ -415,3 +429,4 @@ mapMaybe p gen0 =
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s
 hRange (Linear lo hi) = HRange.linear lo hi
+hRange (LinearFrom mid lo hi) = HRange.linearFrom mid lo hi

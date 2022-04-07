@@ -136,7 +136,7 @@ instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen
 
 baseGen :: Gen [Int]
-baseGen = list (linear 0 10) $ int (linear minBound maxBound)
+baseGen = list (linearFrom 5 0 10) $ int (linear minBound maxBound)
 
 playerSequencePermutationGenSelfTest :: TestTree
 playerSequencePermutationGenSelfTest =

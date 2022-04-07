@@ -7,7 +7,6 @@ module Apropos.HasPermutationGenerator (
   abstractsProperties,
   (|:->),
 ) where
-
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Abstraction
@@ -36,6 +35,8 @@ import Text.Show.Pretty (ppDoc)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
+  morphRetryLimit :: (m :+ p) -> Int
+  morphRetryLimit _ = 100
 
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
@@ -114,13 +115,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                     fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                       $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f t = property $ do
-            om <- morphContainRetry 100 $ mGen (lut ns f)
-            nm <- forAll $ morphism pe om
-            let expected = lut ns t
-                observed = properties nm
-            if expected == observed
-              then pure ()
-              else forAll $ edgeFailsContract pe om nm expected observed
+            let cont om = do
+                           nm <- morphism pe om
+                           let expected = lut ns t
+                               observed = properties nm
+                           if expected == observed
+                             then pure nm
+                             else edgeFailsContract pe om nm expected observed
+            void $ morphContainRetry (morphRetryLimit (Apropos :: m :+ p)) $ Morph (mGen (lut ns f)) (\_ -> pure [cont])
 
   buildGen :: Gen m -> Set p -> Morph m
   buildGen s tp = do

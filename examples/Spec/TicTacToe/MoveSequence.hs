@@ -1,7 +1,6 @@
 module Spec.TicTacToe.MoveSequence (
   moveSequencePermutationGenSelfTest,
 ) where
-
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
@@ -101,7 +100,7 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         , morphism = \moves ->
                genFilter (\w -> containsWin w && satisfiesExpression locationSequenceIsValid w) $ do
                  let wts = filter (not . any (`elem` moves)) winTileSets
-                 if null wts || length moves < 2
+                 if null wts || length moves < 2 || length moves > 6
                     then retry
                     else do
                       winlocs <- Set.toList <$> element winTileSets

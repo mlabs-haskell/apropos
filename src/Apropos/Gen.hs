@@ -43,18 +43,17 @@ import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
 import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Internal.Gen qualified as HIG
-import qualified Hedgehog.Internal.Seed as Seed
+import Hedgehog.Internal.Seed qualified as Seed
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Control.Monad.Trans (liftIO)
-
 
 forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
 forAllWithRetries lim g = do
   (ee,labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
   mapM_ (H.label . fromString) labels
   case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
@@ -64,7 +63,7 @@ forAllNoShrink g = do
   (ee,labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
@@ -73,7 +72,7 @@ forAll g = do
   (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.failure
+    Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
@@ -105,7 +104,7 @@ morphContainRetry :: Show m => Int -> Morph m -> PropertyT IO m
 morphContainRetry retries m = do
   r <- morphWithRetries retries m
   case r of
-    Nothing -> forAllNoShrink $ morphAsGen m -- we don't want to shrink on Retry failure
+    Nothing -> H.footnote "retry limit reached" >> H.discard
     Just so -> pure so
 
 morphWithRetries :: forall a. Show a => Int -> Morph a -> PropertyT IO (Maybe a)
@@ -129,7 +128,6 @@ unMorph :: Morph a -> (Gen a, [a -> Gen [a -> Gen a]])
 unMorph (Source s) = (s,[])
 unMorph (Morph s t) = case unMorph s of
                         (s',t') -> (s', t' <> [t])
-
 --newtype GenT m a =
 --GenT {
 --    unGenT :: Size -> Seed -> TreeT (MaybeT m) a
@@ -141,9 +139,8 @@ reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
   seed <- liftIO Seed.random
-  (ee,labels) <- H.forAll $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+  (ee,labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
 --  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
-
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing
@@ -181,7 +178,9 @@ backtrackingRetryTraversals retries g trs = go 1
         Just so -> do
           res' <- co so 1 ts
           case res' of
-            Nothing -> co s (l+1) (t:ts)
+            Nothing -> if l > retries
+                          then pure Nothing
+                          else co s (l+1) (t:ts)
             Just so' -> pure $ Just so'
 
 backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)

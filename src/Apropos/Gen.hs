@@ -1,12 +1,9 @@
 module Apropos.Gen (
-  Morph (..),
-  morphAsGen,
-  morphContain,
-  morphContainRetry,
   FreeGen (..),
   Gen,
-  GenException,
+  GenException(..),
   forAll,
+  forAllWith,
   gen,
   label,
   failWithFootnote,
@@ -18,6 +15,7 @@ module Apropos.Gen (
   choice,
   genFilter,
   freeze,
+  prune,
   scale,
   retry,
   onRetry,
@@ -30,7 +28,7 @@ module Apropos.Gen (
 ) where
 
 import Apropos.Gen.Range
-import Control.Monad (guard, replicateM, (>=>))
+import Control.Monad (guard, replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -45,15 +43,6 @@ import Hedgehog.Internal.Gen qualified as HIG
 import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Range qualified as HRange
 
-forAllNoShrink :: Show a => Gen a -> PropertyT IO a
-forAllNoShrink g = do
-  (ee, labels) <- H.forAll $ HGen.prune $ runWriterT (runExceptT $ gen g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.discard
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure a
-
 forAll :: Show a => Gen a -> PropertyT IO a
 forAll g = do
   (ee, labels) <- H.forAll $ runWriterT (runExceptT $ gen g)
@@ -63,129 +52,18 @@ forAll g = do
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
-data Morph m where
-  Source :: Gen m -> Morph m
-  Morph :: Morph m -> (m -> Gen [m -> Gen m]) -> Morph m
 
---TODO use Morphism instead then we can print the Morphism name
---i.e. Morph :: Morph p m -> (m -> Gen [Morphism p m]) -> Morph p m
---also Source has been introduced - we want to be able to partition the space with a set of sources! XD
-instance Show (m -> Gen m) where
-  show _ = "GenMorphism"
-
-morphAsGen :: Morph m -> Gen m
-morphAsGen (Source g) = g
-morphAsGen (Morph m g) = do
-  n <- morphAsGen m
-  t <- g n
-  foldl (>=>) pure t n
-
-morphContain :: Show m => Morph m -> PropertyT IO m
-morphContain (Source g) = forAll g
-morphContain (Morph m g) = do
-  n <- morphContain m
-  t <- forAllNoShrink $ g n
-  foldl (\a b -> a >>= forAll . b) (pure n) t
-
-morphContainRetry :: Show m => Int -> Morph m -> PropertyT IO m
-morphContainRetry retries m = do
-  r <- morphWithRetries retries m
-  case r of
-    Nothing -> H.footnote "retry limit reached" >> H.discard
-    Just so -> pure so
-
-morphWithRetries :: forall a. Show a => Int -> Morph a -> PropertyT IO (Maybe a)
-morphWithRetries retries m =
-  backtrackingRetryTraversals retries (forAllRetryToMaybeScale s) (genTraversal <$> t)
-  where
-    st :: (Gen a, [a -> Gen [a -> Gen a]])
-    st = unMorph m
-    s :: Gen a
-    s = fst st
-    t :: [a -> Gen [a -> Gen a]]
-    t = snd st
-    genTraversal :: (a -> Gen [a -> Gen a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
-    genTraversal gt = \a -> do
-      tr <- forAllNoShrink (gt a)
-      pure $ sizableTr <$> tr
-    sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
-    sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
-
-unMorph :: Morph a -> (Gen a, [a -> Gen [a -> Gen a]])
-unMorph (Source s) = (s, [])
-unMorph (Morph s t) = case unMorph s of
-  (s', t') -> (s', t' <> [t])
-
-forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
-forAllRetryToMaybeScale g s = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+forAllWith :: forall a. (a -> String) -> Gen a -> PropertyT IO a
+forAllWith s g = do
+  (ee, labels) <- H.forAllWith sh $ runWriterT (runExceptT $ gen g)
   mapM_ (H.label . fromString) labels
   case ee of
-    Left Retry -> pure Nothing
+    Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure $ Just a
-
-backtrackingRetryTraversals ::
-  forall a m.
-  Monad m =>
-  Int ->
-  (Int -> m (Maybe a)) ->
-  [a -> m [Int -> a -> m (Maybe a)]] ->
-  m (Maybe a)
-backtrackingRetryTraversals retries g trs = go 1
-  where
-    go :: Int -> m (Maybe a)
-    go l = do
-      res <- g l
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- co so 1 trs
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
-    co :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
-    co s _ [] = pure $ Just s
-    co s l (t : ts) = do
-      ts' <- t s
-      res <- backtrackingRetryTraverse retries s ts'
-      case res of
-        Nothing -> pure Nothing
-        Just so -> do
-          res' <- co so 1 ts
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else co s (l + 1) (t : ts)
-            Just so' -> pure $ Just so'
-
-backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
-backtrackingRetryTraverse _ s [] = pure $ Just s
-backtrackingRetryTraverse retries s (t : ts) = go 1
-  where
-    go :: Int -> m (Maybe a)
-    go l = do
-      res <- t l s
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- backtrackingRetryTraverse retries so ts
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
+    Right a -> pure a
+  where sh :: (Either GenException a, Set String) -> String
+        sh (Left e,_) = show e
+        sh (Right a,_) = s a
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -223,7 +101,9 @@ data FreeGen next where
     (a -> next) ->
     FreeGen next
   Scale :: forall a next. (Int -> Int) -> Gen a -> (a -> next) -> FreeGen next
+  -- TODO - how useful is Freeze? perhaps not something we need to expose
   Freeze :: forall a next. Gen a -> ((a, Gen a) -> next) -> FreeGen next
+  Prune :: forall a next. Gen a -> (a -> next) -> FreeGen next
   GenWrap :: forall a next. Generator a -> (a -> next) -> FreeGen next
   ThrowRetry :: forall a next. (a -> next) -> FreeGen next
   OnRetry :: forall a next. Gen a -> Gen a -> (a -> next) -> FreeGen next
@@ -240,6 +120,7 @@ instance Functor FreeGen where
   fmap f (GenFilter c g next) = GenFilter c g (f . next)
   fmap f (Scale s g next) = Scale s g (f . next)
   fmap f (Freeze g next) = Freeze g (f . next)
+  fmap f (Prune g next) = Prune g (f . next)
   fmap f (GenWrap g next) = GenWrap g (f . next)
   fmap f (ThrowRetry next) = ThrowRetry (f . next)
   fmap f (OnRetry a b next) = OnRetry a b (f . next)
@@ -278,6 +159,9 @@ scale s g = liftF (Scale s g id)
 
 freeze :: Gen a -> Gen (a, Gen a)
 freeze g = liftF (Freeze g id)
+
+prune :: Gen a -> Gen a
+prune g = liftF (Prune g id)
 
 -- let's keep this internal
 genWrap :: Generator a -> Gen a
@@ -341,6 +225,7 @@ gen (Free (Scale s g next)) =
 gen (Free (Freeze g next)) = do
   (x, gw) <- HGen.freeze (gen g)
   gen $ next (x, genWrap gw)
+gen (Free (Prune g next)) = HGen.prune (gen g) >>= gen . next
 gen (Free (GenWrap g next)) = g >>= gen . next
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do

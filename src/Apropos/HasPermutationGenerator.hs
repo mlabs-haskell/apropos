@@ -10,6 +10,7 @@ module Apropos.HasPermutationGenerator (
 ) where
 
 import Apropos.Gen
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Abstraction
 import Apropos.HasPermutationGenerator.Contract
@@ -37,8 +38,8 @@ import Text.Show.Pretty (ppDoc)
 
 class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
-  morphRetryLimit :: (m :+ p) -> Int
-  morphRetryLimit _ = 100
+  traversalRetryLimit :: (m :+ p) -> Int
+  traversalRetryLimit _ = 100
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
   allowRedundentMorphisms = const False
@@ -96,14 +97,14 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
         Bool ->
         Map Int (Set p) ->
         Map (Int, Int) [Morphism p m] ->
-        (Set p -> Morph m) ->
+        (Set p -> Traversal p m) ->
         Morphism p m ->
         Group
       testEdge testRequired ns pem mGen pe =
         Group (fromString (name pe)) $
           addRequiredTest
             testRequired
-            [ (edgeTestName f t, runEdgeTest f t)
+            [ (edgeTestName f t, runEdgeTest f)
             | (f, t) <- matchesEdges
             ]
         where
@@ -123,17 +124,10 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                     renderStyle ourStyle $
                       fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = property $ do
-            let cont om = do
-                  nm <- morphism pe om
-                  let expected = lut ns t
-                      observed = properties nm
-                  if expected == observed
-                    then pure nm
-                    else edgeFailsContract pe om nm expected observed
-            void $ morphContainRetry (morphRetryLimit (Apropos :: m :+ p)) $ Morph (mGen (lut ns f)) (\_ -> pure [cont])
+          runEdgeTest f = property $ do
+            void $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $ Traversal (mGen (lut ns f)) (\_ -> pure [wrapMorphismWithContractCheck pe])
 
-  buildGen :: Gen m -> Set p -> Morph m
+  buildGen :: Gen m -> Set p -> Traversal p m
   buildGen s tp = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
@@ -155,7 +149,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                         $+$ hang "No Edge Between here:" 4 (ppDoc a)
                         $+$ hang "            and here:" 4 (ppDoc b)
           transformModel sn pedges edges distmap m targetProperties
-     in Morph (Source s) (go tp)
+     in Traversal (Source s) (go tp)
 
   findNoPath ::
     m :+ p ->
@@ -172,7 +166,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       ]
     where
       -- The score function is designed to favor sets which are similar and small
-      -- The assumption being that smaller morphims are more general
+      -- The assumption being that smaller traversalims are more general
       score :: Ord a => Set a -> Set a -> (Int, Int)
       score l r = (hamming l r, length $ l `Set.intersection` r)
       hamming :: Ord a => Set a -> Set a -> Int
@@ -187,25 +181,31 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
     Map Int (Map Int Int) ->
     m ->
     Set p ->
-    Gen [m -> Gen m]
+    Gen [Morphism p m]
   transformModel nodes pedges edges distmap m to = do
     pathOptions <- findPathOptions (Apropos :: m :+ p) edges distmap nodes (properties m) to
-    pure $ traversePath pedges pathOptions
+    sequence $ traversePath pedges pathOptions
 
   traversePath ::
     Map (Int, Int) [Morphism p m] ->
     [(Int, Int)] ->
-    [m -> Gen m]
+    [Gen (Morphism p m)]
   traversePath edges es = go <$> es
     where
-      go :: (Int, Int) -> m -> Gen m
-      go h m = do
+      go :: (Int, Int) -> Gen (Morphism p m)
+      go h = do
         pe <- case Map.lookup h edges of
           Nothing -> failWithFootnote "this should never happen"
           Just so -> pure so
-        tr <- element pe
+        wrapMorphismWithContractCheck <$> element pe
+
+  -- TODO move to Morphism module
+  wrapMorphismWithContractCheck :: Morphism p m -> Morphism p m
+  wrapMorphismWithContractCheck mo = mo { morphism = wrap }
+    where
+      wrap m = do
         let inprops = properties m
-            mexpected = runContract (contract tr) (name tr) inprops
+            mexpected = runContract (contract mo) (name mo) inprops
         case mexpected of
           Left e -> failWithFootnote e
           Right Nothing ->
@@ -220,15 +220,15 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
                 failWithFootnote $
                   renderStyle ourStyle $
                     "Morphism contract produces invalid model"
-                      $+$ hang "Edge:" 4 (ppDoc $ name tr)
+                      $+$ hang "Edge:" 4 (ppDoc $ name mo)
                       $+$ hang "Input:" 4 (ppDoc inprops)
                       $+$ hang "Output:" 4 (ppDoc expected)
-            label $ fromString $ name tr
-            nm <- morphism tr m
+            label $ fromString $ name mo
+            nm <- morphism mo m
             let observed = properties nm
             if expected == observed
               then pure nm
-              else edgeFailsContract tr m nm expected observed
+              else edgeFailsContract mo m nm expected observed
 
   findPathOptions ::
     m :+ p ->

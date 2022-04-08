@@ -64,6 +64,7 @@ library
   exposed-modules:
     Apropos
     Apropos.Gen
+    Apropos.Gen.BacktrackingTraversal
     Apropos.Gen.Enumerate
     Apropos.Gen.Range
     Apropos.HasAbstractions

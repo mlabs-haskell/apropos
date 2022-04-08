@@ -12,7 +12,6 @@ module Apropos (
   HasLogicalModel (..),
   -- Apropos.Gen
   Gen,
-  Morph (..),
   label,
   failWithFootnote,
   bool,
@@ -23,6 +22,8 @@ module Apropos (
   choice,
   genFilter,
   retry,
+  -- Apropos.Gen.Traversal
+  Traversal (..),
   -- Apropos.Gen.Range
   Range,
   linear,
@@ -81,6 +82,7 @@ module Apropos (
 ) where
 
 import Apropos.Gen
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator

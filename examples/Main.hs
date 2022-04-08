@@ -4,6 +4,7 @@ import Spec.Int
 import Spec.IntEither
 import Spec.IntPair
 import Spec.IntPermutationGen
+import Spec.Rational
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.Move
@@ -40,6 +41,10 @@ tests =
     , testGroup
         "IntEither composite model"
         [ intEitherGenTests
+        ]
+    , testGroup
+        "Rational model"
+        [ ratGenSelfTests
         ]
     , testGroup
         "TicTacToe"

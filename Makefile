@@ -2,10 +2,8 @@
 # are made availible by the nix shell defined in shell.nix.
 # In most cases you should execute Make after entering nix-shell.
 
-SHELL := /usr/bin/env bash
-
 .PHONY: hoogle build test watch ghci readme_contents \
-	format lint refactor requires_nix_shell
+	format lint refactor requires_nix_shell haddock
 
 usage:
 	@echo "usage: make <command> [OPTIONS]"
@@ -25,15 +23,18 @@ usage:
 	@echo "  format_check        -- Check source code formatting without making changes"
 	@echo "  cabalfmt            -- Apply cabal formatting with cabal-fmt"
 	@echo "  cabalfmt_check      -- Check cabal files for formatting errors without making changes"
-	@echo "  nixfmt              -- Apply nix formatting with nixfmt"
-	@echo "  nixfmt_check        -- Check nix files for format errors"
+	@echo "  nixpkgsfmt          -- Apply nix formatting with nixfmt"
+	@echo "  nixpkgsfmt_check    -- Check nix files for format errors"
 	@echo "  lint                -- Check the sources with hlint"
 	@echo "  refactor            -- Automatically apply hlint refactors, with prompt"
 	@echo "  readme_contents     -- Add table of contents to README"
 	@echo "  update_plutus       -- Update plutus version with niv"
 
 hoogle: requires_nix_shell
-	hoogle server --local
+	pkill hoogle || true
+	hoogle generate --local=.haddock --database=.hoogle/local.hoo
+	hoogle server --local -p 8080 >> /dev/null &
+	hoogle server --local --database=.hoogle/local.hoo -p 8081 >> /dev/null &
 
 STACK_EXE_PATH = $(shell stack $(STACK_FLAGS) path --local-install-root)/bin
 
@@ -70,7 +71,7 @@ format: requires_nix_shell
 format_check: requires_nix_shell
 	fourmolu --mode check --check-idempotence $(FORMAT_EXTENSIONS) $(FORMAT_SOURCES)
 
-CABAL_SOURCES := $(shell git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.cabal' )
+CABAL_SOURCES := $(shell fd -e cabal)
 
 cabalfmt: requires_nix_shell
 	cabal-fmt --inplace $(CABAL_SOURCES)
@@ -79,13 +80,13 @@ cabalfmt_check: requires_nix_shell
 	cabal-fmt --check $(CABAL_SOURCES)
 
 # Nix files to format
-NIX_SOURCES := $(shell git ls-tree -r HEAD --full-tree --name-only | grep -E '.*\.nix' )
+NIX_SOURCES := $(shell fd -e nix)
 
-nixfmt: requires_nix_shell
-	nixfmt $(NIX_SOURCES)
+nixpkgsfmt: requires_nix_shell
+	nixpkgs-fmt $(NIX_SOURCES)
 
-nixfmt_check: requires_nix_shell
-	nixfmt --check $(NIX_SOURCES)
+nixpkgsfmt_check: requires_nix_shell
+	nixpkgs-fmt --check $(NIX_SOURCES)
 
 # Check with hlint, currently I couldn't get --refactor to work
 lint: requires_nix_shell
@@ -118,3 +119,6 @@ update_plutus:
 	@echo "Make sure to update the plutus rev in cabal.project with:"
 	@echo "    commit: $(PLUTUS_REV)"
 	@echo "This may require further resolution of dependency versions."
+
+haddock: requires_nix_shell
+	cabal haddock --haddock-html --haddock-hoogle --builddir=.haddock

@@ -34,7 +34,7 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 
 instance HasParameterisedGenerator IntProp Int where
-  parameterisedGenerator s = do
+  parameterisedGenerator s = Source $ do
     i <-
       if IsZero `elem` s
         then pure 0
@@ -44,12 +44,12 @@ instance HasParameterisedGenerator IntProp Int where
             else
               if IsMaxBound `elem` s
                 then pure maxBound
-                else int (linear 11 (maxBound -1))
+                else int (linear 11 (maxBound - 1))
     if IsNegative `elem` s
       then
         if IsMinBound `elem` s
           then pure minBound
-          else pure (- i)
+          else pure (-i)
       else pure i
 
 intGenTests :: TestTree

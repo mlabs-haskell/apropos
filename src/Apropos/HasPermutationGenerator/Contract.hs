@@ -114,7 +114,7 @@ runContractInternal = runContractInternal' . interpret
           Just () -> pure $ Just s'
           Nothing -> pure Nothing
 
---e.g. has ThisThing >> add ThatThing
+-- e.g. has ThisThing >> add ThatThing
 has :: Eq p => p -> Contract p ()
 has p = do
   s <- readContractInput
@@ -122,11 +122,11 @@ has p = do
     then pure ()
     else terminal
 
---e.g. hasAll [ThisThing,ThatThing] >> add TheOtherThing
+-- e.g. hasAll [ThisThing,ThatThing] >> add TheOtherThing
 hasAll :: Eq p => [p] -> Contract p ()
 hasAll = mapM_ has
 
---e.g. hasn't ThisThing >> add ThatThing
+-- e.g. hasn't ThisThing >> add ThatThing
 hasn't :: Eq p => p -> Contract p ()
 hasn't p = do
   s <- readContractInput
@@ -134,7 +134,7 @@ hasn't p = do
     then terminal
     else pure ()
 
---e.g. hasNone [ThisThing,ThatThing] >> add TheOtherThing
+-- e.g. hasNone [ThisThing,ThatThing] >> add TheOtherThing
 hasNone :: Eq p => [p] -> Contract p ()
 hasNone = mapM_ hasn't
 

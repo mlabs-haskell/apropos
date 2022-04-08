@@ -63,7 +63,7 @@ instance HasPermutationGenerator IntProp Int where
         { name = "MakeLarge"
         , match = Not $ Var IsLarge
         , contract = clear >> addAll [IsLarge, IsPositive]
-        , morphism = \_ -> int (linear 11 (maxBound -1))
+        , morphism = \_ -> int (linear 11 (maxBound - 1))
         }
     , Morphism
         { name = "MakeSmall"
@@ -79,7 +79,7 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , morphism = \i -> pure (- i)
+        , morphism = \i -> pure (-i)
         }
     ]
 

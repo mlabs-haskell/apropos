@@ -34,7 +34,7 @@ module Apropos.Gen (
 import Apropos.Gen.Range
 import Control.Monad (guard, replicateM, (>=>))
 import Control.Monad.Free
-import Control.Monad.Trans (lift, liftIO)
+import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
 import Data.Set (Set)
@@ -44,7 +44,7 @@ import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Internal.Gen qualified as HIG
-import Hedgehog.Internal.Seed qualified as Seed
+--import Hedgehog.Internal.Seed qualified as Seed
 import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Range qualified as HRange
 
@@ -133,14 +133,14 @@ unMorph (Morph s t) = case unMorph s of
 --    unGenT :: Size -> Seed -> TreeT (MaybeT m) a
 --  }
 
-reseed :: Seed.Seed -> HIG.GenT m a -> HIG.GenT m a
-reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
+--reseed :: Seed.Seed -> HIG.GenT m a -> HIG.GenT m a
+--reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
 
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
-  seed <- liftIO Seed.random
-  (ee, labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
-  --  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+--  seed <- liftIO Seed.random
+--  (ee, labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
+  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing

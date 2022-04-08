@@ -7,8 +7,6 @@ module Apropos.Gen (
   Gen,
   GenException,
   forAll,
-  forAllWithRetries,
-  handleRetries,
   gen,
   label,
   failWithFootnote,
@@ -44,18 +42,8 @@ import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Internal.Gen qualified as HIG
---import Hedgehog.Internal.Seed qualified as Seed
 import Hedgehog.Internal.Tree qualified as HIT
 import Hedgehog.Range qualified as HRange
-
-forAllWithRetries :: Show a => Int -> Gen a -> PropertyT IO a
-forAllWithRetries lim g = do
-  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ handleRetries lim g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.discard
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure a
 
 forAllNoShrink :: Show a => Gen a -> PropertyT IO a
 forAllNoShrink g = do
@@ -128,18 +116,8 @@ unMorph (Source s) = (s, [])
 unMorph (Morph s t) = case unMorph s of
   (s', t') -> (s', t' <> [t])
 
---newtype GenT m a =
---GenT {
---    unGenT :: Size -> Seed -> TreeT (MaybeT m) a
---  }
-
---reseed :: Seed.Seed -> HIG.GenT m a -> HIG.GenT m a
---reseed s g = HIG.GenT $ \si _ -> HIG.unGenT g si s
-
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
---  seed <- liftIO Seed.random
---  (ee, labels) <- H.forAll $ HGen.prune $ reseed seed $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
   (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
   mapM_ (H.label . fromString) labels
   case ee of
@@ -386,20 +364,6 @@ gen (Pure a) = pure a
   case r of
     Right x -> gen $ b x
     Left e -> throwE e
-
-handleRetries :: forall a. Int -> Gen a -> Generator a
-handleRetries n g = go n
-  where
-    go :: Int -> Generator a
-    go l = do
-      res <- lift $ runExceptT (gen $ scale ((n - l) +) g)
-      case res of
-        Right r -> pure r
-        Left Retry ->
-          if l < 1
-            then throwE Retry
-            else go (l - 1)
-        Left err -> throwE err
 
 fromPred :: (a -> Bool) -> a -> Maybe a
 fromPred p a = a <$ guard (p a)

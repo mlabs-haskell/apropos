@@ -23,7 +23,7 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
   rootRetryLimit :: m :+ p -> Int
   rootRetryLimit _ = 100
 
---TODO caching calls to the solver in genSatisfying would probably be worth it
+-- TODO caching calls to the solver in genSatisfying would probably be worth it
 runGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>

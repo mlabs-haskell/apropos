@@ -14,7 +14,6 @@ module Apropos.Gen (
   element,
   choice,
   genFilter,
-  freeze,
   prune,
   scale,
   retry,
@@ -101,10 +100,7 @@ data FreeGen next where
     (a -> next) ->
     FreeGen next
   Scale :: forall a next. (Int -> Int) -> Gen a -> (a -> next) -> FreeGen next
-  -- TODO - how useful is Freeze? perhaps not something we need to expose
-  Freeze :: forall a next. Gen a -> ((a, Gen a) -> next) -> FreeGen next
   Prune :: forall a next. Gen a -> (a -> next) -> FreeGen next
-  GenWrap :: forall a next. Generator a -> (a -> next) -> FreeGen next
   ThrowRetry :: forall a next. (a -> next) -> FreeGen next
   OnRetry :: forall a next. Gen a -> Gen a -> (a -> next) -> FreeGen next
 
@@ -119,9 +115,7 @@ instance Functor FreeGen where
   fmap f (GenChoice gs next) = GenChoice gs (f . next)
   fmap f (GenFilter c g next) = GenFilter c g (f . next)
   fmap f (Scale s g next) = Scale s g (f . next)
-  fmap f (Freeze g next) = Freeze g (f . next)
   fmap f (Prune g next) = Prune g (f . next)
-  fmap f (GenWrap g next) = GenWrap g (f . next)
   fmap f (ThrowRetry next) = ThrowRetry (f . next)
   fmap f (OnRetry a b next) = OnRetry a b (f . next)
 
@@ -157,15 +151,8 @@ genFilter c g = liftF (GenFilter c g id)
 scale :: (Int -> Int) -> Gen a -> Gen a
 scale s g = liftF (Scale s g id)
 
-freeze :: Gen a -> Gen (a, Gen a)
-freeze g = liftF (Freeze g id)
-
 prune :: Gen a -> Gen a
 prune g = liftF (Prune g id)
-
--- let's keep this internal
-genWrap :: Generator a -> Gen a
-genWrap g = liftF (GenWrap g id)
 
 retry :: Gen a
 retry = liftF (ThrowRetry id)
@@ -222,11 +209,7 @@ gen (Free (GenFilter c g next)) = do
   gen $ next res
 gen (Free (Scale s g next)) =
   HGen.scale (\(HRange.Size x) -> HRange.Size (s x)) (gen g) >>= gen . next
-gen (Free (Freeze g next)) = do
-  (x, gw) <- HGen.freeze (gen g)
-  gen $ next (x, genWrap gw)
 gen (Free (Prune g next)) = HGen.prune (gen g) >>= gen . next
-gen (Free (GenWrap g next)) = g >>= gen . next
 gen (Free (ThrowRetry _)) = throwE Retry
 gen (Free (OnRetry a b next)) = do
   res <- lift $ runExceptT (gen a)

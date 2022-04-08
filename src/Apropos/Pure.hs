@@ -28,15 +28,15 @@ class
   --   contexts. That is to say:
   --
   --   - When the `expect` expression /is/ satisfied by the
-  --     properties of a value `m` then `script` must evaluate to 
+  --     properties of a value `m` then `script` must evaluate to
   --     `True`.
   --
   --   - When the `expect` expression /is not/ satisfied by the
-  --     properties of a value `m` then `script` must evaluate to 
+  --     properties of a value `m` then `script` must evaluate to
   --     `False`.
   expect :: m :+ p -> Formula p
 
-  -- | If a value `m` satisfies `expect`, then `script` should 
+  -- | If a value `m` satisfies `expect`, then `script` should
   --   return `True`. Otherwise, it should return `False`.
   script :: m :+ p -> (m -> Bool)
 

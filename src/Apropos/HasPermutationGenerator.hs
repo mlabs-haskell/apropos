@@ -199,37 +199,6 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
           Just so -> pure so
         wrapMorphismWithContractCheck <$> element pe
 
-  -- TODO move to Morphism module
-  wrapMorphismWithContractCheck :: Morphism p m -> Morphism p m
-  wrapMorphismWithContractCheck mo = mo {morphism = wrap}
-    where
-      wrap m = do
-        let inprops = properties m
-            mexpected = runContract (contract mo) (name mo) inprops
-        case mexpected of
-          Left e -> failWithFootnote e
-          Right Nothing ->
-            failWithFootnote $
-              renderStyle ourStyle $
-                "Morphism doesn't work. This is a model error"
-                  $+$ "This should never happen at this point in the program."
-          Right (Just expected) -> do
-            if satisfiesFormula logic expected
-              then pure ()
-              else
-                failWithFootnote $
-                  renderStyle ourStyle $
-                    "Morphism contract produces invalid model"
-                      $+$ hang "Edge:" 4 (ppDoc $ name mo)
-                      $+$ hang "Input:" 4 (ppDoc inprops)
-                      $+$ hang "Output:" 4 (ppDoc expected)
-            label $ fromString $ name mo
-            nm <- morphism mo m
-            let observed = properties nm
-            if expected == observed
-              then pure nm
-              else edgeFailsContract mo m nm expected observed
-
   findPathOptions ::
     m :+ p ->
     [(Int, Int)] ->
@@ -366,23 +335,3 @@ distanceMap edges =
                 Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
                 _ -> ma
 
-edgeFailsContract ::
-  forall m p a.
-  HasLogicalModel p m =>
-  Show m =>
-  Morphism p m ->
-  m ->
-  m ->
-  Set p ->
-  Set p ->
-  Gen a
-edgeFailsContract tr m nm expected observed =
-  failWithFootnote $
-    renderStyle ourStyle $
-      "Morphism fails its contract."
-        $+$ hang "Edge:" 4 (ppDoc $ name tr)
-        $+$ hang "InputModel:" 4 (ppDoc (ppDoc m))
-        $+$ hang "InputProperties" 4 (ppDoc $ Set.toList (properties m :: Set p))
-        $+$ hang "OutputModel:" 4 (ppDoc (ppDoc nm))
-        $+$ hang "ExpectedProperties:" 4 (ppDoc (Set.toList expected))
-        $+$ hang "ObservedProperties:" 4 (ppDoc (Set.toList observed))

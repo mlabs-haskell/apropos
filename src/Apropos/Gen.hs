@@ -202,7 +202,7 @@ gen (Free (GenChoice gs next)) = do
   if l == 0
     then throwE $ GenException "GenChoice: list length zero"
     else do
-      i <- lift (HGen.int (HRange.linear 0 (l -1)))
+      i <- lift (HGen.int (HRange.linear 0 (l - 1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
   res <- filter' c $ gen g

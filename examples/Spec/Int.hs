@@ -49,7 +49,7 @@ instance HasParameterisedGenerator IntProp Int where
       then
         if IsMinBound `elem` s
           then pure minBound
-          else pure (- i)
+          else pure (-i)
       else pure i
 
 intGenTests :: TestTree

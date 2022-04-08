@@ -334,4 +334,3 @@ distanceMap edges =
                 Nothing -> Map.insert node (Map.insert t d curdists) ma
                 Just d' | d < d' -> Map.insert node (Map.insert t d curdists) ma
                 _ -> ma
-

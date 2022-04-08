@@ -14,6 +14,7 @@ import Apropos.LogicalModel
 import Control.Monad ((>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -22,8 +23,6 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
-import Data.String (fromString)
-
 
 data Morphism p m = Morphism
   { name :: String
@@ -115,5 +114,3 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
 
     ourStyle :: Style
     ourStyle = style {lineLength = 80}
-
-

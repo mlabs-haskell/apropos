@@ -171,7 +171,15 @@ removeAllIf p qs = branches [has p >> removeAll qs, hasn't p]
 branchIf :: (Eq p, Show p) => p -> Contract p () -> Contract p () -> Contract p ()
 branchIf p a b = branches [has p >> a, hasn't p >> b]
 
-branches :: (Eq p, Show p) => [Contract p ()] -> Contract p ()
+{- | Any of the `Contract`s provided in the argument may be true.
+     However, for all branches that _do_ succeed, the resultant
+     property sets must be _equal_.
+-}
+branches ::
+  (Eq p, Show p) =>
+  -- | A list of contracts, which _may_ be hold.
+  [Contract p ()] ->
+  Contract p ()
 branches cs = do
   i <- readContractInput
   e <- readContractEdgeName

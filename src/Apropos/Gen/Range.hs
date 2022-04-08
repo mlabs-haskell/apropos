@@ -1,3 +1,10 @@
+{- |
+Module: Apropos.Gen.Range
+Maintainer: fraser@mlabs.city
+Description: TODO
+
+TODO
+-}
 module Apropos.Gen.Range (
   Range (..),
   linear,
@@ -7,11 +14,20 @@ module Apropos.Gen.Range (
   rangeLo,
 ) where
 
-data Range = Linear Int Int | Singleton Int
+{- | Data type representing a linear range of `Int`s or
+     a single `Int`.
+-}
+data Range
+  = -- | A linear range from one `Int` to another.
+    Linear Int Int
+  | -- | A single `Int`.
+    Singleton Int
 
+-- Given two `Int`s, creates a `Range` from one to the other.
 linear :: Int -> Int -> Range
 linear = Linear
 
+-- Given a single `Int`, creates a `Range` for that value.
 singleton :: Int -> Range
 singleton = Singleton
 

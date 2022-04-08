@@ -166,7 +166,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
       ]
     where
       -- The score function is designed to favor sets which are similar and small
-      -- The assumption being that smaller traversalims are more general
+      -- The assumption being that smaller morphisms are more general
       score :: Ord a => Set a -> Set a -> (Int, Int)
       score l r = (hamming l r, length $ l `Set.intersection` r)
       hamming :: Ord a => Set a -> Set a -> Int

@@ -97,23 +97,68 @@ failWithFootnote s = liftF (FailWithFootnote s id)
 bool :: Gen Bool
 bool = liftF (GenBool id)
 
--- | Given a `Range` returns a generator for `Int`s within that range.
-int :: Range -> Gen Int
+-- | Generator for an `Int`.
+int ::
+  -- | Range in which the `Int` should lie.
+  Range ->
+  Gen Int
 int r = liftF (GenInt r id)
 
-list :: Range -> Gen a -> Gen [a]
+-- | Generator for lists of a given type.
+list ::
+  -- | A range for the length of the list.
+  Range ->
+  -- | A generator for the desired type of the list.
+  Gen a ->
+  -- | A generator for a list of the desired type.
+  Gen [a]
 list r g = liftF (GenList r g id)
 
-shuffle :: Show a => [a] -> Gen [a]
+{- | Given a list, returns a generator for lists of the
+     same elements but in a different order.
+-}
+shuffle ::
+  Show a =>
+  -- | A list of elements to be shuffled by the generator.
+  [a] ->
+  -- | A generator that creates shuffled lists from the given
+  --   list.
+  Gen [a]
 shuffle l = liftF (GenShuffle l id)
 
-element :: Show a => [a] -> Gen a
+-- | A generator for an element from a list.
+element ::
+  Show a =>
+  -- | List of eligible elements.
+  [a] ->
+  -- | A generator for a single element from the argument list.
+  Gen a
 element l = liftF (GenElement l id)
 
-choice :: [Gen a] -> Gen a
+-- | A generator producing values from a list of given generators.
+choice ::
+  -- | A list of generators.
+  [Gen a] ->
+  -- | A generator produced from one of the generators in
+  --   the given list.
+  Gen a
 choice g = liftF (GenChoice g id)
 
-genFilter :: Show a => (a -> Bool) -> Gen a -> Gen a
+{- | `genFilter` takes a function @a -> Bool@ and a
+     generator for type @a@. It produces a generator for values
+     from the given generator, for which the filtering function
+     returns `True`.
+-}
+genFilter ::
+  Show a =>
+  -- | Filtering function. Any value produced by the final
+  --   generator must return `True` when passed to this function.
+  (a -> Bool) ->
+  -- | A generator for type @a@.
+  Gen a ->
+  -- | A generator for type @a@ whose values will return `True`,
+  --   when passed to the given filtering function.
+  Gen a
 genFilter c g = liftF (GenFilter c g id)
 
 retry :: Gen a

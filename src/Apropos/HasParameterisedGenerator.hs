@@ -78,6 +78,6 @@ genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
   traversalAsGen $ parameterisedGenerator s --TODO this doesn't do shrink containment...
-                                        -- we can lift a Traversal into Gen
-                                        -- like GenWrap but for Traversal
-                                        -- or something...
+  -- we can lift a Traversal into Gen
+  -- like GenWrap but for Traversal
+  -- or something...

@@ -1,8 +1,9 @@
 module Apropos.Gen.BacktrackingTraversal (
-  Traversal(..),
+  Traversal (..),
   traversalAsGen,
   traversalContainRetry,
- ) where
+) where
+
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
@@ -54,7 +55,7 @@ unTraversal (Traversal s t) = case unTraversal s of
 
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
-  (ee,labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2*s +) g)
+  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left Retry -> pure Nothing
@@ -122,5 +123,3 @@ backtrackingRetryTraverse retries s (t : ts) = go 1
                 then pure Nothing
                 else go (l + 1)
             Just so' -> pure $ Just so'
-
-

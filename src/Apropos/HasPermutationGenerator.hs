@@ -201,7 +201,7 @@ class (HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
 
   -- TODO move to Morphism module
   wrapMorphismWithContractCheck :: Morphism p m -> Morphism p m
-  wrapMorphismWithContractCheck mo = mo { morphism = wrap }
+  wrapMorphismWithContractCheck mo = mo {morphism = wrap}
     where
       wrap m = do
         let inprops = properties m

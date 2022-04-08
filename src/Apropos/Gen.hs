@@ -1,7 +1,7 @@
 module Apropos.Gen (
   FreeGen (..),
   Gen,
-  GenException(..),
+  GenException (..),
   forAll,
   forAllWith,
   gen,
@@ -52,7 +52,6 @@ forAll g = do
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
-
 forAllWith :: forall a. (a -> String) -> Gen a -> PropertyT IO a
 forAllWith s g = do
   (ee, labels) <- H.forAllWith sh $ runWriterT (runExceptT $ gen g)
@@ -61,9 +60,10 @@ forAllWith s g = do
     Left Retry -> H.footnote "retry limit reached" >> H.discard
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
-  where sh :: (Either GenException a, Set String) -> String
-        sh (Left e,_) = show e
-        sh (Right a,_) = s a
+  where
+    sh :: (Either GenException a, Set String) -> String
+    sh (Left e, _) = show e
+    sh (Right a, _) = s a
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next

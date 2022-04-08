@@ -190,7 +190,7 @@ gen (Free (GenInt r next)) = do
   gen $ next i
 gen (Free (GenList r g next)) = do
   let gs = int r >>= \l -> replicateM l g
-  gen gs >=>= next
+  gs >>>= next
 gen (Free (GenShuffle ls next)) = do
   s <- lift $ HGen.shuffle ls
   gen $ next s
@@ -203,7 +203,7 @@ gen (Free (GenChoice gs next)) = do
     then throwE $ GenException "GenChoice: list length zero"
     else do
       i <- lift (HGen.int (HRange.linear 0 (l - 1)))
-      (gs !! i) >>== next
+      (gs !! i) >>>= next
 gen (Free (GenFilter c g next)) = do
   res <- filter' c $ gen g
   gen $ next res
@@ -219,16 +219,9 @@ gen (Free (OnRetry a b next)) = do
     Left err -> throwE err
 gen (Pure a) = pure a
 
-(>>==) :: Gen r -> (r -> Gen a) -> Generator a
-(>>==) a b = do
+(>>>=) :: Gen r -> (r -> Gen a) -> Generator a
+(>>>=) a b = do
   r <- lift (runExceptT (gen a))
-  case r of
-    Right x -> gen $ b x
-    Left e -> throwE e
-
-(>=>=) :: Generator r -> (r -> Gen a) -> Generator a
-(>=>=) a b = do
-  r <- lift (runExceptT a)
   case r of
     Right x -> gen $ b x
     Left e -> throwE e

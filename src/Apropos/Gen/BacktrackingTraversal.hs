@@ -80,27 +80,27 @@ backtrackingRetryTraversals retries g trs = go 1
             then pure Nothing
             else go (l + 1)
         Just so -> do
-          res' <- co so 1 trs
+          res' <- continueTraversal so 1 trs
           case res' of
             Nothing ->
               if l > retries
                 then pure Nothing
                 else go (l + 1)
             Just so' -> pure $ Just so'
-    co :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
-    co s _ [] = pure $ Just s
-    co s l (t : ts) = do
+    continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
+    continueTraversal s _ [] = pure $ Just s
+    continueTraversal s l (t : ts) = do
       ts' <- t s
       res <- backtrackingRetryTraverse retries s ts'
       case res of
         Nothing -> pure Nothing
         Just so -> do
-          res' <- co so 1 ts
+          res' <- continueTraversal so 1 ts
           case res' of
             Nothing ->
               if l > retries
                 then pure Nothing
-                else co s (l + 1) (t : ts)
+                else continueTraversal s (l + 1) (t : ts)
             Just so' -> pure $ Just so'
 
 backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)

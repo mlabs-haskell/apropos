@@ -220,11 +220,7 @@ gen (Free (OnRetry a b next)) = do
 gen (Pure a) = pure a
 
 (>>>=) :: Gen r -> (r -> Gen a) -> Generator a
-(>>>=) a b = do
-  r <- lift (runExceptT (gen a))
-  case r of
-    Right x -> gen $ b x
-    Left e -> throwE e
+(>>>=) a b = gen a >>= gen . b
 
 fromPred :: (a -> Bool) -> a -> Maybe a
 fromPred p a = a <$ guard (p a)

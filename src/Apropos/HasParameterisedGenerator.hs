@@ -8,6 +8,7 @@ module Apropos.HasParameterisedGenerator (
 ) where
 
 import Apropos.Gen hiding ((===))
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
@@ -18,7 +19,7 @@ import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: Set p -> Gen m
+  parameterisedGenerator :: Set p -> Traversal p m
   rootRetryLimit :: m :+ p -> Int
   rootRetryLimit _ = 100
 
@@ -30,7 +31,7 @@ runGeneratorTest ::
   Set p ->
   Property
 runGeneratorTest _ s = property $ do
-  (m :: m) <- handleRootRetries numRetries $ gen $ parameterisedGenerator s
+  (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
   properties m === s
   where
     numRetries :: Int
@@ -56,7 +57,7 @@ enumerateGeneratorTest ::
   Property
 enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
   property $ do
-    let (ms :: [m]) = enumerate $ parameterisedGenerator s
+    let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
         run m = properties m === s
     sequence_ (run <$> ms)
 
@@ -76,4 +77,7 @@ genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  parameterisedGenerator s
+  traversalAsGen $ parameterisedGenerator s -- TODO this doesn't do shrink containment...
+  -- we can lift a Traversal into Gen
+  -- like GenWrap but for Traversal
+  -- or something...

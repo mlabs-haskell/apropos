@@ -1,32 +1,20 @@
-module Apropos.HasPermutationGenerator.Contract (
-  Contract,
+module Apropos.SetFunctionFormula (
+  toInstructions,
+  add,
+  remove,
   branches,
-  branchIf,
+  holds,
   has,
   hasn't,
-  hasAll,
-  hasNone,
-  add,
-  addIf,
-  addAll,
-  addAllIf,
-  remove,
-  removeIf,
-  removeAll,
-  removeAllIf,
-  clear,
-  terminal,
-  matches,
-  solveContract,
-  solveEdgesMap,
-  runContract,
-  labelContract,
+  Contract,
+  translateInstruction,
+  translateInstructions,
+  solveLang,
 ) where
 
 import Apropos.LogicalModel.Enumerable ( Enumerable(..) )
 import Apropos.LogicalModel.Formula ( solveAll, Formula(..))
 import Control.Monad.Writer (Writer,tell,execWriter)
-import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -35,62 +23,29 @@ toInstructions :: Contract p () -> [Instruction p]
 toInstructions = execWriter
 
 add :: a -> Contract a ()
-add = addAll . pure
-
-addAll :: [a] -> Contract a ()
-addAll = tell . pure . Adds
+add = tell . pure . Adds . pure
 
 remove :: a -> Contract a ()
-remove  = removeAll . pure
-
-removeAll :: [a] -> Contract a ()
-removeAll = tell . pure . Removes
+remove  = tell . pure . Removes . pure
 
 branches :: [Contract a ()] -> Contract a ()
 branches = tell . pure . Branch . map toInstructions
 
-matches :: Formula a -> Contract a ()
-matches = tell . pure . Holds
+holds :: Formula a -> Contract a ()
+holds = tell . pure . Holds
 
 has :: a -> Contract a ()
-has = matches . Var
-
-hasAll :: [a] -> Contract a ()
-hasAll = matches . All . map Var
-
-hasNone :: [a] -> Contract a ()
-hasNone = matches . None . map Var
+has = holds . Var
 
 hasn't :: a -> Contract a ()
-hasn't = matches . Not . Var
-
-addIf :: p -> p -> Contract p ()
-addIf p q = branches [has p >> add q, hasn't p]
-
-addAllIf ::  p -> [p] -> Contract p ()
-addAllIf p qs = branches [has p >> addAll qs, hasn't p]
-
-removeIf :: p -> p -> Contract p ()
-removeIf p q = branches [has p >> remove q, hasn't p]
-
-removeAllIf :: p -> [p] -> Contract p ()
-removeAllIf p qs = branches [has p >> removeAll qs, hasn't p]
-
-branchIf :: p -> Contract p () -> Contract p () -> Contract p ()
-branchIf p a b = branches [has p >> a, hasn't p >> b]
-
-clear :: Enumerable p => Contract p ()
-clear = removeAll enumerated
-
-terminal :: Contract p ()
-terminal = matches No
+hasn't = holds . Not . Var
 
 data Instruction p
   = Adds [p]
   | Removes [p]
   | Branch [[Instruction p]]
   | Holds (Formula p)
-  deriving stock (Show,Functor)
+  deriving stock (Show)
 
 type Contract p = Writer [Instruction p]
 
@@ -172,10 +127,11 @@ seqFormulas l r = let
   ranti = sFirst (+ rstart) <$> antiValidity r
     in EdgeFormula (All [conect0l,conectlr,conectr1,lform,rform]) rend  (lanti :||: ranti) 0 1
 
-solveEdgesList :: (Show p,Enumerable p) => EdgeFormula p -> [(Set p,Set p)]
-solveEdgesList c =
+solveContract :: (Show p,Enumerable p) => EdgeFormula p -> Set (Set p,Set p)
+solveContract c =
   case solveAll (antiValidity c) of
     [] ->
+      Set.fromList
       [ (Set.fromList [ k | k <- enumerated , Map.lookup (S (i c) k) s == Just True ]
         ,Set.fromList [ k | k <- enumerated , Map.lookup (S (o c) k) s == Just True ] )
       | s <- solveAll (form c) ]
@@ -190,24 +146,10 @@ solveEdgesList c =
         ++ "\n out2: true " ++ show [a | S 2 a <- trues ] ++ " false " ++ show [ a | S 2 a <- falses ]
       -- TODO better message here
 
-solveEdges :: (Show p,Enumerable p) => EdgeFormula p -> Set (Set p,Set p)
-solveEdges = Set.fromList . solveEdgesList
-
-solveEdgesMap :: (Show p,Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
-solveEdgesMap = Map.fromList . solveEdgesList
-
 distinctPairs :: [a] -> [(a,a)]
 distinctPairs (x:xs) = ((x,) <$> xs) ++ distinctPairs xs
 distinctPairs [] = []
 
-solveContract :: (Show p,Enumerable p) => Contract p () -> Set (Set p,Set p)
-solveContract = solveEdges . translateInstructions . toInstructions
+solveLang :: (Show p,Enumerable p) => Contract p () -> Set (Set p,Set p)
+solveLang = solveContract . translateInstructions . toInstructions
 
-solveContractMap :: (Show p,Enumerable p) => Contract p () -> Map (Set p) (Set p)
-solveContractMap = solveEdgesMap . translateInstructions . toInstructions
-
-runContract :: (Show p,Enumerable p) => Contract p () -> Set p -> Maybe (Set p)
-runContract c ps = Map.lookup ps (solveContractMap c)
-
-labelContract :: (a -> b) -> Contract a () -> Contract b ()
-labelContract f = tell . map (fmap f) . execWriter

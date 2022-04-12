@@ -195,15 +195,14 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       Just so -> pure so
     tr <- element pe
     let inprops = properties m
-        mexpected = runContract (contract tr) (name tr) inprops
+        mexpected = runContract (contract tr) inprops
     case mexpected of
-      Left e -> failWithFootnote e
-      Right Nothing ->
+      Nothing ->
         failWithFootnote $
           renderStyle ourStyle $
             "Morphism doesn't work. This is a model error"
               $+$ "This should never happen at this point in the program."
-      Right (Just expected) -> do
+      Just expected -> do
         if satisfiesFormula logic expected
           then pure ()
           else
@@ -237,21 +236,18 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
 
   mapsBetween :: Set p -> Set p -> Morphism p m -> Bool
   mapsBetween a b pedge =
-    case runContract (contract pedge) (name pedge) a of
-      Left e -> error e
-      Right Nothing -> False
-      Right (Just so) -> satisfiesFormula (match pedge) a && so == b
+    case runContract (contract pedge) a of
+      Nothing -> False
+      Just so -> satisfiesFormula (match pedge) a && so == b
 
   findMorphisms ::
     m :+ p ->
     Map (Set p, Set p) [Morphism p m]
   findMorphisms _ =
-    Map.fromList
-      [ ((a, b), options)
-      | a <- scenarios
-      , b <- scenarios
-      , let options = filter (mapsBetween a b) generators
-      , not (null options)
+    Map.fromListWith (<>)
+      [ (e,[m])
+      | m <- generators
+      , e <- Set.toList $ solveContract (contract m)
       ]
 
 pairPath :: [a] -> [(a, a)]

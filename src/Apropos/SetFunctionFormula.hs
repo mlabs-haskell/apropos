@@ -2,6 +2,7 @@ module Apropos.SetFunctionFormula (
   findEdges,
   adds,
   removes,
+  branches,
   SetFunctionLanguage,
 ) where
 
@@ -29,13 +30,18 @@ adds a = liftF (Adds a ())
 removes :: a -> SetFunctionLanguage a ()
 removes a = liftF (Removes a ())
 
+branches :: [SetFunctionLanguage a ()] -> SetFunctionLanguage a ()
+branches as = liftF (Branch as ())
+
 data FreeSetFunctionLanguage a next
   = Adds a next
   | Removes a next
+  | Branch [SetFunctionLanguage a ()] next
 
 instance Functor (FreeSetFunctionLanguage a) where
   fmap f (Adds a next) = Adds a (f next)
   fmap f (Removes a next) = Removes a (f next)
+  fmap f (Branch as next) = Branch as (f next)
 
 type SetFunctionLanguage a = Free (FreeSetFunctionLanguage a)
 
@@ -52,6 +58,7 @@ solutionToSetTranslation sol = (i, o)
 
 data SetFunctionRepr a
   = ImplicationMap (Map (Formula a) (Formula a))
+  | BranchRepr [SetFunctionRepr a]
 
 idSetFunctionRepr :: Enumerable a => SetFunctionRepr a
 idSetFunctionRepr =
@@ -73,16 +80,32 @@ mapReprToFormula (ImplicationMap mrep) =
     [ (I <$> i) :->: (O <$> o)
     | (i, o) <- Map.toList mrep
     ]
+mapReprToFormula (BranchRepr reprs) = Some (mapReprToFormula <$> reprs)
 
 evalSetFunctionOnRepr :: Enumerable a => SetFunctionLanguage a () -> State (SetFunctionRepr a) ()
+evalSetFunctionOnRepr (Free (Branch bs next)) = do
+  s <- get
+  let ns = (\b -> execState (evalSetFunctionOnRepr b) s) <$> bs
+  put $ BranchRepr ns
+  evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Free (Adds a next)) = do
-  ImplicationMap m <- get
-  let m' = Map.insert (Not (Var a)) (Var a) (Map.insert (Var a) (Var a) m)
-  put $ ImplicationMap m'
+  s <- get
+  case s of
+    ImplicationMap m -> do
+      let m' = Map.insert (Not (Var a)) (Var a) (Map.insert (Var a) (Var a) m)
+      put $ ImplicationMap m'
+    BranchRepr bs -> do
+      let ns = execState (evalSetFunctionOnRepr (Free (Adds a next))) <$> bs
+      put $ BranchRepr ns
   evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Free (Removes a next)) = do
-  ImplicationMap m <- get
-  let m' = Map.insert (Not (Var a)) (Not (Var a)) (Map.insert (Var a) (Not (Var a)) m)
-  put $ ImplicationMap m'
+  s <- get
+  case s of
+    ImplicationMap m -> do
+      let m' = Map.insert (Not (Var a)) (Not (Var a)) (Map.insert (Var a) (Not (Var a)) m)
+      put $ ImplicationMap m'
+    BranchRepr bs -> do
+      let ns = execState (evalSetFunctionOnRepr (Free (Removes a next))) <$> bs
+      put $ BranchRepr ns
   evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Pure next) = pure next

@@ -50,18 +50,19 @@ solutionToSetTranslation sol = (i, o)
     i = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (I x) sol)]
     o = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (O x) sol)]
 
-data SetFunctionRepr a =
-  ImplicationMap (Map (Formula a) (Formula a))
+data SetFunctionRepr a
+  = ImplicationMap (Map (Formula a) (Formula a))
 
 idSetFunctionRepr :: Enumerable a => SetFunctionRepr a
-idSetFunctionRepr = ImplicationMap $
-  Map.fromList $
-    join
-      [ [ (Var x, Var x)
-        , (Not (Var x), Not (Var x))
+idSetFunctionRepr =
+  ImplicationMap $
+    Map.fromList $
+      join
+        [ [ (Var x, Var x)
+          , (Not (Var x), Not (Var x))
+          ]
+        | x <- enumerated
         ]
-      | x <- enumerated
-      ]
 
 setFunctionToRepr :: Enumerable a => SetFunctionLanguage a () -> SetFunctionRepr a
 setFunctionToRepr sfl = execState (evalSetFunctionOnRepr sfl) idSetFunctionRepr

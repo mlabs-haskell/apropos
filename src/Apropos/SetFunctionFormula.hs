@@ -15,9 +15,9 @@ import Data.Maybe (fromMaybe)
 import Control.Monad.Free
 import Control.Monad.State (State, execState, get, put)
 
-findEdges :: Enumerable a => SetFunctionLanguage a () -> Set (Set a, Set a)
-findEdges expr = Set.fromList changes
-  where sols = solveAll $ setFunctionToFormula expr
+findEdges :: Enumerable a => Formula a -> SetFunctionLanguage a () -> Set (Set a, Set a)
+findEdges matches expr = Set.fromList changes
+  where sols = solveAll $ (I <$> matches) :&&: setFunctionToFormula expr
         tras = solutionToSetTranslation <$> sols
         changes = filter (uncurry (/=)) tras
 

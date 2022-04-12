@@ -78,8 +78,8 @@ library
     Apropos.LogicalModel.Enumerable
     Apropos.LogicalModel.Formula
     Apropos.Pure
-    Apropos.Type
     Apropos.SetFunctionFormula
+    Apropos.Type
 
   hs-source-dirs:  src
 

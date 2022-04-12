@@ -79,6 +79,7 @@ library
     Apropos.LogicalModel.Formula
     Apropos.Pure
     Apropos.Type
+    Apropos.SetFunctionFormula
 
   hs-source-dirs:  src
 

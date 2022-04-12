@@ -3,6 +3,8 @@ module Apropos.SetFunctionFormula (
   adds,
   removes,
   branches,
+  holds,
+  has,
   SetFunctionLanguage,
 ) where
 
@@ -33,15 +35,23 @@ removes a = liftF (Removes a ())
 branches :: [SetFunctionLanguage a ()] -> SetFunctionLanguage a ()
 branches as = liftF (Branch as ())
 
+holds :: Formula a -> SetFunctionLanguage a ()
+holds f = liftF (Holds f ())
+
+has :: a -> SetFunctionLanguage a ()
+has = holds . Var
+
 data FreeSetFunctionLanguage a next
   = Adds a next
   | Removes a next
   | Branch [SetFunctionLanguage a ()] next
+  | Holds (Formula a) next
 
 instance Functor (FreeSetFunctionLanguage a) where
   fmap f (Adds a next) = Adds a (f next)
   fmap f (Removes a next) = Removes a (f next)
   fmap f (Branch as next) = Branch as (f next)
+  fmap f (Holds e next) = Holds e (f next)
 
 type SetFunctionLanguage a = Free (FreeSetFunctionLanguage a)
 
@@ -59,6 +69,7 @@ solutionToSetTranslation sol = (i, o)
 data SetFunctionRepr a
   = ImplicationMap (Map (Formula a) (Formula a))
   | BranchRepr [SetFunctionRepr a]
+  | HoldsRepr (Formula a) (SetFunctionRepr a)
 
 idSetFunctionRepr :: Enumerable a => SetFunctionRepr a
 idSetFunctionRepr =
@@ -81,8 +92,13 @@ mapReprToFormula (ImplicationMap mrep) =
     | (i, o) <- Map.toList mrep
     ]
 mapReprToFormula (BranchRepr reprs) = Some (mapReprToFormula <$> reprs)
+mapReprToFormula (HoldsRepr f repr) = (I <$> f) :&&: mapReprToFormula repr
 
 evalSetFunctionOnRepr :: Enumerable a => SetFunctionLanguage a () -> State (SetFunctionRepr a) ()
+evalSetFunctionOnRepr (Free (Holds e next)) = do
+  s <- get
+  put $ HoldsRepr e s
+  evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Free (Branch bs next)) = do
   s <- get
   let ns = (\b -> execState (evalSetFunctionOnRepr b) s) <$> bs
@@ -97,6 +113,8 @@ evalSetFunctionOnRepr (Free (Adds a next)) = do
     BranchRepr bs -> do
       let ns = execState (evalSetFunctionOnRepr (Free (Adds a next))) <$> bs
       put $ BranchRepr ns
+    HoldsRepr f rep -> do
+      put $ HoldsRepr f $ execState (evalSetFunctionOnRepr (Free (Adds a next))) rep
   evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Free (Removes a next)) = do
   s <- get
@@ -107,5 +125,7 @@ evalSetFunctionOnRepr (Free (Removes a next)) = do
     BranchRepr bs -> do
       let ns = execState (evalSetFunctionOnRepr (Free (Removes a next))) <$> bs
       put $ BranchRepr ns
+    HoldsRepr f rep -> do
+      put $ HoldsRepr f $ execState (evalSetFunctionOnRepr (Free (Removes a next))) rep
   evalSetFunctionOnRepr next
 evalSetFunctionOnRepr (Pure next) = pure next

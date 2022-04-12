@@ -42,7 +42,7 @@ type SetFunctionLanguage a = Free (FreeSetFunctionLanguage a)
 data S a = I a | O a deriving stock (Eq, Ord)
 
 setFunctionToFormula :: Enumerable a => SetFunctionLanguage a () -> Formula (S a)
-setFunctionToFormula = mapReprToFormula . setFunctionToMapRepr
+setFunctionToFormula = mapReprToFormula . setFunctionToRepr
 
 solutionToSetTranslation :: Enumerable a => Map (S a) Bool -> (Set a, Set a)
 solutionToSetTranslation sol = (i, o)
@@ -50,8 +50,11 @@ solutionToSetTranslation sol = (i, o)
     i = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (I x) sol)]
     o = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (O x) sol)]
 
-idSetFunctionMapRepr :: Enumerable a => Map (Formula a) (Formula a)
-idSetFunctionMapRepr =
+data SetFunctionRepr a =
+  ImplicationMap (Map (Formula a) (Formula a))
+
+idSetFunctionRepr :: Enumerable a => SetFunctionRepr a
+idSetFunctionRepr = ImplicationMap $
   Map.fromList $
     join
       [ [ (Var x, Var x)
@@ -60,25 +63,25 @@ idSetFunctionMapRepr =
       | x <- enumerated
       ]
 
-setFunctionToMapRepr :: Enumerable a => SetFunctionLanguage a () -> Map (Formula a) (Formula a)
-setFunctionToMapRepr sfl = execState (evalSetFunctionOnMapRepr sfl) idSetFunctionMapRepr
+setFunctionToRepr :: Enumerable a => SetFunctionLanguage a () -> SetFunctionRepr a
+setFunctionToRepr sfl = execState (evalSetFunctionOnRepr sfl) idSetFunctionRepr
 
-mapReprToFormula :: Map (Formula a) (Formula a) -> Formula (S a)
-mapReprToFormula mrep =
+mapReprToFormula :: SetFunctionRepr a -> Formula (S a)
+mapReprToFormula (ImplicationMap mrep) =
   All
     [ (I <$> i) :->: (O <$> o)
     | (i, o) <- Map.toList mrep
     ]
 
-evalSetFunctionOnMapRepr :: Enumerable a => SetFunctionLanguage a () -> State (Map (Formula a) (Formula a)) ()
-evalSetFunctionOnMapRepr (Free (Adds a next)) = do
-  m <- get
+evalSetFunctionOnRepr :: Enumerable a => SetFunctionLanguage a () -> State (SetFunctionRepr a) ()
+evalSetFunctionOnRepr (Free (Adds a next)) = do
+  ImplicationMap m <- get
   let m' = Map.insert (Not (Var a)) (Var a) (Map.insert (Var a) (Var a) m)
-  put m'
-  evalSetFunctionOnMapRepr next
-evalSetFunctionOnMapRepr (Free (Removes a next)) = do
-  m <- get
+  put $ ImplicationMap m'
+  evalSetFunctionOnRepr next
+evalSetFunctionOnRepr (Free (Removes a next)) = do
+  ImplicationMap m <- get
   let m' = Map.insert (Not (Var a)) (Not (Var a)) (Map.insert (Var a) (Not (Var a)) m)
-  put m'
-  evalSetFunctionOnMapRepr next
-evalSetFunctionOnMapRepr (Pure next) = pure next
+  put $ ImplicationMap m'
+  evalSetFunctionOnRepr next
+evalSetFunctionOnRepr (Pure next) = pure next

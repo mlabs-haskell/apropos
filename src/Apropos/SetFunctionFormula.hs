@@ -1,5 +1,6 @@
 module Apropos.SetFunctionFormula (
   findEdges,
+  findEdgesSeq,
   adds,
   removes,
   branches,
@@ -22,8 +23,17 @@ import Data.Set qualified as Set
 findEdges :: Enumerable a => Formula a -> SetFunctionLanguage a () -> Set (Set a, Set a)
 findEdges matches expr = Set.fromList changes
   where
-    sols = solveAll $ (I <$> matches) :&&: setFunctionToFormula expr
-    tras = solutionToSetTranslation <$> sols
+    sols = solveAll $ (S 0 <$> matches) :&&: setFunctionToFormula 0 expr
+    tras = solutionToSetTranslation (0,1) <$> sols
+    changes = filter (uncurry (/=)) tras
+
+
+findEdgesSeq :: Enumerable a => [(Formula a, SetFunctionLanguage a ())] -> Set (Set a, Set a)
+findEdgesSeq [] = Set.empty
+findEdgesSeq exprs = Set.fromList changes
+  where
+    sols = solveAll $ All ((\(idx, (f,e)) -> (S idx <$> f) :&&: setFunctionToFormula idx e) <$> zip [0..] exprs)
+    tras = solutionToSetTranslation (0, length exprs) <$> sols
     changes = filter (uncurry (/=)) tras
 
 adds :: a -> SetFunctionLanguage a ()
@@ -55,25 +65,25 @@ instance Functor (FreeSetFunctionLanguage a) where
 
 type SetFunctionLanguage a = Free (FreeSetFunctionLanguage a)
 
-data S a = I a | O a deriving stock (Eq, Ord)
+data S a = S Int a deriving stock (Eq, Ord)
 
-setFunctionToFormula :: Enumerable a => SetFunctionLanguage a () -> Formula (S a)
-setFunctionToFormula = mapReprToFormula . setFunctionToRepr
+setFunctionToFormula :: Enumerable a => Int -> SetFunctionLanguage a () -> Formula (S a)
+setFunctionToFormula i = mapReprToFormula . setFunctionToRepr i
 
-solutionToSetTranslation :: Enumerable a => Map (S a) Bool -> (Set a, Set a)
-solutionToSetTranslation sol = (i, o)
+solutionToSetTranslation :: Enumerable a => (Int,Int) -> Map (S a) Bool -> (Set a, Set a)
+solutionToSetTranslation (iidx,oidx) sol = (i, o)
   where
-    i = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (I x) sol)]
-    o = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (O x) sol)]
+    i = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (S iidx x) sol)]
+    o = Set.fromList [x | x <- enumerated, fromMaybe (error "undefined variable") (Map.lookup (S oidx x) sol)]
 
 data SetFunctionRepr a
-  = ImplicationMap (Map (Formula a) (Formula a))
+  = ImplicationMap Int (Map (Formula a) (Formula a))
   | BranchRepr [SetFunctionRepr a]
-  | HoldsRepr (Formula a) (SetFunctionRepr a)
+  | HoldsRepr Int (Formula a) (SetFunctionRepr a)
 
-idSetFunctionRepr :: Enumerable a => SetFunctionRepr a
-idSetFunctionRepr =
-  ImplicationMap $
+idSetFunctionRepr :: Enumerable a => Int -> SetFunctionRepr a
+idSetFunctionRepr i =
+  ImplicationMap i $
     Map.fromList $
       join
         [ [ (Var x, Var x)
@@ -82,50 +92,50 @@ idSetFunctionRepr =
         | x <- enumerated
         ]
 
-setFunctionToRepr :: Enumerable a => SetFunctionLanguage a () -> SetFunctionRepr a
-setFunctionToRepr sfl = execState (evalSetFunctionOnRepr sfl) idSetFunctionRepr
+setFunctionToRepr :: Enumerable a => Int -> SetFunctionLanguage a () -> SetFunctionRepr a
+setFunctionToRepr i sfl = execState (evalSetFunctionOnRepr i sfl) (idSetFunctionRepr i)
 
 mapReprToFormula :: SetFunctionRepr a -> Formula (S a)
-mapReprToFormula (ImplicationMap mrep) =
+mapReprToFormula (ImplicationMap iidx mrep) =
   All
-    [ (I <$> i) :->: (O <$> o)
+    [ (S iidx <$> i) :->: (S (iidx + 1) <$> o)
     | (i, o) <- Map.toList mrep
     ]
 mapReprToFormula (BranchRepr reprs) = Some (mapReprToFormula <$> reprs)
-mapReprToFormula (HoldsRepr f repr) = (I <$> f) :&&: mapReprToFormula repr
+mapReprToFormula (HoldsRepr i f repr) = (S i <$> f) :&&: mapReprToFormula repr
 
-evalSetFunctionOnRepr :: Enumerable a => SetFunctionLanguage a () -> State (SetFunctionRepr a) ()
-evalSetFunctionOnRepr (Free (Holds e next)) = do
+evalSetFunctionOnRepr :: Enumerable a => Int -> SetFunctionLanguage a () -> State (SetFunctionRepr a) ()
+evalSetFunctionOnRepr iidx (Free (Holds e next)) = do
   s <- get
-  put $ HoldsRepr e s
-  evalSetFunctionOnRepr next
-evalSetFunctionOnRepr (Free (Branch bs next)) = do
+  put $ HoldsRepr iidx e s
+  evalSetFunctionOnRepr iidx next
+evalSetFunctionOnRepr iidx (Free (Branch bs next)) = do
   s <- get
-  let ns = (\b -> execState (evalSetFunctionOnRepr b) s) <$> bs
+  let ns = (\b -> execState (evalSetFunctionOnRepr iidx b) s) <$> bs
   put $ BranchRepr ns
-  evalSetFunctionOnRepr next
-evalSetFunctionOnRepr (Free (Adds a next)) = do
+  evalSetFunctionOnRepr iidx next
+evalSetFunctionOnRepr iidx (Free (Adds a next)) = do
   s <- get
   case s of
-    ImplicationMap m -> do
+    ImplicationMap i m -> do
       let m' = Map.insert (Not (Var a)) (Var a) (Map.insert (Var a) (Var a) m)
-      put $ ImplicationMap m'
+      put $ ImplicationMap i m'
     BranchRepr bs -> do
-      let ns = execState (evalSetFunctionOnRepr (Free (Adds a next))) <$> bs
+      let ns = execState (evalSetFunctionOnRepr iidx (Free (Adds a next))) <$> bs
       put $ BranchRepr ns
-    HoldsRepr f rep -> do
-      put $ HoldsRepr f $ execState (evalSetFunctionOnRepr (Free (Adds a next))) rep
-  evalSetFunctionOnRepr next
-evalSetFunctionOnRepr (Free (Removes a next)) = do
+    HoldsRepr i f rep -> do
+      put $ HoldsRepr i f $ execState (evalSetFunctionOnRepr iidx (Free (Adds a next))) rep
+  evalSetFunctionOnRepr iidx next
+evalSetFunctionOnRepr iidx (Free (Removes a next)) = do
   s <- get
   case s of
-    ImplicationMap m -> do
+    ImplicationMap i m -> do
       let m' = Map.insert (Not (Var a)) (Not (Var a)) (Map.insert (Var a) (Not (Var a)) m)
-      put $ ImplicationMap m'
+      put $ ImplicationMap i m'
     BranchRepr bs -> do
-      let ns = execState (evalSetFunctionOnRepr (Free (Removes a next))) <$> bs
+      let ns = execState (evalSetFunctionOnRepr iidx (Free (Removes a next))) <$> bs
       put $ BranchRepr ns
-    HoldsRepr f rep -> do
-      put $ HoldsRepr f $ execState (evalSetFunctionOnRepr (Free (Removes a next))) rep
-  evalSetFunctionOnRepr next
-evalSetFunctionOnRepr (Pure next) = pure next
+    HoldsRepr i f rep -> do
+      put $ HoldsRepr i f $ execState (evalSetFunctionOnRepr iidx (Free (Removes a next))) rep
+  evalSetFunctionOnRepr iidx next
+evalSetFunctionOnRepr _ (Pure next) = pure next

@@ -8,12 +8,13 @@ module Apropos.HasPermutationGenerator.Morphism (
 ) where
 
 import Apropos.Gen
+import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import Apropos.HasLogicalModel
 import Control.Monad ((>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -22,7 +23,6 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
-import Data.String (fromString)
 
 data Morphism p m = Morphism
   { name :: String
@@ -63,7 +63,7 @@ seqMorphism a b =
     , morphism = morphism a >=> morphism b
     }
 
-wrapMorphismWithContractCheck :: forall p m. (HasLogicalModel p m,Show m) => Morphism p m -> Morphism p m
+wrapMorphismWithContractCheck :: forall p m. (HasLogicalModel p m, Show m) => Morphism p m -> Morphism p m
 wrapMorphismWithContractCheck mo = mo {morphism = wrap}
   where
     wrap :: m -> Gen m

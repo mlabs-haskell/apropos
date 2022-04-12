@@ -196,6 +196,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     tr <- element pe
     let inprops = properties m
         mexpected = runContract (contract tr) inprops
+    -- TODO this probably needs to be cached somehow
     case mexpected of
       Nothing ->
         failWithFootnote $
@@ -234,18 +235,13 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     let edges = Map.keys pedges
      in fromEdges edges
 
-  mapsBetween :: Set p -> Set p -> Morphism p m -> Bool
-  mapsBetween a b pedge =
-    case runContract (contract pedge) a of
-      Nothing -> False
-      Just so -> satisfiesFormula (match pedge) a && so == b
-
   findMorphisms ::
     m :+ p ->
     Map (Set p, Set p) [Morphism p m]
   findMorphisms _ =
-    Map.fromListWith (<>)
-      [ (e,[m])
+    Map.fromListWith
+      (<>)
+      [ (e, [m])
       | m <- generators
       , e <- Set.toList $ solveContract (contract m)
       ]

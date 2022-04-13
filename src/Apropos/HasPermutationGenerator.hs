@@ -10,13 +10,14 @@ module Apropos.HasPermutationGenerator (
 ) where
 
 import Apropos.Gen
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Abstraction
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (liftM2)
+import Control.Monad (liftM2,void)
 import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)
@@ -39,6 +40,8 @@ import Text.Show.Pretty (ppDoc)
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
+  traversalRetryLimit :: (m :+ p) -> Int
+  traversalRetryLimit _ = 100
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
   allowRedundentMorphisms = const False
@@ -56,7 +59,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                 "No permutation edges defined."
                 [
                   ( fromString "no edges defined"
-                  , genProp $ failWithFootnote "no Morphisms defined"
+                  , property $ void $ forAll (failWithFootnote "no Morphisms defined" :: Gen String)
                   )
                 ]
             ]
@@ -75,31 +78,30 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
               else
                 [ Group
                     "HasPermutationGenerator Graph Not Strongly Connected"
-                    [(fromString "Not strongly connected", abortNotSCC cache)]
+                    [(fromString "Not strongly connected", property $ void $ forAll (abortNotSCC cache :: Gen String))]
                 ]
     where
       abortNotSCC graph =
         let (a, b) = findNoPath (Apropos :: m :+ p) graph
-         in genProp $
-              failWithFootnote $
-                renderStyle ourStyle $
-                  "Morphisms do not form a strongly connected graph."
-                    $+$ hang "No Edge Between here:" 4 (ppDoc a)
-                    $+$ hang "            and here:" 4 (ppDoc b)
+         in failWithFootnote $
+              renderStyle ourStyle $
+                "Morphisms do not form a strongly connected graph."
+                  $+$ hang "No Edge Between here:" 4 (ppDoc a)
+                  $+$ hang "            and here:" 4 (ppDoc b)
       findDupEdgeNames =
         [ name g | g <- generators :: [Morphism p m], length (filter (== g) generators) > 1
         ]
       testEdge ::
         Bool ->
         Map (Set p, Set p) [Morphism p m] ->
-        (Set p -> Gen m) ->
+        (Set p -> Traversal p m) ->
         Morphism p m ->
         Group
       testEdge testRequired pem mGen pe =
         Group (fromString (name pe)) $
           addRequiredTest
             testRequired
-            [ (edgeTestName f t, runEdgeTest f t)
+            [ (edgeTestName f t, runEdgeTest f)
             | (f, t) <- matchesEdges
             ]
         where
@@ -110,32 +112,27 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
-          runRequiredTest = genProp $ do
-            if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
-              then pure ()
-              else
-                failWithFootnote $
-                  renderStyle ourStyle $
-                    fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
-                      $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f t = genProp $ do
-            om <- mGen f
-            nm <- morphism pe om
-            let expected = t
-                observed = properties nm
-            if expected == observed
-              then pure ()
-              else edgeFailsContract pe om nm expected observed
+          runRequiredTest = property $
+            forAll $ do
+              if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
+                then pure ()
+                else
+                  failWithFootnote $
+                    renderStyle ourStyle $
+                      fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
+                        $+$ hang "Edge:" 4 (ppDoc $ name pe)
+          runEdgeTest f = property $ do
+            void $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
 
-  buildGen :: Gen m -> Set p -> Gen m
-  buildGen g = do
+
+  buildGen :: Gen m -> Set p -> Traversal p m
+  buildGen s tp = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         graph = fromEdges edges
         cache = shortestPathCache graph
         isco = isStronglyConnected cache
-        go targetProperties = do
-          m <- g
+        go targetProperties m = do
           if null pedges
             then failWithFootnote "no Morphisms defined"
             else pure ()
@@ -149,7 +146,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                         $+$ hang "No Edge Between here:" 4 (ppDoc a)
                         $+$ hang "            and here:" 4 (ppDoc b)
           transformModel cache pedges m targetProperties
-     in go
+     in Traversal (Source s) (go tp)
 
   findNoPath ::
     m :+ p ->
@@ -165,7 +162,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       ]
     where
       -- The score function is designed to favor sets which are similar and small
-      -- The assumption being that smaller morphims are more general
+      -- The assumption being that smaller morphisms are more general
       score :: Ord a => Set a -> Set a -> (Int, Int)
       score l r = (hamming l r, length $ l `Set.intersection` r)
       hamming :: Ord a => Set a -> Set a -> Int
@@ -178,40 +175,23 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Map (Set p, Set p) [Morphism p m] ->
     m ->
     Set p ->
-    Gen m
+    Gen [Morphism p m]
   transformModel !cache pedges m to = do
     pathOptions <- findPathOptions (Apropos :: m :+ p) cache (properties m) to
-    traversePath pedges pathOptions m
+    sequence $ traversePath pedges pathOptions
 
   traversePath ::
     Map (Set p, Set p) [Morphism p m] ->
     [(Set p, Set p)] ->
-    m ->
-    Gen m
-  traversePath _ [] m = pure m
-  traversePath edges (h@(_,expected) : r) m = do
-    pe <- case Map.lookup h edges of
-      Nothing -> failWithFootnote "tried to travel edge with no morphism"
-      Just so -> pure so
-    tr <- element pe
-    let inprops = properties @p m
-    -- TODO this probably needs to be cached somehow
-    if satisfiesFormula logic expected
-      then pure ()
-      else
-        failWithFootnote $
-          renderStyle ourStyle $
-            "Morphism contract produces invalid model"
-              $+$ hang "Edge:" 4 (ppDoc $ name tr)
-              $+$ hang "Input:" 4 (ppDoc inprops)
-              $+$ hang "Output:" 4 (ppDoc expected)
-    label $ fromString $ name tr
-    nm <- morphism tr m
-    let observed = properties nm
-    if expected == observed
-      then pure ()
-      else edgeFailsContract tr m nm expected observed
-    traversePath edges r nm
+    [Gen (Morphism p m)]
+  traversePath edges es = go <$> es
+    where
+      go :: (Set p, Set p) -> Gen (Morphism p m)
+      go h = do
+        pe <- case Map.lookup h edges of
+          Nothing -> failWithFootnote "this should never happen"
+          Just so -> pure so
+        wrapMorphismWithContractCheck <$> element pe
 
   findPathOptions ::
     m :+ p ->
@@ -258,23 +238,3 @@ genRandomPath !cache from to = do
         Just p -> pure $ from : p
         Nothing -> error "failed to find path despite graph being connected?"
 
-edgeFailsContract ::
-  forall m p.
-  HasLogicalModel p m =>
-  Show m =>
-  Morphism p m ->
-  m ->
-  m ->
-  Set p ->
-  Set p ->
-  Gen ()
-edgeFailsContract tr m nm expected observed =
-  failWithFootnote $
-    renderStyle ourStyle $
-      "Morphism fails its contract."
-        $+$ hang "Edge:" 4 (ppDoc $ name tr)
-        $+$ hang "InputModel:" 4 (ppDoc (ppDoc m))
-        $+$ hang "InputProperties" 4 (ppDoc $ Set.toList (properties m :: Set p))
-        $+$ hang "OutputModel:" 4 (ppDoc (ppDoc nm))
-        $+$ hang "ExpectedProperties:" 4 (ppDoc (Set.toList expected))
-        $+$ hang "ObservedProperties:" 4 (ppDoc (Set.toList observed))

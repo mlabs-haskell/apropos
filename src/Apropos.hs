@@ -22,9 +22,12 @@ module Apropos (
   choice,
   genFilter,
   retry,
+  -- Apropos.Gen.Traversal
+  Traversal (..),
   -- Apropos.Gen.Range
   Range,
   linear,
+  linearFrom,
   singleton,
   -- Apropos.HasParameterisedGenerator
   HasParameterisedGenerator (..),
@@ -73,6 +76,7 @@ module Apropos (
 ) where
 
 import Apropos.Gen
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasAbstractions
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator

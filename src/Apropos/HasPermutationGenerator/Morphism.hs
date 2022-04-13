@@ -14,6 +14,7 @@ import Apropos.LogicalModel
 import Control.Monad ((>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -70,6 +71,7 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
       let inprops = properties m
       nm <- morphism mo m
       let observed = properties nm
+      label $ fromString $ name mo
       if solvesContract (contract mo) inprops observed
          then pure nm
          else let mexpected = runContract (contract mo) inprops

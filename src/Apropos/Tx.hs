@@ -1,6 +1,6 @@
 module Apropos.Tx () where
 
---TODO
+-- TODO
 --
 -- a Tx datastructure that encodes a virtual ledger state
 --

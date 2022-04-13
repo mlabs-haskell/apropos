@@ -263,6 +263,6 @@ solvesContract :: LogicalModel p => Contract p () -> Set p -> Set p -> Bool
 solvesContract c iprops oprops = let
   ef = withLogic . translateInstructions . toInstructions $ c
   inlogic = All [ (if p `elem` iprops then id else Not) $ Var (S (i ef) p) | p <- enumerated ]
-  outlogic = All [ (if p `elem` oprops then id else Not) $ Var (S (i ef) p) | p <- enumerated ]
+  outlogic = All [ (if p `elem` oprops then id else Not) $ Var (S (o ef) p) | p <- enumerated ]
     in not . null $ solveAll (form ef :&&: inlogic :&&: outlogic)
 

@@ -189,37 +189,29 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     m ->
     Gen m
   traversePath _ [] m = pure m
-  traversePath edges (h : r) m = do
+  traversePath edges (h@(_,expected) : r) m = do
     pe <- case Map.lookup h edges of
       Nothing -> failWithFootnote "tried to travel edge with no morphism"
       Just so -> pure so
     tr <- element pe
-    let inprops = properties m
-        mexpected = runContract (contract tr) inprops
+    let inprops = properties @p m
     -- TODO this probably needs to be cached somehow
-    case mexpected of
-      Nothing ->
+    if satisfiesFormula logic expected
+      then pure ()
+      else
         failWithFootnote $
           renderStyle ourStyle $
-            "Morphism doesn't work. This is a model error"
-              $+$ "This should never happen at this point in the program."
-      Just expected -> do
-        if satisfiesFormula logic expected
-          then pure ()
-          else
-            failWithFootnote $
-              renderStyle ourStyle $
-                "Morphism contract produces invalid model"
-                  $+$ hang "Edge:" 4 (ppDoc $ name tr)
-                  $+$ hang "Input:" 4 (ppDoc inprops)
-                  $+$ hang "Output:" 4 (ppDoc expected)
-        label $ fromString $ name tr
-        nm <- morphism tr m
-        let observed = properties nm
-        if expected == observed
-          then pure ()
-          else edgeFailsContract tr m nm expected observed
-        traversePath edges r nm
+            "Morphism contract produces invalid model"
+              $+$ hang "Edge:" 4 (ppDoc $ name tr)
+              $+$ hang "Input:" 4 (ppDoc inprops)
+              $+$ hang "Output:" 4 (ppDoc expected)
+    label $ fromString $ name tr
+    nm <- morphism tr m
+    let observed = properties nm
+    if expected == observed
+      then pure ()
+      else edgeFailsContract tr m nm expected observed
+    traversePath edges r nm
 
   findPathOptions ::
     m :+ p ->
@@ -243,7 +235,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       (<>)
       [ (e, [m])
       | m <- generators
-      , e <- Set.toList $ solveContract (contract m)
+      , e <- Set.toList $ solveContract (matches (match m) >> contract m)
       ]
 
 pairPath :: [a] -> [(a, a)]

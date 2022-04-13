@@ -14,7 +14,6 @@ import Apropos.LogicalModel
 import Control.Monad ((>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -69,29 +68,18 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
     wrap :: m -> Gen m
     wrap m = do
       let inprops = properties m
-          mexpected = runContract (contract mo) inprops
-      case mexpected of
-        Nothing ->
-          failWithFootnote $
-            renderStyle ourStyle $
-              "Morphism doesn't work. This is a model error"
-                $+$ "This should never happen at this point in the program."
-        Just expected -> do
-          if satisfiesFormula logic expected
-            then pure ()
-            else
-              failWithFootnote $
-                renderStyle ourStyle $
-                  "Morphism contract produces invalid model"
-                    $+$ hang "Edge:" 4 (ppDoc $ name mo)
-                    $+$ hang "Input:" 4 (ppDoc inprops)
-                    $+$ hang "Output:" 4 (ppDoc expected)
-          label $ fromString $ name mo
-          nm <- morphism mo m
-          let observed = properties nm
-          if expected == observed
-            then pure nm
-            else edgeFailsContract mo m nm expected observed
+      nm <- morphism mo m
+      let observed = properties nm
+      if solvesContract (contract mo) inprops observed
+         then pure nm
+         else let mexpected = runContract (contract mo) inprops
+           in case mexpected of
+                Nothing ->
+                  failWithFootnote $
+                    renderStyle ourStyle $
+                      "Morphism doesn't work. This is a model error"
+                        $+$ "This should never happen at this point in the program."
+                Just expected -> edgeFailsContract mo m nm expected observed
 
     edgeFailsContract ::
       Morphism p m ->

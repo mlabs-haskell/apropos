@@ -99,14 +99,17 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
         , morphism = \moves -> do
-            winlocs <- Set.toList <$> element winTileSets
-            whofirst <- element [[moves, winlocs], [winlocs, moves]]
+            winlocs <- Set.toList <$> element (errLabelWhenNull "1" winTileSets)
+            whofirst <- element $ errLabelWhenNull "2" [[moves, winlocs], [winlocs, moves]]
             let win = join $ transpose whofirst
             if containsWin win && satisfiesExpression locationSequenceIsValid win
               then pure win
               else retry
         }
     ]
+
+errLabelWhenNull :: String -> [a] -> [a]
+errLabelWhenNull la li = if null li then error la else li
 
 instance HasParameterisedGenerator MoveSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen

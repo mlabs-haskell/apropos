@@ -34,8 +34,6 @@ import Apropos.LogicalModel (
   satisfiesFormula,
   solveAll,
  )
-import Control.Monad ((>=>))
-import Control.Monad.Reader (Reader, ask, runReader)
 import Control.Monad.Writer (Writer, execWriter, tell)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -106,34 +104,31 @@ data Instruction p
 
 runContract' :: LogicalModel p => Contract p () -> Set p -> Either String (Set p)
 runContract' c s =
-  let ss = runReader (interprets (toInstructions c) s) s
+  let ss = interprets (toInstructions c) s
    in case filter (satisfiesFormula logic) (Set.toList ss) of
         [] -> Left "contract has no result"
         [x] -> Right x
         xs -> Left $ "contract has multiple results " <> show xs
 
-interprets :: LogicalModel p => [Instruction p] -> Set p -> Reader (Set p) (Set (Set p))
-interprets [] s = pure $ Set.singleton s
-interprets (x : xs) s = do
-  (r :: Set (Set p)) <- interpret x s
-  rs <- mapM (interprets xs) (Set.toList r)
-  pure $ foldr Set.union Set.empty rs
+interprets :: LogicalModel p => [Instruction p] -> Set p -> Set (Set p)
+interprets [] s = Set.singleton s
+interprets (x : xs) s =
+  let r = interpret x s
+      rs = interprets xs <$> Set.toList r
+   in foldr Set.union Set.empty rs
 
-interpret :: forall p. LogicalModel p => Instruction p -> Set p -> Reader (Set p) (Set (Set p))
-interpret (Adds ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.insert p s) <$> ps) is
-interpret (Removes ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.delete p s) <$> ps) is
-interpret (Holds f) is = do
-  --  s <- ask
-  if satisfiesFormula f is --s --TODO I'm pretty sure this is wrong and satisfiesFormula
-    then pure $ Set.singleton is -- should operate on `s` but now the tests pass :o ...
-    else pure Set.empty
-interpret (Branch bs) is = do
-  s <- ask
-  let cs :: [Reader (Set p) (Set (Set p))]
+interpret :: forall p. LogicalModel p => Instruction p -> Set p -> Set (Set p)
+interpret (Adds ps) is = Set.singleton $ Set.fromList ps `Set.union` is
+interpret (Removes ps) is = Set.singleton $ is `Set.difference` Set.fromList ps
+
+interpret (Holds f) is =
+  if satisfiesFormula f is
+    then Set.singleton is
+    else Set.empty
+interpret (Branch bs) is =
+  let cs :: [Set (Set p)]
       cs = uncurry interprets <$> zip bs (repeat is)
-      rs :: [Set (Set p)]
-      rs = flip runReader s <$> cs
-  pure $ foldr Set.union Set.empty rs
+   in foldr Set.union Set.empty cs
 
 type Contract p = Writer [Instruction p]
 

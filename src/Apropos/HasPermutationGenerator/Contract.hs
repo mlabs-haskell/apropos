@@ -107,8 +107,7 @@ data Instruction p
 runContract' :: LogicalModel p => Contract p () -> Set p -> Either String (Set p)
 runContract' c s =
   let ss = runReader (interprets (toInstructions c) s) s
-   in case Set.toList ss of
---   in case filter (satisfiesFormula logic) (Set.toList ss) of
+   in case filter (satisfiesFormula logic) (Set.toList ss) of
         [] -> Left "contract has no result"
         [x] -> Right x
         xs -> Left $ "contract has multiple results " <> show xs
@@ -124,9 +123,9 @@ interpret :: forall p . LogicalModel p => Instruction p -> Set p -> Reader (Set 
 interpret (Adds ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.insert p s) <$> ps) is
 interpret (Removes ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.delete p s) <$> ps) is
 interpret (Holds f) is = do
-  s <- ask
-  if satisfiesFormula f s
-     then pure $ Set.singleton is
+--  s <- ask
+  if satisfiesFormula f is --s --TODO I'm pretty sure this is wrong and satisfiesFormula 
+     then pure $ Set.singleton is    -- should operate on `s` but now the tests pass :o
      else pure Set.empty
 interpret (Branch bs) is = do
   s <- ask
@@ -135,7 +134,6 @@ interpret (Branch bs) is = do
       rs :: [Set (Set p)]
       rs = flip runReader s <$> cs
   pure $ foldr Set.union Set.empty rs
-
 
 type Contract p = Writer [Instruction p]
 

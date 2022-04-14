@@ -149,7 +149,7 @@ data EdgeFormula p = EdgeFormula
 translateInstruction :: Enumerable p => Instruction p -> EdgeFormula p
 translateInstruction (Delta rs as) =
   EdgeFormula
-    ( (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` (rs `Set.union` as)]) :&&: All [ Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [ Var (S 1 p) | p <- Set.toList as ])
+    ((All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` (rs `Set.union` as)]) :&&: All [Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [Var (S 1 p) | p <- Set.toList as])
     1
     0
     1
@@ -200,11 +200,15 @@ solveEdgesList c =
   ]
 
 withLogic :: LogicalModel p => EdgeFormula p -> EdgeFormula p
-withLogic e@EdgeFormula {form = f} = e{form = f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)
-  -- ensure input and output vars all mentioned
-  :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- enumerated ]
-  :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- enumerated ]
-                                      }
+withLogic e@EdgeFormula {form = f} =
+  e
+    { form =
+        f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)
+          --these last two lines just ensure input and output vars are all mentioned
+          :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- enumerated]
+          :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- enumerated]
+    }
+
 
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
@@ -219,7 +223,7 @@ labelContract :: Ord b => (a -> b) -> Contract a () -> Contract b ()
 labelContract f = tell . map (instrMap f) . execWriter
 
 cleanContract :: Ord p => [Instruction p] -> [Instruction p]
-cleanContract (Delta r1 a1:Delta r2 a2:c) = cleanContract $ Delta ((r1 `Set.difference` a2) `Set.union` r2) ((a1 `Set.difference` r2) `Set.union` a2) : c
-cleanContract (Branch bs:c) = Branch (cleanContract <$> bs) : cleanContract c
-cleanContract (c:cs) = c:cleanContract cs
+cleanContract (Delta r1 a1 : Delta r2 a2 : c) = cleanContract $ Delta ((r1 `Set.difference` a2) `Set.union` r2) ((a1 `Set.difference` r2) `Set.union` a2) : c
+cleanContract (Branch bs : c) = Branch (cleanContract <$> bs) : cleanContract c
+cleanContract (c : cs) = c : cleanContract cs
 cleanContract [] = []

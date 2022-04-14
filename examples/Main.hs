@@ -14,12 +14,8 @@ import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty
 
---import Apropos.HasPermutationGenerator.Contract (solveContract)
---import Apropos (Morphism(contract), HasPermutationGenerator (generators))
-
 main :: IO ()
-main = do
-  defaultMain tests
+main = defaultMain tests
 
 tests :: TestTree
 tests =

@@ -72,16 +72,17 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
       nm <- morphism mo m
       let observed = properties nm
       label $ fromString $ name mo
-      if solvesContract (contract mo) inprops observed
-         then pure nm
-         else let mexpected = runContract (contract mo) inprops
-           in case mexpected of
-                Nothing ->
-                  failWithFootnote $
-                    renderStyle ourStyle $
-                      "Morphism doesn't work. This is a model error"
-                        $+$ "This should never happen at this point in the program."
-                Just expected -> edgeFailsContract mo m nm expected observed
+      case runContract' (contract mo) inprops of
+        Left err ->
+          failWithFootnote $
+            renderStyle ourStyle $
+              "Morphism doesn't work. This is a model error"
+                $+$ "This should never happen at this point in the program."
+                $+$ ppDoc err
+        Right expected ->
+          if expected == observed
+             then pure nm
+             else edgeFailsContract mo m nm expected observed
 
     edgeFailsContract ::
       Morphism p m ->

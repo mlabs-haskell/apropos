@@ -21,6 +21,7 @@ module Apropos.HasPermutationGenerator.Contract (
   solveContractList,
   solveEdgesMap,
   runContract,
+  runContract',
   labelContract,
   solvesContract,
   P(..),
@@ -31,8 +32,11 @@ import Apropos.LogicalModel (
   Formula(..),
   Enumerable(..),
   LogicalModel(logic),
+  satisfiesFormula,
                             )
+import Control.Monad.Reader (Reader, ask, runReader)
 import Control.Monad.Writer (Writer, execWriter, tell)
+import Control.Monad ((>=>))
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -99,6 +103,39 @@ data Instruction p
   | Branch [[Instruction p]]
   | Holds (Formula p)
   deriving stock (Show, Functor)
+
+runContract' :: LogicalModel p => Contract p () -> Set p -> Either String (Set p)
+runContract' c s =
+  let ss = runReader (interprets (toInstructions c) s) s
+   in case Set.toList ss of
+--   in case filter (satisfiesFormula logic) (Set.toList ss) of
+        [] -> Left "contract has no result"
+        [x] -> Right x
+        xs -> Left $ "contract has multiple results " <> show xs
+
+interprets :: LogicalModel p => [Instruction p] -> Set p -> Reader (Set p) (Set (Set p))
+interprets [] s = pure $ Set.singleton s
+interprets (x:xs) s = do
+  (r :: Set (Set p)) <- interpret x s
+  rs <- mapM (interprets xs) (Set.toList r)
+  pure $ foldr Set.union Set.empty rs
+
+interpret :: forall p . LogicalModel p => Instruction p -> Set p -> Reader (Set p) (Set (Set p))
+interpret (Adds ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.insert p s) <$> ps) is
+interpret (Removes ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.delete p s) <$> ps) is
+interpret (Holds f) is = do
+  s <- ask
+  if satisfiesFormula f s
+     then pure $ Set.singleton is
+     else pure Set.empty
+interpret (Branch bs) is = do
+  s <- ask
+  let cs :: [Reader (Set p) (Set (Set p))]
+      cs = uncurry interprets <$> zip bs (repeat is)
+      rs :: [Set (Set p)]
+      rs = flip runReader s <$> cs
+  pure $ foldr Set.union Set.empty rs
+
 
 type Contract p = Writer [Instruction p]
 

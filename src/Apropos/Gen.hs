@@ -196,8 +196,8 @@ gen (Free (GenShuffle ls next)) = do
   gen $ next s
 gen (Free (GenElement ls next)) = do
   if null ls
-     then throwE $ GenException "GenElement empty list"
-     else do
+    then throwE $ GenException "GenElement empty list"
+    else do
       s <- lift $ HGen.element ls
       gen $ next s
 gen (Free (GenChoice gs next)) = do

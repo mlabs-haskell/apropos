@@ -13,6 +13,7 @@ import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty
+
 --import Apropos.HasPermutationGenerator.Contract (solveContract)
 --import Apropos (Morphism(contract), HasPermutationGenerator (generators))
 

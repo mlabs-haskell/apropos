@@ -17,14 +17,14 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (liftM2,void)
-import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, shortestPathCache, shortestPath_, insertVertex)
+import Control.Monad (liftM2, void)
+import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)
 import Data.List (minimumBy)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (isNothing,isJust)
+import Data.Maybe (isJust, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -123,7 +123,6 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f = property $ do
             void $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
-
 
   buildGen :: Gen m -> Set p -> Traversal p m
   buildGen s tp = do
@@ -237,4 +236,3 @@ genRandomPath !cache from to = do
    in case liftM2 (<>) p1 p2 of
         Just p -> pure $ from : p
         Nothing -> error "failed to find path despite graph being connected?"
-

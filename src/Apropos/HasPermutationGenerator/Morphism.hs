@@ -81,8 +81,8 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
                 $+$ ppDoc err
         Right expected ->
           if expected == observed
-             then pure nm
-             else edgeFailsContract mo m nm expected observed
+            then pure nm
+            else edgeFailsContract mo m nm expected observed
 
     edgeFailsContract ::
       Morphism p m ->

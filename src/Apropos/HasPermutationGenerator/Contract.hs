@@ -24,19 +24,19 @@ module Apropos.HasPermutationGenerator.Contract (
   runContract',
   labelContract,
   solvesContract,
-  P(..),
+  P (..),
 ) where
 
 import Apropos.LogicalModel (
-  solveAll,
-  Formula(..),
-  Enumerable(..),
-  LogicalModel(logic),
+  Enumerable (..),
+  Formula (..),
+  LogicalModel (logic),
   satisfiesFormula,
-                            )
+  solveAll,
+ )
+import Control.Monad ((>=>))
 import Control.Monad.Reader (Reader, ask, runReader)
 import Control.Monad.Writer (Writer, execWriter, tell)
-import Control.Monad ((>=>))
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -114,19 +114,19 @@ runContract' c s =
 
 interprets :: LogicalModel p => [Instruction p] -> Set p -> Reader (Set p) (Set (Set p))
 interprets [] s = pure $ Set.singleton s
-interprets (x:xs) s = do
+interprets (x : xs) s = do
   (r :: Set (Set p)) <- interpret x s
   rs <- mapM (interprets xs) (Set.toList r)
   pure $ foldr Set.union Set.empty rs
 
-interpret :: forall p . LogicalModel p => Instruction p -> Set p -> Reader (Set p) (Set (Set p))
+interpret :: forall p. LogicalModel p => Instruction p -> Set p -> Reader (Set p) (Set (Set p))
 interpret (Adds ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.insert p s) <$> ps) is
 interpret (Removes ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ Set.delete p s) <$> ps) is
 interpret (Holds f) is = do
---  s <- ask
-  if satisfiesFormula f is --s --TODO I'm pretty sure this is wrong and satisfiesFormula 
-     then pure $ Set.singleton is    -- should operate on `s` but now the tests pass :o ...
-     else pure Set.empty
+  --  s <- ask
+  if satisfiesFormula f is --s --TODO I'm pretty sure this is wrong and satisfiesFormula
+    then pure $ Set.singleton is -- should operate on `s` but now the tests pass :o ...
+    else pure Set.empty
 interpret (Branch bs) is = do
   s <- ask
   let cs :: [Reader (Set p) (Set (Set p))]
@@ -148,8 +148,8 @@ sFirst f (S n a) = S (f n) a
 data EdgeFormula p = EdgeFormula
   { form :: Formula (S p)
   , space :: Int
-  --, antiValidity :: Formula (S p)
-  , i :: Int
+  , --, antiValidity :: Formula (S p)
+    i :: Int
   , o :: Int
   }
   deriving stock (Show)
@@ -172,15 +172,15 @@ translateInstruction (Removes ps) =
 translateInstruction (Holds f) = EdgeFormula (S 0 <$> f) 0 {- No -} 0 0
 translateInstruction (Branch bs) =
   let pbs = translateInstructions <$> bs
-      scanRes = scanl (+) 2 ((+1) . space <$> pbs)
+      scanRes = scanl (+) 2 ((+ 1) . space <$> pbs)
       starts = init scanRes
       ranges = zip scanRes (subtract 1 <$> tail scanRes)
-      blanks = [ None [Var (S t e) | e <- enumerated , t <- [a..b] ] | (a,b) <- ranges ]
+      blanks = [None [Var (S t e) | e <- enumerated, t <- [a .. b]] | (a, b) <- ranges]
       forms = zipWith (\start form' -> sFirst (+ start) <$> form') starts (form <$> pbs)
       --antis = zipWith (\start anti' -> sFirst (+ start) <$> anti') starts (antiValidity <$> pbs)
       cons = zipWith (\start pb -> All [(Var (S 0 a) :<->: Var (S (start + i pb) a)) :&&: (Var (S 1 a) :<->: Var (S (start + o pb) a)) | a <- enumerated]) starts pbs
       brs = zipWith (:&&:) cons forms
-      --newAnti = Some $ do
+   in --newAnti = Some $ do
       --  (a, b) <- distinctPairs pbs
       --  let astart = 3
       --      aend = 3 + space a
@@ -205,7 +205,7 @@ translateInstruction (Branch bs) =
       --      , formb
       --      , Not $ All [Var (S 1 p) :<->: Var (S 2 p) | p <- enumerated]
       --      ]
-   in EdgeFormula (Some brs :&&: All (zipWith (:||:) brs blanks)) (2 + last scanRes) {- (Some antis :||: newAnti) -} 0 1
+      EdgeFormula (Some brs :&&: All (zipWith (:||:) brs blanks)) (2 + last scanRes {- (Some antis :||: newAnti) -}) 0 1
 
 translateInstructions :: Enumerable p => [Instruction p] -> EdgeFormula p
 translateInstructions [] = idPartial
@@ -229,20 +229,21 @@ seqFormulas l r =
       conectlr = All [Var (S lo a) :<->: Var (S ri a) | a <- enumerated]
       lform = sFirst (+ lstart) <$> form l
       rform = sFirst (+ rstart) <$> form r
-      --lanti = sFirst (+ lstart) <$> antiValidity l
+   in --lanti = sFirst (+ lstart) <$> antiValidity l
       --ranti = sFirst (+ rstart) <$> antiValidity r
-   in EdgeFormula (All [conectlr, lform, rform]) rend {- (lanti :||: ranti) -} li ro
+      EdgeFormula (All [conectlr, lform, rform]) rend {- (lanti :||: ranti) -} li ro
 
 solveEdgesList :: (Enumerable p) => EdgeFormula p -> [(Set p, Set p)]
 solveEdgesList c =
---  case solveAll (antiValidity c) of
---    [] ->
-      [ (inprops , outprops)
-      | s <- solveAll (form c)
-      , let inprops = Set.fromList [k | k <- enumerated, Map.lookup (S (i c) k) s == Just True]
-      , let outprops = Set.fromList [k | k <- enumerated, Map.lookup (S (o c) k) s == Just True]
-      , inprops /= outprops
-      ]
+  --  case solveAll (antiValidity c) of
+  --    [] ->
+  [ (inprops, outprops)
+  | s <- solveAll (form c)
+  , let inprops = Set.fromList [k | k <- enumerated, Map.lookup (S (i c) k) s == Just True]
+  , let outprops = Set.fromList [k | k <- enumerated, Map.lookup (S (o c) k) s == Just True]
+  , inprops /= outprops
+  ]
+
 --    s ->
 --      let trues = Map.keys $ Map.filter id $ head s
 --          falses = Map.keys $ Map.filter not $ head s
@@ -266,7 +267,7 @@ solveEdgesList c =
 -- TODO better message here
 
 withLogic :: LogicalModel p => EdgeFormula p -> EdgeFormula p
-withLogic e@EdgeFormula{form=f} = e{form = f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)}
+withLogic e@EdgeFormula {form = f} = e{form = f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)}
 
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
@@ -291,13 +292,12 @@ labelContract :: (a -> b) -> Contract a () -> Contract b ()
 labelContract f = tell . map (fmap f) . execWriter
 
 data P = A | B | C | D
-  deriving stock (Show,Eq,Ord,Generic)
+  deriving stock (Show, Eq, Ord, Generic)
   deriving anyclass (Enumerable)
 
 solvesContract :: LogicalModel p => Contract p () -> Set p -> Set p -> Bool
-solvesContract c iprops oprops = let
-  ef = withLogic . translateInstructions . toInstructions $ c
-  inlogic = All [ (if p `elem` iprops then id else Not) $ Var (S (i ef) p) | p <- enumerated ]
-  outlogic = All [ (if p `elem` oprops then id else Not) $ Var (S (o ef) p) | p <- enumerated ]
-    in not . null $ solveAll (form ef :&&: inlogic :&&: outlogic)
-
+solvesContract c iprops oprops =
+  let ef = withLogic . translateInstructions . toInstructions $ c
+      inlogic = All [(if p `elem` iprops then id else Not) $ Var (S (i ef) p) | p <- enumerated]
+      outlogic = All [(if p `elem` oprops then id else Not) $ Var (S (o ef) p) | p <- enumerated]
+   in not . null $ solveAll (form ef :&&: inlogic :&&: outlogic)

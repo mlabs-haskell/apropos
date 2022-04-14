@@ -10,6 +10,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
+import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
@@ -21,7 +22,7 @@ data PlayerLocationSequencePairProperty
   | PlayerLocationSequencePairPlayer PlayerSequenceProperty
   | PlayerLocationSequencePairLengthsAreEqual
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =

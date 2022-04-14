@@ -8,6 +8,7 @@ import Apropos
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
+import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
@@ -17,7 +18,7 @@ data IntPairProp
   = L IntProp
   | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntPairProp where
   logic = abstractionLogic @(Int, Int)

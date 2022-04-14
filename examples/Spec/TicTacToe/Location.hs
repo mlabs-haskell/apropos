@@ -9,6 +9,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -17,7 +18,7 @@ data LocationProperty
   = LocationIsWithinBounds
   | LocationIsOutOfBounds
   deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel LocationProperty where
   logic = ExactlyOne $ Var <$> [LocationIsWithinBounds, LocationIsOutOfBounds]

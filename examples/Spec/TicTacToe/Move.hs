@@ -10,6 +10,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.LogicalModel
 import Control.Lens.Tuple (_1, _2)
+import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
@@ -20,7 +21,7 @@ data MoveProperty
   = MoveLocation LocationProperty
   | MovePlayer PlayerProperty
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel MoveProperty where
   logic = abstractionLogic @(Int, Int)

@@ -14,9 +14,6 @@ import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel (Formula (..), LogicalModel (logic), satisfiedBy)
 import Apropos.LogicalModel.Enumerable
 import Control.Lens
-import Data.Either (rights)
-import Data.Set (Set)
-import Data.Set qualified as Set
 
 data Abstraction ap am bp bm
   = ProductAbstraction
@@ -32,8 +29,7 @@ data Abstraction ap am bp bm
       }
 
 abstract ::
-  Enumerable ap =>
-  Enumerable bp =>
+  Ord bp =>
   Abstraction ap am bp bm ->
   Morphism ap am ->
   Morphism bp bm
@@ -43,7 +39,6 @@ abstract abstraction@ProductAbstraction {} edge =
     , match = (propertyAbstraction abstraction #) <$> match edge
     , contract =
         abstractContract
-          (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
     , morphism = productModelAbstraction abstraction $ morphism edge
@@ -54,7 +49,6 @@ abstract abstraction@SumAbstraction {} edge =
     , match = Var (propLabel abstraction) :&&: ((propertyAbstraction abstraction #) <$> match edge)
     , contract =
         abstractContract
-          (abstractionName abstraction)
           (propertyAbstraction abstraction)
           $ contract edge
     , morphism = sumModelAbstraction abstraction $ morphism edge
@@ -87,25 +81,8 @@ abstractsProperties injection = prism' injection (computeProjection injection)
       where
         g b = lookup b (zip (f <$> enumerated) enumerated)
 
-abstractContract :: (Ord a, Ord b) => String -> Prism' b a -> Contract a () -> Contract b ()
-abstractContract prefix a c = do
-  i <- readContractOutput
-  n <- readContractEdgeName
-  let subm = projectProperties a i
-      subx = maskProperties a i
-      res = runContract c (prefix <> n) subm
-  case res of
-    Left err -> contractError err
-    Right Nothing -> terminal
-    Right (Just upd) ->
-      output (subx `Set.union` injectProperties a upd)
-  where
-    injectProperties :: Ord b => Prism' b a -> Set a -> Set b
-    injectProperties pa = Set.map (pa #)
-    projectProperties :: Ord a => Prism' b a -> Set b -> Set a
-    projectProperties pa s = Set.fromList $ rights (matching pa <$> Set.toList s)
-    maskProperties :: Prism' b a -> Set b -> Set b
-    maskProperties pa = Set.filter (isn't pa)
+abstractContract :: Ord b => Prism' b a -> Contract a () -> Contract b ()
+abstractContract a = labelContract (review a)
 
 abstractLogic :: forall bp bm ap am. LogicalModel ap => Abstraction ap am bp bm -> Formula bp
 abstractLogic s@ProductAbstraction {} = (propertyAbstraction s #) <$> logic

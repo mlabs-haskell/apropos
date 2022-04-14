@@ -13,6 +13,7 @@ import Control.Lens (lens)
 import Data.Ratio
 import GHC.Generics
 
+import Data.Hashable (Hashable)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -20,7 +21,8 @@ import Test.Tasty.Hedgehog (fromGroup)
 -- this example is used to ilustrate both trivial and non-trivial relations between
 -- the model props and the submodel props
 data Rat = Rational {num :: Int, den :: Int}
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving anyclass (Hashable)
 
 asRational :: Rat -> Rational
 asRational (Rational n d) = fromIntegral n % fromIntegral d
@@ -34,7 +36,7 @@ data RatProp
   | Num IntProp
   | Den IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel RatProp where
   logic =

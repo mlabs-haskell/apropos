@@ -47,7 +47,7 @@ abstractionMorphisms =
 {- | Product types with additional logic sometimes need to include parallel morphisms
  which change both fields of the product to keep some invariant
 -}
-parallelAbstractionMorphisms :: forall p m. (LogicalModel p, HasAbstractions p m) => [Morphism p m]
+parallelAbstractionMorphisms :: forall p m. HasAbstractions p m => [Morphism p m]
 parallelAbstractionMorphisms =
   let abstractProductMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction@ProductAbstraction {} <- abstractions @p @m]
    in join

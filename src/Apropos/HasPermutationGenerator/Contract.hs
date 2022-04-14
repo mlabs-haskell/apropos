@@ -37,22 +37,22 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-toInstructions :: Contract p () -> [Instruction p]
-toInstructions = execWriter
+toInstructions :: Ord p => Contract p () -> [Instruction p]
+toInstructions = cleanContract . execWriter
 
-add :: a -> Contract a ()
+add :: Ord a => a -> Contract a ()
 add = addAll . pure
 
-addAll :: [a] -> Contract a ()
-addAll = tell . pure . Adds
+addAll :: Ord a => [a] -> Contract a ()
+addAll = tell . pure . Delta Set.empty . Set.fromList
 
-remove :: a -> Contract a ()
+remove :: Ord a => a -> Contract a ()
 remove = removeAll . pure
 
-removeAll :: [a] -> Contract a ()
-removeAll = tell . pure . Removes
+removeAll :: Ord a => [a] -> Contract a ()
+removeAll = tell . pure . (`Delta` Set.empty) . Set.fromList
 
-branches :: [Contract a ()] -> Contract a ()
+branches :: Ord a => [Contract a ()] -> Contract a ()
 branches = tell . pure . Branch . map toInstructions
 
 matches :: Formula a -> Contract a ()
@@ -70,19 +70,19 @@ hasNone = matches . None . map Var
 hasn't :: a -> Contract a ()
 hasn't = matches . Not . Var
 
-addIf :: p -> p -> Contract p ()
+addIf :: Ord p => p -> p -> Contract p ()
 addIf p q = branches [has p >> add q, hasn't p]
 
-addAllIf :: p -> [p] -> Contract p ()
+addAllIf :: Ord p => p -> [p] -> Contract p ()
 addAllIf p qs = branches [has p >> addAll qs, hasn't p]
 
-removeIf :: p -> p -> Contract p ()
+removeIf :: Ord p => p -> p -> Contract p ()
 removeIf p q = branches [has p >> remove q, hasn't p]
 
-removeAllIf :: p -> [p] -> Contract p ()
+removeAllIf :: Ord p => p -> [p] -> Contract p ()
 removeAllIf p qs = branches [has p >> removeAll qs, hasn't p]
 
-branchIf :: p -> Contract p () -> Contract p () -> Contract p ()
+branchIf :: Ord p => p -> Contract p () -> Contract p () -> Contract p ()
 branchIf p a b = branches [has p >> a, hasn't p >> b]
 
 clear :: Enumerable p => Contract p ()
@@ -92,11 +92,15 @@ terminal :: Contract p ()
 terminal = matches No
 
 data Instruction p
-  = Adds [p]
-  | Removes [p]
+  = Delta (Set p) (Set p) -- removes then adds lists have an empty intersection
   | Branch [[Instruction p]]
   | Holds (Formula p)
-  deriving stock (Show, Functor)
+  deriving stock (Show)
+
+instrMap :: Ord b => (a -> b) -> Instruction a -> Instruction b
+instrMap f (Delta rs as) = Delta (Set.map f rs) (Set.map f as)
+instrMap f (Branch bs) = Branch $ map (map (instrMap f)) bs
+instrMap f (Holds fo) = Holds (fmap f fo)
 
 runContract :: LogicalModel p => Contract p () -> Set p -> Either String (Set p)
 runContract c s =
@@ -114,9 +118,7 @@ interprets (x : xs) s =
    in foldr Set.union Set.empty rs
 
 interpret :: forall p. LogicalModel p => Instruction p -> Set p -> Set (Set p)
-interpret (Adds ps) is = Set.singleton $ Set.fromList ps `Set.union` is
-interpret (Removes ps) is = Set.singleton $ is `Set.difference` Set.fromList ps
-
+interpret (Delta rs as) is = Set.singleton $ (is `Set.difference` rs) `Set.union` as
 interpret (Holds f) is =
   if satisfiesFormula f is
     then Set.singleton is
@@ -145,15 +147,9 @@ data EdgeFormula p = EdgeFormula
   deriving stock (Show)
 
 translateInstruction :: Enumerable p => Instruction p -> EdgeFormula p
-translateInstruction (Adds ps) =
+translateInstruction (Delta rs as) =
   EdgeFormula
-    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` ps] :&&: All [(Var (S 0 p) :||: Not (Var (S 0 p))) :&&: Var (S 1 p) | p <- ps])
-    1
-    0
-    1
-translateInstruction (Removes ps) =
-  EdgeFormula
-    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` ps] :&&: None [(Var (S 0 p) :||: Not (Var (S 0 p))) :&&: Var (S 1 p) | p <- ps])
+    ( (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` (rs `Set.union` as)]) :&&: All [ Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [ Var (S 1 p) | p <- Set.toList as ])
     1
     0
     1
@@ -177,6 +173,8 @@ translateInstructions (x : xs) = foldl seqFormulas (translateInstruction x) $ ma
 idPartial :: EdgeFormula p
 idPartial = EdgeFormula Yes 0 0 0
 
+-- TODO this can be changed to add one less timestamp
+-- which may be a performance imrpovement
 seqFormulas :: Enumerable p => EdgeFormula p -> EdgeFormula p -> EdgeFormula p
 seqFormulas l r =
   let lstart = 0
@@ -202,7 +200,11 @@ solveEdgesList c =
   ]
 
 withLogic :: LogicalModel p => EdgeFormula p -> EdgeFormula p
-withLogic e@EdgeFormula {form = f} = e{form = f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)}
+withLogic e@EdgeFormula {form = f} = e{form = f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)
+  -- ensure input and output vars all mentioned
+  :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- enumerated ]
+  :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- enumerated ]
+                                      }
 
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
@@ -213,6 +215,11 @@ solveContractList = solveEdgesList . withLogic . translateInstructions . toInstr
 solveContract :: LogicalModel p => Contract p () -> Set (Set p, Set p)
 solveContract = Set.fromList . solveContractList
 
-labelContract :: (a -> b) -> Contract a () -> Contract b ()
-labelContract f = tell . map (fmap f) . execWriter
+labelContract :: Ord b => (a -> b) -> Contract a () -> Contract b ()
+labelContract f = tell . map (instrMap f) . execWriter
 
+cleanContract :: Ord p => [Instruction p] -> [Instruction p]
+cleanContract (Delta r1 a1:Delta r2 a2:c) = cleanContract $ Delta ((r1 `Set.difference` a2) `Set.union` r2) ((a1 `Set.difference` r2) `Set.union` a2) : c
+cleanContract (Branch bs:c) = Branch (cleanContract <$> bs) : cleanContract c
+cleanContract (c:cs) = c:cleanContract cs
+cleanContract [] = []

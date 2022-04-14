@@ -29,6 +29,7 @@ data Abstraction ap am bp bm
       }
 
 abstract ::
+  Ord bp =>
   Abstraction ap am bp bm ->
   Morphism ap am ->
   Morphism bp bm
@@ -80,7 +81,7 @@ abstractsProperties injection = prism' injection (computeProjection injection)
       where
         g b = lookup b (zip (f <$> enumerated) enumerated)
 
-abstractContract :: Prism' b a -> Contract a () -> Contract b ()
+abstractContract :: Ord b => Prism' b a -> Contract a () -> Contract b ()
 abstractContract a = labelContract (review a)
 
 abstractLogic :: forall bp bm ap am. LogicalModel ap => Abstraction ap am bp bm -> Formula bp

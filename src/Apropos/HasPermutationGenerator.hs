@@ -18,13 +18,13 @@ import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
 import Control.Monad (liftM2,void)
-import Data.DiGraph (DiGraph, ShortestPathCache, distance_, fromEdges, shortestPathCache, shortestPath_, insertVertex)
+import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, shortestPathCache, shortestPath_, insertVertex)
 import Data.Function (on)
 import Data.Hashable (Hashable)
 import Data.List (minimumBy)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing,isJust)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -52,7 +52,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         graph = buildGraph pedges
         cache = shortestPathCache graph
         mGen = buildGen bgen
-        isco = isStronglyConnected scenarios cache
+        isco = isStronglyConnected cache
      in if null (Map.keys pedges)
           then
             [ Group
@@ -131,7 +131,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         edges = Map.keys pedges
         graph = fromEdges edges
         cache = shortestPathCache graph
-        isco = isStronglyConnected scenarios cache
+        isco = isStronglyConnected cache
         go targetProperties m = do
           if null pedges
             then failWithFootnote "no Morphisms defined"
@@ -223,11 +223,8 @@ pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
-isStronglyConnected :: (Hashable a, Eq a) => [a] -> ShortestPathCache a -> Bool
-isStronglyConnected [] _ = True
-isStronglyConnected as !cache = all isCon [ distance_ a a' cache | a <- as, a' <- as ]
-  where isCon Nothing = False
-        isCon (Just so) = so < fromIntegral (length as)
+isStronglyConnected :: ShortestPathCache a -> Bool
+isStronglyConnected !cache = isJust $ diameter_ cache
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}

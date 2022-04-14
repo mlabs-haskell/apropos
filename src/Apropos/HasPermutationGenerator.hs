@@ -225,7 +225,9 @@ pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
 isStronglyConnected :: (Hashable a, Eq a) => [a] -> ShortestPathCache a -> Bool
 isStronglyConnected [] _ = True
-isStronglyConnected (a:as) !cache = not (any isNothing [ distance_ a a' cache | a' <- as ])
+isStronglyConnected as !cache = all isCon [ distance_ a a' cache | a <- as, a' <- as ]
+  where isCon Nothing = False
+        isCon (Just so) = so < fromIntegral (length as)
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}

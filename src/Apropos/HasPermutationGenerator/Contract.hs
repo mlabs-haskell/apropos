@@ -125,7 +125,7 @@ interpret (Removes ps) is = Set.singleton <$> foldr (>=>) pure ((\p s -> pure $ 
 interpret (Holds f) is = do
 --  s <- ask
   if satisfiesFormula f is --s --TODO I'm pretty sure this is wrong and satisfiesFormula 
-     then pure $ Set.singleton is    -- should operate on `s` but now the tests pass :o
+     then pure $ Set.singleton is    -- should operate on `s` but now the tests pass :o ...
      else pure Set.empty
 interpret (Branch bs) is = do
   s <- ask

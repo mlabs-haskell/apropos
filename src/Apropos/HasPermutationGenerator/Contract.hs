@@ -204,11 +204,10 @@ withLogic e@EdgeFormula {form = f} =
   e
     { form =
         f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)
-          --these last two lines just ensure input and output vars are all mentioned
+          -- these last two lines just ensure input and output vars are all mentioned
           :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- enumerated]
           :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- enumerated]
     }
-
 
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList

@@ -135,14 +135,14 @@ instance HasPermutationGenerator RatProp Rat where
                           | ns && ds -> pure $ Rational (10 * signum n) (signum d)
                           | nl && ds -> pure $ Rational (101 * signum n) d
                           | nl && dl ->
-                            if n `elem` [minBound, maxBound]
-                              then do
-                                d' <- int (linear 11 (maxBound `div` 10))
-                                pure $ Rational n (d' * signum d)
-                              else do
-                                n' <- int (linear 111 maxBound)
-                                d' <- int (linear 11 (n' `div` 10))
-                                pure $ Rational (n' * signum n) (d' * signum d)
+                              if n `elem` [minBound, maxBound]
+                                then do
+                                  d' <- int (linear 11 (maxBound `div` 10))
+                                  pure $ Rational n (d' * signum d)
+                                else do
+                                  n' <- int (linear 111 maxBound)
+                                  d' <- int (linear 11 (n' `div` 10))
+                                  pure $ Rational (n' * signum n) (d' * signum d)
                           | otherwise -> error "unexpected model"
           }
       , Morphism
@@ -162,18 +162,18 @@ instance HasPermutationGenerator RatProp Rat where
                    in if
                           | ns && ds -> pure $ Rational (9 * signum n) d
                           | nl && ds -> do
-                            let d' = max (abs d) 2
-                            n' <- int (linear 11 (10 * d' - 1))
-                            pure $ Rational (n' * signum n) (d' * signum d)
+                              let d' = max (abs d) 2
+                              n' <- int (linear 11 (10 * d' - 1))
+                              pure $ Rational (n' * signum n) (d' * signum d)
                           | nl && dl ->
-                            if n `elem` [minBound, maxBound]
-                              then do
-                                d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
-                                pure $ Rational n (d' * signum d)
-                              else do
-                                d' <- int (linear 11 (maxBound `div` 10))
-                                n' <- int (linear 11 (10 * d' + 1))
-                                pure $ Rational (n' * signum n) (d' * signum d)
+                              if n `elem` [minBound, maxBound]
+                                then do
+                                  d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
+                                  pure $ Rational n (d' * signum d)
+                                else do
+                                  d' <- int (linear 11 (maxBound `div` 10))
+                                  n' <- int (linear 11 (10 * d' + 1))
+                                  pure $ Rational (n' * signum n) (d' * signum d)
                           | otherwise -> error "unexpected model"
           }
       ]

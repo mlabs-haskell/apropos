@@ -188,7 +188,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       go :: (Set p, Set p) -> Gen (Morphism p m)
       go h = do
         pe <- case Map.lookup h edges of
-          Nothing -> failWithFootnote "this should never happen"
+          Nothing -> failWithFootnote $ "tried to traverse and edge that doesn't exist from:" ++ show (fst h) ++ " to: " ++ show (snd h)
           Just so -> pure so
         wrapMorphismWithContractCheck <$> element pe
 

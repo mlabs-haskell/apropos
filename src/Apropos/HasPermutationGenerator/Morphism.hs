@@ -72,7 +72,7 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
       nm <- morphism mo m
       let observed = properties nm
       label $ fromString $ name mo
-      case runContract' (contract mo) inprops of
+      case runContract (contract mo) inprops of
         Left err ->
           failWithFootnote $
             renderStyle ourStyle $

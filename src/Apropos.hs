@@ -36,6 +36,7 @@ module Apropos (
   enumerateGeneratorTest,
   enumerateGeneratorTestsWhere,
   genSatisfying,
+  sampleGenTest,
   -- Apropos.HasPermutationGenerator
   HasPermutationGenerator (..),
   Morphism (..),
@@ -73,6 +74,9 @@ module Apropos (
   matches,
   -- Apropos.Pure
   HasPureRunner (..),
+  -- Usefull Reexports
+  Hashable,
+  Generic,
 ) where
 
 import Apropos.Gen
@@ -85,3 +89,5 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Type
+import Data.Hashable(Hashable)
+import GHC.Generics(Generic)

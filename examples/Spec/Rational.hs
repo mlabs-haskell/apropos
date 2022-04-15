@@ -2,6 +2,7 @@
 
 module Spec.Rational (
   ratGenSelfTests,
+  ratSampleTests,
   RatProp (..),
   Rat (..),
 ) where
@@ -11,11 +12,8 @@ import Spec.IntPermutationGen
 
 import Control.Lens (lens)
 import Data.Ratio
-import GHC.Generics
-
-import Data.Hashable (Hashable)
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+import Test.Tasty.Hedgehog (fromGroup,testProperty)
 
 -- Note: this is probably not an ideal way to model rational numbers
 -- this example is used to ilustrate both trivial and non-trivial relations between
@@ -192,3 +190,9 @@ ratGenSelfTests =
         True
         (\(_ :: Morphism RatProp Rat) -> True)
         baseGen
+
+ratSampleTests :: TestTree
+ratSampleTests =
+  testGroup "ratSampleTests"
+    [testProperty "ratSampleTest" (sampleGenTest (Apropos :: Rat :+ RatProp))]
+

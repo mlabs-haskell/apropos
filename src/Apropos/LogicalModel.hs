@@ -29,7 +29,7 @@ class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
       (sol : _) -> sol
 
 scenarioMap :: LogicalModel p => Map Int (Set p)
-scenarioMap = Map.fromList $ zip [0..] scenarios
+scenarioMap = Map.fromList $ zip [0 ..] scenarios
 
 enumerateScenariosWhere :: forall p. LogicalModel p => Formula p -> [Set p]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPresentInFormula

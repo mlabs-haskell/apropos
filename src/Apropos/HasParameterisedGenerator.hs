@@ -14,9 +14,9 @@ import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
 import Apropos.Type
+import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Map qualified as Map
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
@@ -54,7 +54,7 @@ runGeneratorTestsWhere proxy name condition =
 genPropSet :: forall p. LogicalModel p => Gen (Set p)
 genPropSet = do
   let x = length $ scenarios @p
-  i <- int (linear 0 (x-1))
+  i <- int (linear 0 (x - 1))
   case Map.lookup i scenarioMap of
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
     Just set -> pure set

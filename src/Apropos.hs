@@ -89,5 +89,5 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Apropos.Pure
 import Apropos.Type
-import Data.Hashable(Hashable)
-import GHC.Generics(Generic)
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)

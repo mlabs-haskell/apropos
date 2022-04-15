@@ -13,7 +13,7 @@ import Spec.IntPermutationGen
 import Control.Lens (lens)
 import Data.Ratio
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup,testProperty)
+import Test.Tasty.Hedgehog (fromGroup, testProperty)
 
 -- Note: this is probably not an ideal way to model rational numbers
 -- this example is used to ilustrate both trivial and non-trivial relations between
@@ -193,6 +193,6 @@ ratGenSelfTests =
 
 ratSampleTests :: TestTree
 ratSampleTests =
-  testGroup "ratSampleTests"
+  testGroup
+    "ratSampleTests"
     [testProperty "ratSampleTest" (sampleGenTest (Apropos :: Rat :+ RatProp))]
-

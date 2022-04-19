@@ -38,6 +38,7 @@ common lang
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
+    Strict
 
   build-depends:
     , base              >=4.14

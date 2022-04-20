@@ -6,8 +6,6 @@ module Spec.IntPermutationGen (
 ) where
 
 import Apropos
-import Data.Hashable (Hashable)
-import GHC.Generics
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 

@@ -45,6 +45,7 @@ tests =
     , testGroup
         "Rational model"
         [ ratGenSelfTests
+        , ratSampleTests
         ]
     , testGroup
         "TicTacToe"

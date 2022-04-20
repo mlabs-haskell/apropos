@@ -1,7 +1,6 @@
 module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests) where
 
 import Apropos
-import GHC.Generics (Generic)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 

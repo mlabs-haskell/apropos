@@ -17,7 +17,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (liftM2, void,unless)
+import Control.Monad (liftM2, unless, void)
 import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)

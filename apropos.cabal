@@ -33,12 +33,12 @@ common lang
     OverloadedStrings
     ScopedTypeVariables
     StandaloneDeriving
+    Strict
     TupleSections
     TypeApplications
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
-    Strict
 
   build-depends:
     , base              >=4.14

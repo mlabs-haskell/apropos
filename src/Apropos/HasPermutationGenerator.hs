@@ -17,7 +17,7 @@ import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
 import Apropos.Type
-import Control.Monad (liftM2, void)
+import Control.Monad (liftM2, unless, void)
 import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_)
 import Data.Function (on)
 import Data.Hashable (Hashable)
@@ -176,7 +176,14 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Set p ->
     Gen [Morphism p m]
   transformModel !cache pedges m to = do
-    pathOptions <- findPathOptions (Apropos :: m :+ p) cache (properties m) to
+    let ps = properties m
+    unless (satisfiesFormula logic ps) $ do
+      failWithFootnote $
+        renderStyle ourStyle $
+          "Illegal model produced by the base generator:"
+            $+$ hang "model  was:" 4 (ppDoc m)
+            $+$ hang "props were:" 4 (ppDoc ps)
+    pathOptions <- findPathOptions (Apropos :: m :+ p) cache ps to
     sequence $ traversePath pedges pathOptions
 
   traversePath ::

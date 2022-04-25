@@ -82,6 +82,7 @@ library
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
     Apropos.LogicalModel.Formula
+    Apropos.Overlay
     Apropos.Pure
     Apropos.Type
 
@@ -96,6 +97,7 @@ test-suite examples
   other-modules:
     Spec.Int
     Spec.IntEither
+    Spec.IntOverlay
     Spec.IntPair
     Spec.IntPermutationGen
     Spec.Rational

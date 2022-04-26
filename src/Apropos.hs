@@ -74,6 +74,10 @@ module Apropos (
   matches,
   -- Apropos.Pure
   HasPureRunner (..),
+  runPureTest,
+  runPureTestsWhere,
+  enumeratePureTest,
+  enumeratePureTestsWhere,
   -- Usefull Reexports
   Hashable,
   Generic,

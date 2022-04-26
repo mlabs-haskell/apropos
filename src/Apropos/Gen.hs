@@ -165,7 +165,7 @@ gen (Free (GenChoice gs next)) = do
   if l == 0
     then throwE $ GenException "GenChoice: list length zero"
     else do
-      i <- lift (H.forAll $ HGen.int (HRange.linear 0 (l -1)))
+      i <- lift (H.forAll $ HGen.int (HRange.linear 0 (l - 1)))
       (gs !! i) >>== next
 gen (Free (GenFilter c g next)) = do
   genFilter' c g >>>= next
@@ -198,7 +198,7 @@ handleRootRetries l g = do
   gr <- runExceptT g
   case gr of
     Right a -> pure a
-    Left Retry -> handleRootRetries (l -1) g
+    Left Retry -> handleRootRetries (l - 1) g
     Left (GenException e) -> H.footnote e >> H.failure
 
 genFilter' :: forall r. (r -> Bool) -> Gen r -> Generator r
@@ -212,7 +212,7 @@ genFilter' condition g = go 100
           res <- gen g
           if condition res
             then pure res
-            else go (l -1)
+            else go (l - 1)
 
 hRange :: Range -> H.Range Int
 hRange (Singleton s) = HRange.singleton s

@@ -44,12 +44,12 @@ instance HasParameterisedGenerator IntProp Int where
             else
               if IsMaxBound `elem` s
                 then pure maxBound
-                else int (linear 11 (maxBound -1))
+                else int (linear 11 (maxBound - 1))
     if IsNegative `elem` s
       then
         if IsMinBound `elem` s
           then pure minBound
-          else pure (- i)
+          else pure (-i)
       else pure i
 
 intGenTests :: TestTree

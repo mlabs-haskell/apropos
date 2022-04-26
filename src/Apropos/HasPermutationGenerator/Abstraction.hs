@@ -39,7 +39,7 @@ abstract ::
   Morphism bp bm
 abstract abstraction@ProductAbstraction {} edge =
   Morphism
-    { name = abstractionName abstraction <> name edge
+    { name = abstractionName abstraction <> " of (" <> name edge <> ")"
     , match = (propertyAbstraction abstraction #) <$> match edge
     , contract =
         abstractContract

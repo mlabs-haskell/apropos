@@ -17,7 +17,7 @@ import Apropos.HasPermutationGenerator (
   Morphism,
   abstract,
   gotoSum,
-  (|:->),
+  (&&&),
  )
 import Apropos.HasPermutationGenerator.Abstraction (abstractLogic)
 import Apropos.LogicalModel (Enumerable, Formula (All))
@@ -51,7 +51,7 @@ parallelAbstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p
 parallelAbstractionMorphisms =
   let abstractProductMorphisms = [abstract abstraction <$> generators | WrapAbs abstraction@ProductAbstraction {} <- abstractions @p @m]
    in join
-        [ foldl (|:->) m ms
+        [ foldl (&&&) m ms
         | m : ms@(_ : _) <- seqs abstractProductMorphisms
         ]
   where

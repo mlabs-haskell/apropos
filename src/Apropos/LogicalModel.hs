@@ -34,7 +34,7 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPr
 enumerateSolutions :: LogicalModel p => Formula p -> [Set p]
 enumerateSolutions f = Map.keysSet . Map.filter id <$> solveAll f
 
-satisfiesFormula :: forall p. (LogicalModel p, Enumerable p) => Formula p -> Set p -> Bool
+satisfiesFormula :: forall p. (Enumerable p) => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
   where
     set :: [p]

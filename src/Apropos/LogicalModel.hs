@@ -19,7 +19,6 @@ class (Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p
 
   scenarios :: [Set p]
-
   default scenarios :: (Enumerable p) => [Set p]
   scenarios = enumerateScenariosWhere (logic :: Formula p)
 

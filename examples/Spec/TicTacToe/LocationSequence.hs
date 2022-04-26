@@ -9,7 +9,9 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Data.Hashable (Hashable)
 import Data.Set qualified as Set
+import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
@@ -21,7 +23,8 @@ data LocationSequenceProperty
   | LocationSequenceIsNull
   | LocationSequenceIsSingleton
   | LocationSequenceIsLongerThanGame
-  deriving stock (Eq, Ord, Enum, Show, Bounded)
+  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
+  deriving anyclass (Hashable)
 
 instance Enumerable LocationSequenceProperty where
   enumerated = [minBound .. maxBound]

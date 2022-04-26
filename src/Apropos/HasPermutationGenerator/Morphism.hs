@@ -40,7 +40,7 @@ instance Show (Morphism p m) where
 (&&&) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
 (&&&) as bs = [addMorphism a b | a <- as, b <- bs]
 
-(>>>) :: Enumerable p => [Morphism p m] -> [Morphism p m] -> [Morphism p m]
+(>>>) :: [Morphism p m] -> [Morphism p m] -> [Morphism p m]
 (>>>) as bs = [seqMorphism a b | a <- as, b <- bs]
 
 addMorphism :: Morphism p m -> Morphism p m -> Morphism p m
@@ -53,7 +53,7 @@ addMorphism a b =
     , morphism = morphism a >=> morphism b
     }
 
-seqMorphism :: Enumerable p => Morphism p m -> Morphism p m -> Morphism p m
+seqMorphism :: Morphism p m -> Morphism p m -> Morphism p m
 seqMorphism a b =
   Morphism
     { -- sequencing morphisms is analogous to >>>
@@ -69,27 +69,17 @@ wrapMorphismWithContractCheck mo = mo {morphism = wrap}
     wrap :: m -> Gen m
     wrap m = do
       let inprops = properties m
-          mexpected = runContract (contract mo) (name mo) inprops
-      case mexpected of
-        Left e -> failWithFootnote e
-        Right Nothing ->
+      nm <- morphism mo m
+      let observed = properties nm
+      label $ fromString $ name mo
+      case runContract (contract mo) inprops of
+        Left err ->
           failWithFootnote $
             renderStyle ourStyle $
               "Morphism doesn't work. This is a model error"
                 $+$ "This should never happen at this point in the program."
-        Right (Just expected) -> do
-          if satisfiesFormula logic expected
-            then pure ()
-            else
-              failWithFootnote $
-                renderStyle ourStyle $
-                  "Morphism contract produces invalid model"
-                    $+$ hang "Edge:" 4 (ppDoc $ name mo)
-                    $+$ hang "Input:" 4 (ppDoc inprops)
-                    $+$ hang "Output:" 4 (ppDoc expected)
-          label $ fromString $ name mo
-          nm <- morphism mo m
-          let observed = properties nm
+                $+$ ppDoc err
+        Right expected ->
           if expected == observed
             then pure nm
             else edgeFailsContract mo m nm expected observed

@@ -61,7 +61,7 @@ coverage: apropos.cabal
 FORMAT_SOURCES := $(shell find -name '*.hs' -not -path './dist-*/*')
 
 # Extensions we need to tell fourmolu about
-FORMAT_EXTENSIONS := -o -XTemplateHaskell -o -XTypeApplications -o -XImportQualifiedPost -o -XPatternSynonyms -o -fplugin=RecordDotPreprocessor
+FORMAT_EXTENSIONS := -o -XTemplateHaskell -o -XTypeApplications -o -XImportQualifiedPost -o -XPatternSynonyms -o -XBangPatterns -o -fplugin=RecordDotPreprocessor
 
 # Run fourmolu formatter
 format: requires_nix_shell

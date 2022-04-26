@@ -54,10 +54,6 @@ module Apropos (
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
   runContract,
-  readContractInput,
-  readContractEdgeName,
-  readContractOutput,
-  writeContractOutput,
   branches,
   branchIf,
   has,
@@ -73,8 +69,6 @@ module Apropos (
   removeAll,
   removeAllIf,
   clear,
-  output,
-  contractError,
   terminal,
   matches,
   -- Apropos.Pure

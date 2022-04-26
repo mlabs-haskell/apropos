@@ -9,6 +9,7 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Control.Monad (join)
+import Data.Hashable (Hashable)
 import Data.List (transpose)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -21,7 +22,7 @@ data MoveSequenceProperty
   = MoveSequenceValid
   | MoveSequenceContainsWin
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable)
+  deriving anyclass (Enumerable, Hashable)
 
 splitPlayers :: [Int] -> ([Int], [Int])
 splitPlayers locationSeq = go locationSeq ([], [])
@@ -102,18 +103,18 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
         { name = "ValidWin"
         , match = Var MoveSequenceValid
         , contract = add MoveSequenceContainsWin
-        , morphism = \moves ->
-            genFilter (\w -> containsWin w && satisfiesExpression locationSequenceIsValid w) $ do
-              let wts = filter (not . any (`elem` moves)) winTileSets
-              if null wts || length moves < 2 || length moves > 6
-                then retry
-                else do
-                  winlocs <- Set.toList <$> element winTileSets
-                  whofirst <- element [[moves, winlocs], [winlocs, moves]]
-                  let res = join $ transpose whofirst
-                  pure res
+        , morphism = \moves -> do
+            winlocs <- Set.toList <$> element (errLabelWhenNull "1" winTileSets)
+            whofirst <- element $ errLabelWhenNull "2" [[moves, winlocs], [winlocs, moves]]
+            let win = join $ transpose whofirst
+            if containsWin win && satisfiesExpression locationSequenceIsValid win
+              then pure win
+              else retry
         }
     ]
+
+errLabelWhenNull :: String -> [a] -> [a]
+errLabelWhenNull la li = if null li then error la else li
 
 instance HasParameterisedGenerator MoveSequenceProperty [Int] where
   parameterisedGenerator = buildGen baseGen

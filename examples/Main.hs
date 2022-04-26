@@ -12,7 +12,10 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
+import Spec.IntOverlay(IntSmpl)
+import Apropos.Overlay
 import Test.Tasty
+import Test.Tasty.Hedgehog (testProperty)
 
 main :: IO ()
 main = defaultMain tests
@@ -26,6 +29,10 @@ tests =
         [ intGenTests
         , intPureTests
         ]
+    , testGroup
+      "IntSmpl tests"
+      [ testProperty "antiValidity check" (soundOverlay @IntSmpl)
+      ]
     , testGroup
         "Int model using Permutation Generator"
         [ intPermutationGenTests

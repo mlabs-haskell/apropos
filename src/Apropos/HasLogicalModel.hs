@@ -23,5 +23,6 @@ class (LogicalModel p) => HasLogicalModel p m | p -> m where
   properties :: m -> Set p
   properties x = Set.fromList $ filter (`satisfiesProperty` x) enumerated
 
+
 deduceFromOverlay :: (HasLogicalModel sp m, Overlay op sp) => op -> m -> Bool
 deduceFromOverlay = satisfiesExpression . overlays

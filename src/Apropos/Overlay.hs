@@ -11,36 +11,46 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Hedgehog (Property, assert, property)
+import Hedgehog (Property,property,footnote,failure)
 
 class (LogicalModel op, LogicalModel sp) => Overlay op sp | op -> sp where
   overlays :: op -> Formula sp
 
+soundOverlay :: forall op sp. Overlay op sp => Property
+soundOverlay = property $
+  case solveAll (antiValidity @op @sp) of
+    (violation : _) -> do
+      case uncoveredSubSolutions @sp @op of
+        (uncovered : _) ->
+          footnote $
+            "found solution to sub model which is excluded by overlay logic\n"
+              ++ show (Set.toList uncovered)
+        [] ->
+          footnote $
+            "internal apropos error, found overlay inconsistancy but failed to find exact problem.\n"
+              ++ "please report this as a bug\n"
+              ++ "here's some info that might help "
+              ++   "(and which ideally should be included in the bug report):\n"
+              ++ show violation
+      failure
+    [] -> case emptyOverlays @sp @op of
+            (empty:_) -> do
+               footnote $
+                 "found solution to overlay with no coresponding sub model solutions\n"
+                    ++ show (Set.toList empty)
+               failure
+            [] -> pure ()
+
 conectingLogic :: Overlay op sp => Formula (Either op sp)
 conectingLogic = All [Var (Left op) :<->: (Right <$> overlays op) | op <- enumerated]
 
-soundOverlay :: forall op sp. Overlay op sp => Property
-soundOverlay = case solveAll (antiValidity @op @sp) of
-  [] -> property $ assert True
-  (violation : _) -> case (emptyOverlays @sp @op, uncoveredSubSolutions @sp @op) of
-    (empty : _, _) ->
-      error $
-        "found solution to overlay with no coresponding sub model solutions\n"
-          ++ show (Set.toList empty)
-    (_, uncovered : _) ->
-      error $
-        "found solution to sub model which is excluded by overlay logic\n"
-          ++ show (Set.toList uncovered)
-    ([], []) ->
-      error $
-        "internal apropos error, found overlay inconsistancy but failed to find exact problem.\n"
-          ++ "please report this as a bug\n"
-          ++ "here's some info that might help (and which ideally should be included in the bug report):\n"
-          ++ show violation
-
--- we want to assure (Left logic) === (conectingLogic :&&: (Right <$> logic))
+-- we want to assure: conectingLogic => (Left <$> logic) === (Right <$> logic)
 antiValidity :: Overlay op sp => Formula (Either op sp)
-antiValidity = conectingLogic :&&: ((Left <$> logic) :++: (Right <$> logic))
+antiValidity = let
+    overlayLogic = Left <$>  logic
+    subModelLogic = Right <$> logic
+    in Not ((conectingLogic :&&: subModelLogic) :->: overlayLogic)
+
 
 -- list of solutions to the overlay logic which have no coresponding solutions in the sub-model
 -- if this is not empty that is considered unsound
@@ -67,3 +77,10 @@ uncoveredSubSolutions =
                                             solveAll $
                                               (Right <$> form) :&&: (Left <$> logic @op) :&&: conectingLogic
       ]
+
+
+--parameterisedGeneratorFromOverlay :: Overlay op sp => Set op -> Gen m
+--parameterisedGeneratorFromOverlay props = let
+--  newLogic = [ if p `elem` props then overlays p else Not (overlays p) | p <- enumerated ]
+--    in genSatisfying newLogic
+

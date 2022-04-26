@@ -3,7 +3,6 @@ module Apropos.LogicalModel (
   Enumerable (..),
   enumerateScenariosWhere,
   satisfiesFormula,
-  enumerateSolutions,
   scenarioMap,
   module Apropos.LogicalModel.Formula,
   module Apropos.LogicalModel.Enumerable,
@@ -40,9 +39,6 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPr
     allPresentInFormula = All (mention <$> (enumerated :: [p]))
     mention :: p -> Formula p
     mention p = Var p :||: Not (Var p)
-
-enumerateSolutions :: LogicalModel p => Formula p -> [Set p]
-enumerateSolutions f = Map.keysSet . Map.filter id <$> solveAll f
 
 satisfiesFormula :: forall p. (Enumerable p) => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)

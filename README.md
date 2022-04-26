@@ -173,3 +173,7 @@ intPermutationGenPureTests =
 For more information please see the `examples` directory.
 
 The code is licensed under Apache 2.0; check the LICENSE.md file for details.
+
+## Discussion
+
+To discuss the `apropos` project, [join our Discord](https://discord.gg/Yfd3W66Cp5)!

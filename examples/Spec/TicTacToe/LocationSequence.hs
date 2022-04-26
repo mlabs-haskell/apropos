@@ -205,7 +205,7 @@ instance HasParameterisedGenerator LocationSequenceProperty [Int] where
 baseGen :: Gen [Int]
 baseGen =
   let g = int (linear minBound maxBound)
-   in list (linear 0 10) g
+   in list (linearFrom 3 0 10) g
 
 locationSequencePermutationGenSelfTest :: TestTree
 locationSequencePermutationGenSelfTest =

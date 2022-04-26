@@ -8,8 +8,6 @@ import Apropos
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)

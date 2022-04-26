@@ -4,12 +4,14 @@ module Apropos.LogicalModel (
   enumerateScenariosWhere,
   satisfiesFormula,
   enumerateSolutions,
+  scenarioMap,
   module Apropos.LogicalModel.Formula,
   module Apropos.LogicalModel.Enumerable,
 ) where
 
 import Apropos.LogicalModel.Enumerable
 import Apropos.LogicalModel.Formula
+import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -28,7 +30,10 @@ class (Eq p, Ord p, Show p) => LogicalModel p where
       [] -> error "no solutions found for model logic"
       (sol : _) -> sol
 
-enumerateScenariosWhere :: forall p. (LogicalModel p, Enumerable p) => Formula p -> [Set p]
+scenarioMap :: LogicalModel p => Map Int (Set p)
+scenarioMap = Map.fromList $ zip [0 ..] scenarios
+
+enumerateScenariosWhere :: forall p. (Enumerable p, LogicalModel p) => Formula p -> [Set p]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPresentInFormula
   where
     allPresentInFormula :: Formula p

@@ -16,7 +16,6 @@ import Apropos.HasPermutationGenerator.Abstraction
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
 import Apropos.LogicalModel
-import Apropos.Type
 import Control.Monad (liftM2, unless, void)
 import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_)
 import Data.Function (on)
@@ -40,15 +39,15 @@ import Text.Show.Pretty (ppDoc)
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
-  traversalRetryLimit :: (m :+ p) -> Int
-  traversalRetryLimit _ = 100
+  traversalRetryLimit :: Int
+  traversalRetryLimit = 100
 
-  allowRedundentMorphisms :: (p :+ m) -> Bool
-  allowRedundentMorphisms = const False
+  allowRedundentMorphisms :: Bool
+  allowRedundentMorphisms = False
 
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
-    let pedges = findMorphisms (Apropos :: m :+ p)
+    let pedges = findMorphisms 
         graph = buildGraph pedges
         cache = shortestPathCache graph
         mGen = buildGen bgen
@@ -82,7 +81,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                 ]
     where
       abortNotSCC graph =
-        let (a, b) = findNoPath (Apropos :: m :+ p) graph
+        let (a, b) = findNoPath graph
          in failWithFootnote $
               renderStyle ourStyle $
                 "Morphisms do not form a strongly connected graph."
@@ -114,7 +113,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
              in elem 1 inEdges
           runRequiredTest = property $
             forAll $ do
-              if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
+              if isRequired || allowRedundentMorphisms
                 then pure ()
                 else
                   failWithFootnote $
@@ -122,11 +121,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                       fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f = property $ do
-            void $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
+            void $ traversalContainRetry traversalRetryLimit $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
 
   buildGen :: Gen m -> Set p -> Traversal p m
   buildGen s tp = do
-    let pedges = findMorphisms (Apropos :: m :+ p)
+    let pedges = findMorphisms
         edges = Map.keys pedges
         graph = fromEdges edges
         cache = shortestPathCache graph
@@ -138,7 +137,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           if isco
             then pure ()
             else
-              let (a, b) = findNoPath (Apropos :: m :+ p) cache
+              let (a, b) = findNoPath cache
                in failWithFootnote $
                     renderStyle ourStyle $
                       "Morphisms do not form a strongly connected graph."
@@ -148,10 +147,9 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
      in Traversal (Source s) (go tp)
 
   findNoPath ::
-    m :+ p ->
     ShortestPathCache (Set p) ->
     (Set p, Set p)
-  findNoPath _ !cache =
+  findNoPath !cache =
     minimumBy
       (compare `on` uncurry score)
       [ (a, b)
@@ -183,7 +181,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           "Illegal model produced by the base generator:"
             $+$ hang "model  was:" 4 (ppDoc m)
             $+$ hang "props were:" 4 (ppDoc ps)
-    pathOptions <- findPathOptions (Apropos :: m :+ p) cache ps to
+    pathOptions <- findPathOptions cache ps to
     sequence $ traversePath pedges pathOptions
 
   traversePath ::
@@ -204,12 +202,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         wrapMorphismWithContractCheck <$> element pe
 
   findPathOptions ::
-    m :+ p ->
     ShortestPathCache (Set p) ->
     Set p ->
     Set p ->
     Gen [(Set p, Set p)]
-  findPathOptions _ !cache from to = do
+  findPathOptions !cache from to = do
     pairPath <$> genRandomPath cache from to
 
   buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
@@ -218,9 +215,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
      in foldr insertVertex (fromEdges edges) scenarios
 
   findMorphisms ::
-    m :+ p ->
     Map (Set p, Set p) [Morphism p m]
-  findMorphisms _ =
+  findMorphisms =
     Map.fromListWith
       (<>)
       [ (e, [m])

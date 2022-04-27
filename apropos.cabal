@@ -38,7 +38,8 @@ common lang
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
-
+    FunctionalDependencies
+    
   build-depends:
     , base              >=4.14
     , containers
@@ -83,7 +84,6 @@ library
     Apropos.LogicalModel.Enumerable
     Apropos.LogicalModel.Formula
     Apropos.Pure
-    Apropos.Type
 
   hs-source-dirs:  src
 

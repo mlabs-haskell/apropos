@@ -5,45 +5,44 @@ import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
-import Apropos.Type
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
 
 class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m where
-  expect :: m :+ p -> Formula p
-  script :: m :+ p -> (m -> Bool)
+  expect :: Formula p
+  script :: m -> Bool
 
-  runPureTest :: m :+ p -> Set p -> Property
-  runPureTest apropos s = property $ do
+  runPureTest :: Set p -> Property
+  runPureTest s = property $ do
     (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
-    satisfiesFormula (expect apropos) s === script apropos m
+    satisfiesFormula expect s === script m
     where
       numRetries :: Int
-      numRetries = rootRetryLimit (Apropos :: m :+ p)
+      numRetries = rootRetryLimit 
 
-  runPureTestsWhere :: m :+ p -> String -> Formula p -> Group
-  runPureTestsWhere pm name condition =
+  runPureTestsWhere :: String -> Formula p -> Group
+  runPureTestsWhere name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario
-        , runPureTest pm scenario
+        , runPureTest scenario
         )
       | scenario <- enumerateScenariosWhere condition
       ]
 
-  enumeratePureTest :: m :+ p -> Set p -> Property
-  enumeratePureTest apropos s = withTests (1 :: TestLimit) $
+  enumeratePureTest ::Set p -> Property
+  enumeratePureTest s = withTests (1 :: TestLimit) $
     property $ do
       let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
-          run m = satisfiesFormula (expect apropos) s === script apropos m
+          run m = satisfiesFormula expect s === script m
       sequence_ (run <$> ms)
 
-  enumeratePureTestsWhere :: m :+ p -> String -> Formula p -> Group
-  enumeratePureTestsWhere pm name condition =
+  enumeratePureTestsWhere :: String -> Formula p -> Group
+  enumeratePureTestsWhere name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario
-        , enumeratePureTest pm scenario
+        , enumeratePureTest scenario
         )
       | scenario <- enumerateScenariosWhere condition
       ]

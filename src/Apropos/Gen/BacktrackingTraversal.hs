@@ -60,20 +60,9 @@ backtrackingRetryTraversals ::
   (Int -> m (Maybe a)) ->
   [a -> m [Int -> a -> m (Maybe a)]] ->
   m (Maybe a)
-backtrackingRetryTraversals retries g trs = go 1
+backtrackingRetryTraversals retries g trs =
+  backtrackingBind retries 1 g (\x -> continueTraversal x 1 trs)
   where
-    go :: Int -> m (Maybe a)
-    go l =
-      runMaybeT
-        ( do
-            res <- MaybeT $ g l
-            MaybeT $ continueTraversal res 1 trs
-        )
-        >>= \case
-          Just so -> pure $ Just so
-          Nothing
-            | l > retries -> pure Nothing
-            | otherwise -> go (l + 1)
     continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
     continueTraversal s _ [] = pure $ Just s
     continueTraversal s l (t : ts) = do
@@ -92,19 +81,20 @@ backtrackingRetryTraversals retries g trs = go 1
 
 backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
 backtrackingRetryTraverse _ s [] = pure $ Just s
-backtrackingRetryTraverse retries s (t : ts) = go 1
-  where
-    go :: Int -> m (Maybe a)
-    go l = do
+backtrackingRetryTraverse retries s (t : ts) =
+  backtrackingBind retries 1 (`t` s) (flip (backtrackingRetryTraverse retries) ts)
+
+backtrackingBind :: Monad m => Int -> Int -> (Int -> m (Maybe a)) -> (a -> m (Maybe a)) -> m (Maybe a)
+backtrackingBind retries counter f g = do
       runMaybeT
         ( do
-          res <- MaybeT $ t l s
-          MaybeT $ backtrackingRetryTraverse retries res ts
+          res <- MaybeT $ f counter
+          MaybeT $ g res
         ) >>= \case
                  Just so -> pure $ Just so
                  Nothing
-                   | l > retries -> pure Nothing
-                   | otherwise -> go (l + 1)
+                   | counter > retries -> pure Nothing
+                   | otherwise -> backtrackingBind retries (counter + 1) f g
 
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
@@ -113,5 +103,4 @@ forAllRetryToMaybeScale g s = do
     Left Retry -> pure Nothing
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure $ Just a
-
 

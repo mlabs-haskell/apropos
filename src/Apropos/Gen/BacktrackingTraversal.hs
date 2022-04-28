@@ -7,7 +7,7 @@ module Apropos.Gen.BacktrackingTraversal (
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Maybe (MaybeT(..),runMaybeT)
+import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 
@@ -86,15 +86,16 @@ backtrackingRetryTraverse retries s (t : ts) =
 
 backtrackingBind :: Monad m => Int -> Int -> (Int -> m (Maybe a)) -> (a -> m (Maybe a)) -> m (Maybe a)
 backtrackingBind retries counter f g = do
-      runMaybeT
-        ( do
-          res <- MaybeT $ f counter
-          MaybeT $ g res
-        ) >>= \case
-                 Just so -> pure $ Just so
-                 Nothing
-                   | counter > retries -> pure Nothing
-                   | otherwise -> backtrackingBind retries (counter + 1) f g
+  runMaybeT
+    ( do
+        res <- MaybeT $ f counter
+        MaybeT $ g res
+    )
+    >>= \case
+      Just so -> pure $ Just so
+      Nothing
+        | counter > retries -> pure Nothing
+        | otherwise -> backtrackingBind retries (counter + 1) f g
 
 forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
 forAllRetryToMaybeScale g s = do
@@ -103,4 +104,3 @@ forAllRetryToMaybeScale g s = do
     Left Retry -> pure Nothing
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure $ Just a
-

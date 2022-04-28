@@ -16,7 +16,7 @@ data Traversal p m where
   Source :: Gen m -> Traversal p m
   Traversal :: Traversal p m -> (m -> Gen [Morphism p m]) -> Traversal p m
 
-traversalInGen :: Show m => Traversal p m  -> Gen m
+traversalInGen :: Show m => Traversal p m -> Gen m
 traversalInGen = liftPropertyT . traversalContainRetry 100
 
 traversalAsGen :: Traversal p m -> Gen m

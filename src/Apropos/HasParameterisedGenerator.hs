@@ -62,7 +62,7 @@ sampleGenTest ::
   Property
 sampleGenTest _ = property $ test >>= errorHandler
   where
-    test = forAll $  do
+    test = forAll $ do
       (ps :: Set p) <- genPropSet @p
       (m :: m) <- parameterisedGenerator ps
       properties m === ps
@@ -73,13 +73,14 @@ enumerateGeneratorTest ::
   m :+ p ->
   Set p ->
   Property
-enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
-  property $ test >>= errorHandler
+enumerateGeneratorTest _ s =
+  withTests (1 :: TestLimit) $
+    property $ test >>= errorHandler
   where
     test = forAll $ do
-        let (ms :: [m]) = enumerate $ parameterisedGenerator s
-            run m = properties m === s
-        sequence_ (run <$> ms)
+      let (ms :: [m]) = enumerate $ parameterisedGenerator s
+          run m = properties m === s
+      sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
@@ -98,4 +99,3 @@ genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
   parameterisedGenerator s
-

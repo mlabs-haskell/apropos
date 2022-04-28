@@ -123,8 +123,9 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                       fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f = forAll $ do
-            liftPropertyT $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $
-              Traversal (mTra f) (const $ pure [wrapMorphismWithContractCheck pe])
+            liftPropertyT $
+              traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $
+                Traversal (mTra f) (const $ pure [wrapMorphismWithContractCheck pe])
 
   buildTraversal :: Gen m -> Set p -> Traversal p m
   buildTraversal s tp = do
@@ -149,10 +150,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           transformModel cache pedges m targetProperties
      in Traversal (Source s) (go tp)
 
-
   buildGen :: Gen m -> Set p -> Gen m
-  buildGen s p = liftPropertyT $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p))
-                           $ buildTraversal s p
+  buildGen s p =
+    liftPropertyT $
+      traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $
+        buildTraversal s p
 
   findNoPath ::
     m :+ p ->

@@ -39,6 +39,7 @@ common lang
     TypeSynonymInstances
     UndecidableInstances
     FunctionalDependencies
+    AllowAmbiguousTypes
     
   build-depends:
     , base              >=4.14
@@ -56,7 +57,6 @@ common lang
     , template-haskell
     , text
     , transformers
-
   -- added Hashable v => Hashable (Set v)
 
 

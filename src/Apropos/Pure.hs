@@ -17,10 +17,10 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   runPureTest :: Set p -> Property
   runPureTest s = property $ do
     (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
-    satisfiesFormula expect s === script m
+    satisfiesFormula expect s === script @p m
     where
       numRetries :: Int
-      numRetries = rootRetryLimit 
+      numRetries = rootRetryLimit @p
 
   runPureTestsWhere :: String -> Formula p -> Group
   runPureTestsWhere name condition =
@@ -35,7 +35,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   enumeratePureTest s = withTests (1 :: TestLimit) $
     property $ do
       let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
-          run m = satisfiesFormula expect s === script m
+          run m = satisfiesFormula expect s === script @p m
       sequence_ (run <$> ms)
 
   enumeratePureTestsWhere :: String -> Formula p -> Group

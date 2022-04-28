@@ -1,3 +1,5 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator (..),
   runGeneratorTest,
@@ -26,7 +28,7 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 runGeneratorTest ::
-  forall p m.
+  forall p m .
   HasParameterisedGenerator p m =>
   Set p ->
   Property
@@ -35,7 +37,7 @@ runGeneratorTest s = property $ do
   properties m === s
   where
     numRetries :: Int
-    numRetries = rootRetryLimit 
+    numRetries = rootRetryLimit @p
 
 runGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
@@ -48,9 +50,9 @@ runGeneratorTestsWhere name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genPropSet :: forall p. LogicalModel p => Gen (Set p)
+genPropSet :: forall p .LogicalModel p => Gen (Set p)
 genPropSet = do
-  let x = length $ scenarios @p
+  let x = length (scenarios @p)
   i <- int (linear 0 (x - 1))
   case Map.lookup i scenarioMap of
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
@@ -61,7 +63,7 @@ sampleGenTest ::
   HasParameterisedGenerator p m =>
   Property
 sampleGenTest = property $ do
-  (ps :: Set p) <- forAll (genPropSet @p)
+  (ps :: Set p) <- forAll genPropSet
   (m :: m) <- forAll $ traversalAsGen $ parameterisedGenerator ps
   properties m === ps
 

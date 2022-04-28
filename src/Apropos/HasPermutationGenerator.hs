@@ -39,7 +39,7 @@ import Text.Show.Pretty (ppDoc)
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
-  traversalRetryLimit :: Int
+  traversalRetryLimit :: Int 
   traversalRetryLimit = 100
 
   allowRedundentMorphisms :: Bool
@@ -113,7 +113,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
              in elem 1 inEdges
           runRequiredTest = property $
             forAll $ do
-              if isRequired || allowRedundentMorphisms
+              if isRequired || allowRedundentMorphisms @p
                 then pure ()
                 else
                   failWithFootnote $
@@ -121,7 +121,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                       fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
           runEdgeTest f = property $ do
-            void $ traversalContainRetry traversalRetryLimit $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
+            void $ traversalContainRetry (traversalRetryLimit @p) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
 
   buildGen :: Gen m -> Set p -> Traversal p m
   buildGen s tp = do

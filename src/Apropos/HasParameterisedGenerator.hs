@@ -28,7 +28,7 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 runGeneratorTest ::
-  forall p m .
+  forall p m.
   HasParameterisedGenerator p m =>
   Set p ->
   Property
@@ -50,7 +50,7 @@ runGeneratorTestsWhere name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genPropSet :: forall p .LogicalModel p => Gen (Set p)
+genPropSet :: forall p. LogicalModel p => Gen (Set p)
 genPropSet = do
   let x = length (scenarios @p)
   i <- int (linear 0 (x - 1))

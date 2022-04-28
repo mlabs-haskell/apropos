@@ -39,7 +39,7 @@ import Text.Show.Pretty (ppDoc)
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
-  traversalRetryLimit :: Int 
+  traversalRetryLimit :: Int
   traversalRetryLimit = 100
 
   allowRedundentMorphisms :: Bool
@@ -47,7 +47,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
 
   permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
   permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
-    let pedges = findMorphisms 
+    let pedges = findMorphisms
         graph = buildGraph pedges
         cache = shortestPathCache graph
         mGen = buildGen bgen

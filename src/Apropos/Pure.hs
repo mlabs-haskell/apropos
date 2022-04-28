@@ -31,7 +31,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
       | scenario <- enumerateScenariosWhere condition
       ]
 
-  enumeratePureTest ::Set p -> Property
+  enumeratePureTest :: Set p -> Property
   enumeratePureTest s = withTests (1 :: TestLimit) $
     property $ do
       let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s

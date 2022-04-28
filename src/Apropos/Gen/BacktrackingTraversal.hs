@@ -7,9 +7,6 @@ module Apropos.Gen.BacktrackingTraversal (
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Except (runExceptT)
-import Control.Monad.Trans.Writer (runWriterT)
-import Data.String (fromString)
 import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 
@@ -44,7 +41,9 @@ traversalWithRetries retries m =
     genTraversal :: (a -> Gen [Morphism p a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
     genTraversal gt = \a -> do
       tr <- forAllWith (unwords . (name <$>)) $ prune (gt a)
-      pure $ sizableTr <$> (morphism <$> tr)
+      case tr of
+        Right tra -> pure $ sizableTr <$> (morphism <$> tra)
+        Left _ -> undefined
     sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
     sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
 
@@ -52,15 +51,6 @@ unTraversal :: Traversal p a -> (Gen a, [a -> Gen [Morphism p a]])
 unTraversal (Source s) = (s, [])
 unTraversal (Traversal s t) = case unTraversal s of
   (s', t') -> (s', t' <> [t])
-
-forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
-forAllRetryToMaybeScale g s = do
-  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> pure Nothing
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure $ Just a
 
 backtrackingRetryTraversals ::
   forall a m.

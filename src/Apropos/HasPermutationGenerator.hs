@@ -59,7 +59,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                 "No permutation edges defined."
                 [
                   ( fromString "no edges defined"
-                  , property $ void $ forAll (failWithFootnote "no Morphisms defined" :: Gen String)
+                  , property $ void $ errorHandler =<< forAll (failWithFootnote "no Morphisms defined" :: Gen String)
                   )
                 ]
             ]
@@ -112,7 +112,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           isRequired =
             let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
              in elem 1 inEdges
-          runRequiredTest = property $
+          runRequiredTest = property (errorHandler =<< requiredTestGen)
+          requiredTestGen =
             forAll $ do
               if isRequired || allowRedundentMorphisms (Apropos :: p :+ m)
                 then pure ()

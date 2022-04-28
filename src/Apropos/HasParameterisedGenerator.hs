@@ -65,8 +65,8 @@ sampleGenTest ::
   m :+ p ->
   Property
 sampleGenTest _ = property $ do
-  (ps :: Set p) <- forAll (genPropSet @p)
-  (m :: m) <- forAll $ traversalAsGen $ parameterisedGenerator ps
+  (ps :: Set p) <- errorHandler =<< forAll (genPropSet @p)
+  (m :: m) <- errorHandler =<< forAll (traversalAsGen $ parameterisedGenerator ps)
   properties m === ps
 
 enumerateGeneratorTest ::
@@ -97,7 +97,5 @@ genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  traversalAsGen $ parameterisedGenerator s -- TODO this doesn't do shrink containment...
-  -- we can lift a Traversal into Gen
-  -- like GenWrap but for Traversal
-  -- or something...
+  liftPropertyT $ traversalContainRetry 100 $ parameterisedGenerator s
+

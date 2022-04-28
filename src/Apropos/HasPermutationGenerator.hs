@@ -41,7 +41,7 @@ import Text.Show.Pretty (ppDoc)
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
   traversalRetryLimit :: (m :+ p) -> Int
-  traversalRetryLimit _ = 100
+  traversalRetryLimit _ = 10
 
   allowRedundentMorphisms :: (p :+ m) -> Bool
   allowRedundentMorphisms = const False
@@ -51,7 +51,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     let pedges = findMorphisms (Apropos :: m :+ p)
         graph = buildGraph pedges
         cache = shortestPathCache graph
-        mGen = buildGen bgen
+        mTra = buildTraversal bgen
         isco = isStronglyConnected cache
      in if null (Map.keys pedges)
           then
@@ -67,7 +67,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
             if isco
               then case findDupEdgeNames of
                 [] ->
-                  testEdge testForSuperfluousEdges pedges mGen
+                  testEdge testForSuperfluousEdges pedges mTra
                     <$> filter pefilter generators
                 dups ->
                   [ Group "HasPermutationGenerator edge names must be unique." $
@@ -97,11 +97,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         (Set p -> Traversal p m) ->
         Morphism p m ->
         Group
-      testEdge testRequired pem mGen pe =
+      testEdge testRequired pem mTra pe =
         Group (fromString (name pe)) $
           addRequiredTest
             testRequired
-            [ (edgeTestName f t, runEdgeTest f)
+            [ (edgeTestName f t, property (void (errorHandler =<< runEdgeTest f)))
             | (f, t) <- matchesEdges
             ]
         where
@@ -122,11 +122,12 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                     renderStyle ourStyle $
                       fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
                         $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f = property $ do
-            void $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
+          runEdgeTest f = forAll $ do
+            liftPropertyT $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p)) $
+              Traversal (mTra f) (const $ pure [wrapMorphismWithContractCheck pe])
 
-  buildGen :: Gen m -> Set p -> Traversal p m
-  buildGen s tp = do
+  buildTraversal :: Gen m -> Set p -> Traversal p m
+  buildTraversal s tp = do
     let pedges = findMorphisms (Apropos :: m :+ p)
         edges = Map.keys pedges
         graph = fromEdges edges
@@ -147,6 +148,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                         $+$ hang "            and here:" 4 (ppDoc b)
           transformModel cache pedges m targetProperties
      in Traversal (Source s) (go tp)
+
+
+  buildGen :: Gen m -> Set p -> Gen m
+  buildGen s p = liftPropertyT $ traversalContainRetry (traversalRetryLimit (Apropos :: m :+ p))
+                           $ buildTraversal s p
 
   findNoPath ::
     m :+ p ->

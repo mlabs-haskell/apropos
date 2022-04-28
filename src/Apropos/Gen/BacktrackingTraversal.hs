@@ -7,6 +7,7 @@ module Apropos.Gen.BacktrackingTraversal (
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
+import Control.Monad.Trans.Maybe (MaybeT(..),runMaybeT)
 import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 
@@ -62,21 +63,17 @@ backtrackingRetryTraversals ::
 backtrackingRetryTraversals retries g trs = go 1
   where
     go :: Int -> m (Maybe a)
-    go l = do
-      res <- g l
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- continueTraversal so 1 trs
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
+    go l =
+      runMaybeT
+        ( do
+            res <- MaybeT $ g l
+            MaybeT $ continueTraversal res 1 trs
+        )
+        >>= \case
+          Just so -> pure $ Just so
+          Nothing
+            | l > retries -> pure Nothing
+            | otherwise -> go (l + 1)
     continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
     continueTraversal s _ [] = pure $ Just s
     continueTraversal s l (t : ts) = do
@@ -99,17 +96,22 @@ backtrackingRetryTraverse retries s (t : ts) = go 1
   where
     go :: Int -> m (Maybe a)
     go l = do
-      res <- t l s
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- backtrackingRetryTraverse retries so ts
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
+      runMaybeT
+        ( do
+          res <- MaybeT $ t l s
+          MaybeT $ backtrackingRetryTraverse retries res ts
+        ) >>= \case
+                 Just so -> pure $ Just so
+                 Nothing
+                   | l > retries -> pure Nothing
+                   | otherwise -> go (l + 1)
+
+forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
+forAllRetryToMaybeScale g s = do
+  ee <- forAll $ scale (2 * s +) g
+  case ee of
+    Left Retry -> pure Nothing
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure $ Just a
+
+

@@ -6,7 +6,6 @@ module Apropos.Gen (
   GenException (..),
   forAll,
   forAllWith,
-  forAllRetryToMaybeScale,
   errorHandler,
   label,
   failWithFootnote,
@@ -44,26 +43,19 @@ import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
 
-forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
-forAllRetryToMaybeScale g s = do
-  ee <- forAll $ scale (2 * s +) g
-  case ee of
-    Left Retry -> pure Nothing
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure $ Just a
-
 forAllWithRetries :: forall a. Show a => Int -> Gen a -> PropertyT IO (Either GenException a)
 forAllWithRetries retries g = go 0
   where
     go :: Int -> PropertyT IO (Either GenException a)
     go l = do
-      res <- forAllRetryToMaybeScale g l
+      res <- forAll $ scale (2 * l +) g
       case res of
-        Nothing ->
+        Left Retry ->
           if l > retries
             then pure $ Left Retry
             else go (l + 1)
-        Just so -> pure $ Right so
+        Left err -> pure $ Left err
+        Right so -> pure $ Right so
 
 errorHandler :: Either GenException a -> PropertyT IO a
 errorHandler ee =

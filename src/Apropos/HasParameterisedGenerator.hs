@@ -98,4 +98,3 @@ genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
   liftPropertyT $ traversalContainRetry 100 $ parameterisedGenerator s
-

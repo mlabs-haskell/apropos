@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+
 module Apropos.Gen (
   FreeGen (..),
   Gen,
@@ -51,7 +52,7 @@ forAllRetryToMaybeScale g s = do
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure $ Just a
 
-forAllWithRetries :: forall a . Show a => Int -> Gen a -> PropertyT IO (Either GenException a)
+forAllWithRetries :: forall a. Show a => Int -> Gen a -> PropertyT IO (Either GenException a)
 forAllWithRetries retries g = go 0
   where
     go :: Int -> PropertyT IO (Either GenException a)
@@ -63,7 +64,6 @@ forAllWithRetries retries g = go 0
             then pure $ Left Retry
             else go (l + 1)
         Just so -> pure $ Right so
-
 
 errorHandler :: Either GenException a -> PropertyT IO a
 errorHandler ee =
@@ -78,7 +78,7 @@ forAll = interleaved . gen2Interleaved
 forAllWith :: forall a. (a -> String) -> Gen a -> PropertyT IO (Either GenException a)
 forAllWith s = interleavedWith s . gen2Interleaved
 
-forAllWithG :: forall a . (a -> String) -> Generator a -> PropertyT IO (Either GenException a)
+forAllWithG :: forall a. (a -> String) -> Generator a -> PropertyT IO (Either GenException a)
 forAllWithG s g = do
   (ee, labels) <- H.forAllWith sh $ runWriterT (runExceptT g)
   mapM_ (H.label . fromString) labels
@@ -88,11 +88,10 @@ forAllWithG s g = do
     sh (Left e, _) = show e
     sh (Right a, _) = s a
 
-
-interleaved :: forall a . Show a => Interleaved a -> PropertyT IO (Either GenException a)
+interleaved :: forall a. Show a => Interleaved a -> PropertyT IO (Either GenException a)
 interleaved = interleavedWith show
 
-interleavedWith :: forall a . (a -> String) -> Interleaved a -> PropertyT IO (Either GenException a)
+interleavedWith :: forall a. (a -> String) -> Interleaved a -> PropertyT IO (Either GenException a)
 interleavedWith s m = do
   res <- forAllWithG sh $ gSteps m
   case res of
@@ -107,7 +106,6 @@ interleavedWith s m = do
     sh :: Either (Interleaved a) a -> String
     sh (Left _) = "This is unexpected. Generator interleaving failed. Please contact a customer support representative."
     sh (Right a) = s a
-
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next
@@ -235,14 +233,13 @@ data FreeInterleaved next where
   G :: forall a next. Generator a -> (a -> next) -> FreeInterleaved next
   P :: forall a next. PropertyT IO a -> (a -> next) -> FreeInterleaved next
 
-
 instance Functor FreeInterleaved where
   fmap f (G g next) = G g (fmap f next)
   fmap f (P p next) = P p (fmap f next)
 
 type Interleaved = Free FreeInterleaved
 
-mapG :: (forall a . Generator a -> Generator a) -> Interleaved b -> Interleaved b
+mapG :: (forall a. Generator a -> Generator a) -> Interleaved b -> Interleaved b
 mapG m (Free (G g next)) = Free (G (m g) (mapG m <$> next))
 mapG m (Free (P p next)) = Free (P p (mapG m <$> next))
 mapG _ (Pure r) = Pure r
@@ -265,9 +262,8 @@ gStepsA m = do
   mg <- gStep m
   case mg of
     Right a -> pure $ Pure a
-    Left Nothing -> pure  m
+    Left Nothing -> pure m
     Left (Just so) -> gStepsA so
-
 
 pStep :: Interleaved a -> PropertyT IO (Either (Maybe (Interleaved a)) a)
 pStep (Pure a) = pure $ Right a
@@ -317,10 +313,10 @@ gen2Interleaved (Free (GenChoice gs next)) = do
       (gs !! i) >>>= next
 gen2Interleaved (Free (GenFilter c g next)) = do
   let f = do
-           res <- g
-           if c res
-              then pure res
-              else retry
+        res <- g
+        if c res
+          then pure res
+          else retry
   res <- liftP $ forAllWithRetries 100 f
   case res of
     Left err -> liftG (throwE err)

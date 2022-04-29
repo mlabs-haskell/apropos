@@ -59,45 +59,93 @@ instance HasLogicalModel RatProp Rat where
   satisfiesProperty (Den p) r = satisfiesProperty p (den r)
 
 instance HasAbstractions RatProp Rat where
-  abstractions =
-    [ WrapAbs $
-        ProductAbstraction
-          { abstractionName = "numerator"
-          , propertyAbstraction = abstractsProperties Num
-          , productModelAbstraction = lens num (\r n -> r {num = n})
+  sourceAbstractions =
+    [ SoAs $
+        SourceAbstraction
+          { sourceAbsName = "make rat"
+          , constructor = Rational
+          , productAbs =
+              ProductAbstraction
+                { abstractionName = "numerator"
+                , propertyAbstraction = abstractsProperties Num
+                , productModelAbstraction = lens num (\r n -> r {num = n})
+                }
+                :& ProductAbstraction
+                  { abstractionName = "denominator"
+                  , propertyAbstraction = abstractsProperties Den
+                  , productModelAbstraction = lens den (\r d -> r {den = d})
+                  }
+                :& Nil
           }
-    , WrapAbs $
-        ProductAbstraction
-          { abstractionName = "denominator"
-          , propertyAbstraction = abstractsProperties Den
-          , productModelAbstraction = lens den (\r d -> r {den = d})
-          }
+    ]
+  sourceCorections =
+    [ Correction
+        { corName = "large"
+        , domain = Var RatLarge
+        , modifier = \r ->
+            if satisfiesProperty RatLarge r
+              then pure r
+              else
+                let n = num r
+                    d = den r
+                    nl = satisfiesProperty IsLarge (num r)
+                    dl = satisfiesProperty IsLarge (den r)
+                    ns = not nl
+                    ds = not dl
+                 in if
+                        | ns && ds -> pure $ Rational (10 * signum n) (signum d)
+                        | nl && ds -> pure $ Rational (101 * signum n) d
+                        | nl && dl ->
+                            if n `elem` [minBound, maxBound]
+                              then do
+                                d' <- int (linear 11 (maxBound `div` 10))
+                                pure $ Rational n (d' * signum d)
+                              else do
+                                n' <- int (linear 111 maxBound)
+                                d' <- int (linear 11 (n' `div` 10))
+                                pure $ Rational (n' * signum n) (d' * signum d)
+                        | otherwise -> error "unexpected model"
+        }
+    , Correction
+        { corName = "small"
+        , domain = Var RatSmall
+        , modifier = \r ->
+            if satisfiesProperty RatSmall r
+              then pure r
+              else
+                let n = num r
+                    d = den r
+                    nl = satisfiesProperty IsLarge (num r)
+                    dl = satisfiesProperty IsLarge (den r)
+                    ns = not nl
+                    ds = not dl
+                 in if
+                        | ns && ds -> pure $ Rational (9 * signum n) d
+                        | nl && ds -> do
+                            let d' = max (abs d) 2
+                            n' <- int (linear 11 (10 * d' - 1))
+                            pure $ Rational (n' * signum n) (d' * signum d)
+                        | nl && dl ->
+                            if n `elem` [minBound, maxBound]
+                              then do
+                                d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
+                                pure $ Rational n (d' * signum d)
+                              else do
+                                d' <- int (linear 11 (maxBound `div` 10))
+                                n' <- int (linear 11 (10 * d' + 1))
+                                pure $ Rational (n' * signum n) (d' * signum d)
+                        | otherwise -> error "unexpected model"
+        }
     ]
 
 instance HasPermutationGenerator RatProp Rat where
   -- Some of the morphisms generated are nonsensicle ie. make Large >>> fix sign >>> fix small
   -- so we set this to true to disable the check that each morphism is usefull
   allowRedundentMorphisms _ = True
+  sources = abstractionSources
 
   generators =
-    ( abstractionMorphisms
-        ++ [ Morphism
-              { name = "make Large"
-              , match = Not $ Var RatLarge
-              , contract = remove RatSmall >> add RatLarge
-              , morphism = pure
-              }
-           , Morphism
-              { name = "make Small"
-              , match = Not $ Var RatSmall
-              , contract = remove RatLarge >> add RatSmall
-              , morphism = pure
-              }
-           ]
-    )
-      -- The relationship between RatNet, RatPos and RatZero and the sub model properties
-      -- is simple and fully described by the model, so it's possible to fix the invalid morphisms like numerator of negate
-      -- by simply branching to any rational sign and failing on the branches where the logic is not satisfied
+    abstractionMorphisms
       >>> [ Morphism
               { name = "fix sign"
               , match = Yes
@@ -111,85 +159,117 @@ instance HasPermutationGenerator RatProp Rat where
               , morphism = pure
               }
           ]
-      >>>
-      -- The RatLarge and rat small properties are less trivial
-      -- they can be fixed with morphisms that don't change the properties
-      --  but check the various cases and fix the model to satisfiy its properties
-      [ Morphism
-          { name = "fix large"
-          , match = Var RatLarge
-          , contract = pure ()
-          , morphism = \r ->
-              if satisfiesProperty RatLarge r
-                then pure r
-                else
-                  let n = num r
-                      d = den r
-                      nl = satisfiesProperty IsLarge (num r)
-                      dl = satisfiesProperty IsLarge (den r)
-                      ns = not nl
-                      ds = not dl
-                   in if
-                          | ns && ds -> pure $ Rational (10 * signum n) (signum d)
-                          | nl && ds -> pure $ Rational (101 * signum n) d
-                          | nl && dl ->
-                              if n `elem` [minBound, maxBound]
-                                then do
-                                  d' <- int (linear 11 (maxBound `div` 10))
-                                  pure $ Rational n (d' * signum d)
-                                else do
-                                  n' <- int (linear 111 maxBound)
-                                  d' <- int (linear 11 (n' `div` 10))
-                                  pure $ Rational (n' * signum n) (d' * signum d)
-                          | otherwise -> error "unexpected model"
+
+{-
+( abstractionMorphisms
+    ++ [ Morphism
+          { name = "make Large"
+          , match = Not $ Var RatLarge
+          , contract = remove RatSmall >> add RatLarge
+          , morphism = pure
           }
-      , Morphism
-          { name = "fix small"
-          , match = Var RatSmall
-          , contract = pure ()
-          , morphism = \r ->
-              if satisfiesProperty RatSmall r
-                then pure r
-                else
-                  let n = num r
-                      d = den r
-                      nl = satisfiesProperty IsLarge (num r)
-                      dl = satisfiesProperty IsLarge (den r)
-                      ns = not nl
-                      ds = not dl
-                   in if
-                          | ns && ds -> pure $ Rational (9 * signum n) d
-                          | nl && ds -> do
-                              let d' = max (abs d) 2
-                              n' <- int (linear 11 (10 * d' - 1))
-                              pure $ Rational (n' * signum n) (d' * signum d)
-                          | nl && dl ->
-                              if n `elem` [minBound, maxBound]
-                                then do
-                                  d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
-                                  pure $ Rational n (d' * signum d)
-                                else do
-                                  d' <- int (linear 11 (maxBound `div` 10))
-                                  n' <- int (linear 11 (10 * d' + 1))
-                                  pure $ Rational (n' * signum n) (d' * signum d)
-                          | otherwise -> error "unexpected model"
+       , Morphism
+          { name = "make Small"
+          , match = Not $ Var RatSmall
+          , contract = remove RatLarge >> add RatSmall
+          , morphism = pure
+          }
+       ]
+)
+  -- The relationship between RatNet, RatPos and RatZero and the sub model properties
+  -- is simple and fully described by the model, so it's possible to fix the invalid morphisms like numerator of negate
+  -- by simply branching to any rational sign and failing on the branches where the logic is not satisfied
+  >>> [ Morphism
+          { name = "fix sign"
+          , match = Yes
+          , contract =
+              removeAll [RatZero, RatPos, RatNeg]
+                >> branches
+                  [ add RatZero >> matches logic
+                  , add RatPos >> matches logic
+                  , add RatNeg >> matches logic
+                  ]
+          , morphism = pure
           }
       ]
+  >>>
+  -- The RatLarge and rat small properties are less trivial
+  -- they can be fixed with morphisms that don't change the properties
+  --  but check the various cases and fix the model to satisfiy its properties
+  [ Morphism
+      { name = "fix large"
+      , match = Var RatLarge
+      , contract = pure ()
+      , morphism = \r ->
+          if satisfiesProperty RatLarge r
+            then pure r
+            else
+              let n = num r
+                  d = den r
+                  nl = satisfiesProperty IsLarge (num r)
+                  dl = satisfiesProperty IsLarge (den r)
+                  ns = not nl
+                  ds = not dl
+               in if
+                      | ns && ds -> pure $ Rational (10 * signum n) (signum d)
+                      | nl && ds -> pure $ Rational (101 * signum n) d
+                      | nl && dl ->
+                          if n `elem` [minBound, maxBound]
+                            then do
+                              d' <- int (linear 11 (maxBound `div` 10))
+                              pure $ Rational n (d' * signum d)
+                            else do
+                              n' <- int (linear 111 maxBound)
+                              d' <- int (linear 11 (n' `div` 10))
+                              pure $ Rational (n' * signum n) (d' * signum d)
+                      | otherwise -> error "unexpected model"
+      }
+  , Morphism
+      { name = "fix small"
+      , match = Var RatSmall
+      , contract = pure ()
+      , morphism = \r ->
+          if satisfiesProperty RatSmall r
+            then pure r
+            else
+              let n = num r
+                  d = den r
+                  nl = satisfiesProperty IsLarge (num r)
+                  dl = satisfiesProperty IsLarge (den r)
+                  ns = not nl
+                  ds = not dl
+               in if
+                      | ns && ds -> pure $ Rational (9 * signum n) d
+                      | nl && ds -> do
+                          let d' = max (abs d) 2
+                          n' <- int (linear 11 (10 * d' - 1))
+                          pure $ Rational (n' * signum n) (d' * signum d)
+                      | nl && dl ->
+                          if n `elem` [minBound, maxBound]
+                            then do
+                              d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
+                              pure $ Rational n (d' * signum d)
+                            else do
+                              d' <- int (linear 11 (maxBound `div` 10))
+                              n' <- int (linear 11 (10 * d' + 1))
+                              pure $ Rational (n' * signum n) (d' * signum d)
+                      | otherwise -> error "unexpected model"
+      }
+  ]
+  -}
 
 instance HasParameterisedGenerator RatProp Rat where
-  parameterisedGenerator = buildGen baseGen
+  parameterisedGenerator = buildGen -- baseGen
 
-baseGen :: Gen Rat
-baseGen = Rational <$> genSatisfying @IntProp Yes <*> genSatisfying (Not $ Var IsZero)
+-- baseGen :: Gen Rat
+-- baseGen = Rational <$> genSatisfying @IntProp Yes <*> genSatisfying (Not $ Var IsZero)
 
 ratGenSelfTests :: TestTree
 ratGenSelfTests =
   testGroup "ratPermGenSelfTests" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism RatProp Rat) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest (Apropos :: Rat :+ RatProp)
 
 ratSampleTests :: TestTree
 ratSampleTests =

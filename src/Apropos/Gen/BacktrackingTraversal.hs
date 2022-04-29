@@ -14,11 +14,11 @@ import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 
 data Traversal p m where
-  Source :: Gen m -> Traversal p m
+  FromSource :: Gen m -> Traversal p m
   Traversal :: Traversal p m -> (m -> Gen [Morphism p m]) -> Traversal p m
 
 traversalAsGen :: Traversal p m -> Gen m
-traversalAsGen (Source g) = g
+traversalAsGen (FromSource g) = g
 traversalAsGen (Traversal m g) = do
   n <- traversalAsGen m
   t <- g n
@@ -49,7 +49,7 @@ traversalWithRetries retries m =
     sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
 
 unTraversal :: Traversal p a -> (Gen a, [a -> Gen [Morphism p a]])
-unTraversal (Source s) = (s, [])
+unTraversal (FromSource s) = (s, [])
 unTraversal (Traversal s t) = case unTraversal s of
   (s', t') -> (s', t' <> [t])
 

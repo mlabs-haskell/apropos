@@ -3,15 +3,8 @@ module Spec.TicTacToe.Move (
   movePermutationGenSelfTest,
 ) where
 
-import Apropos.Gen
-import Apropos.HasAbstractions
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.LogicalModel
+import Apropos
 import Control.Lens.Tuple (_1, _2)
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
 import Test.Tasty (TestTree, testGroup)
@@ -31,37 +24,36 @@ instance HasLogicalModel MoveProperty (Int, Int) where
   satisfiesProperty (MovePlayer prop) (player, _) = satisfiesProperty prop player
 
 instance HasAbstractions MoveProperty (Int, Int) where
-  abstractions =
-    [ WrapAbs $
-        ProductAbstraction
-          { abstractionName = "MovePlayer"
-          , propertyAbstraction = abstractsProperties MovePlayer
-          , productModelAbstraction = _1
-          }
-    , WrapAbs $
-        ProductAbstraction
-          { abstractionName = "MoveLocation"
-          , propertyAbstraction = abstractsProperties MoveLocation
-          , productModelAbstraction = _2
+  sourceAbstractions =
+    [ SoAs $
+        SourceAbstraction
+          { sourceAbsName = "move source"
+          , constructor = (,)
+          , productAbs =
+              ProductAbstraction
+                { abstractionName = "MovePlayer"
+                , propertyAbstraction = abstractsProperties MovePlayer
+                , productModelAbstraction = _1
+                }
+                :& ProductAbstraction
+                  { abstractionName = "MoveLocation"
+                  , propertyAbstraction = abstractsProperties MoveLocation
+                  , productModelAbstraction = _2
+                  }
+                :& Nil
           }
     ]
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
+  sources = []
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen (Int, Int)
-baseGen =
-  let g = int (linear minBound maxBound)
-   in (,) <$> g <*> g
+  parameterisedGenerator = buildGen
 
 movePermutationGenSelfTest :: TestTree
 movePermutationGenSelfTest =
   testGroup "movePermutationGenSelfTest" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism MoveProperty (Int, Int)) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest (Apropos :: (Int, Int) :+ MoveProperty)

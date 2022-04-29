@@ -1,6 +1,8 @@
 module Apropos.Pure (HasPureRunner (..)) where
 
-import Apropos.Gen.BacktrackingTraversal
+import Apropos.Gen (forAll)
+
+-- import Apropos.Gen.BacktrackingTraversal
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
@@ -17,11 +19,13 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
 
   runPureTest :: m :+ p -> Set p -> Property
   runPureTest apropos s = property $ do
-    (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
+    -- (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
+    m <- forAll $ parameterisedGenerator s
     satisfiesFormula (expect apropos) s === script apropos m
-    where
-      numRetries :: Int
-      numRetries = rootRetryLimit (Apropos :: m :+ p)
+
+  -- where
+  --  numRetries :: Int
+  --  numRetries = rootRetryLimit (Apropos :: m :+ p)
 
   runPureTestsWhere :: m :+ p -> String -> Formula p -> Group
   runPureTestsWhere pm name condition =
@@ -35,7 +39,8 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   enumeratePureTest :: m :+ p -> Set p -> Property
   enumeratePureTest apropos s = withTests (1 :: TestLimit) $
     property $ do
-      let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
+      let -- (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
+          (ms :: [m]) = enumerate $ parameterisedGenerator s
           run m = satisfiesFormula (expect apropos) s === script apropos m
       sequence_ (run <$> ms)
 

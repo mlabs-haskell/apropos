@@ -26,31 +26,37 @@ instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
 instance HasAbstractions IntPairProp (Int, Int) where
-  abstractions =
-    [ WrapAbs $
-        ProductAbstraction
-          { abstractionName = "L"
-          , propertyAbstraction = abstractsProperties L
-          , productModelAbstraction = _1
-          }
-    , WrapAbs $
-        ProductAbstraction
-          { abstractionName = "R"
-          , propertyAbstraction = abstractsProperties R
-          , productModelAbstraction = _2
+  sourceAbstractions =
+    [ SoAs $
+        SourceAbstraction
+          { sourceAbsName = "make pair"
+          , constructor = (,)
+          , productAbs =
+              ProductAbstraction
+                { abstractionName = "L"
+                , propertyAbstraction = abstractsProperties L
+                , productModelAbstraction = _1
+                }
+                :& ProductAbstraction
+                  { abstractionName = "R"
+                  , propertyAbstraction = abstractsProperties R
+                  , productModelAbstraction = _2
+                  }
+                :& Nil
           }
     ]
 
 instance HasPermutationGenerator IntPairProp (Int, Int) where
+  sources = abstractionSources
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
-  parameterisedGenerator = buildGen baseGen
+  parameterisedGenerator = buildGen -- baseGen
 
-baseGen :: Gen (Int, Int)
-baseGen =
-  (,) <$> genSatisfying (Yes :: Formula IntProp)
-    <*> genSatisfying (Yes :: Formula IntProp)
+-- baseGen :: Gen (Int, Int)
+-- baseGen =
+--  (,) <$> genSatisfying (Yes :: Formula IntProp)
+--    <*> genSatisfying (Yes :: Formula IntProp)
 
 intPairGenTests :: TestTree
 intPairGenTests =
@@ -85,8 +91,6 @@ intPairGenPureTests =
 intPairGenSelfTests :: TestTree
 intPairGenSelfTests =
   testGroup "intPairGenSelfTests" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism IntPairProp (Int, Int)) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest (Apropos :: (Int, Int) :+ IntPairProp)

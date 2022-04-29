@@ -3,15 +3,8 @@ module Spec.TicTacToe.PlayerLocationSequencePair (
   playerLocationSequencePairPermutationGenSelfTest,
 ) where
 
-import Apropos.Gen
-import Apropos.HasAbstractions
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.LogicalModel
+import Apropos
 import Control.Lens.Tuple (_1, _2)
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
 import Test.Tasty (TestTree, testGroup)
@@ -48,39 +41,36 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
 instance HasAbstractions PlayerLocationSequencePairProperty ([Int], [Int]) where
-  abstractions =
-    [ WrapAbs $
-        ProductAbstraction
-          { abstractionName = ""
-          , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
-          , productModelAbstraction = _1
-          }
-    , WrapAbs $
-        ProductAbstraction
-          { abstractionName = ""
-          , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
-          , productModelAbstraction = _2
+  sourceAbstractions =
+    [ SoAs $
+        SourceAbstraction
+          { sourceAbsName = ""
+          , constructor = (,)
+          , productAbs =
+              ProductAbstraction
+                { abstractionName = ""
+                , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+                , productModelAbstraction = _1
+                }
+                :& ProductAbstraction
+                  { abstractionName = ""
+                  , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+                  , productModelAbstraction = _2
+                  }
+                :& Nil
           }
     ]
 
 instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
+  sources = abstractionSources
   generators = abstractionMorphisms ++ parallelAbstractionMorphisms
 
 instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen ([Int], [Int])
-baseGen = do
-  l <- int (linear 0 10)
-  l1 <- list (singleton l) $ int (linear minBound maxBound)
-  l2 <- list (singleton l) $ int (linear minBound maxBound)
-  pure (l1, l2)
+  parameterisedGenerator = buildGen
 
 playerLocationSequencePairPermutationGenSelfTest :: TestTree
 playerLocationSequencePairPermutationGenSelfTest =
   testGroup "playerLocationSequencePairPermutationGenSelfTest" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        False
-        (\(_ :: Morphism PlayerLocationSequencePairProperty ([Int], [Int])) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest (Apropos :: ([Int], [Int]) :+ PlayerLocationSequencePairProperty)

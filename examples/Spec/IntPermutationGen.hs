@@ -85,18 +85,18 @@ intPermutationGenTests :: TestTree
 intPermutationGenTests =
   testGroup "intPermutationGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Apropos :: Int :+ IntProp) "Int Generator" Yes
+      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @IntProp)
           ]
 
 instance HasPureRunner IntProp Int where
-  expect _ = Var IsSmall :&&: Var IsNegative
-  script _ i = i < 0 && i >= -10
+  expect = Var IsSmall :&&: Var IsNegative
+  script i = i < 0 && i >= -10
 
 intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
+      <$> [ runPureTestsWhere "AcceptsSmallNegativeInts" (Yes @IntProp)
           ]
 
 intPermutationGenSelfTests :: TestTree
@@ -104,4 +104,4 @@ intPermutationGenSelfTests =
   testGroup "intPermutationGenSelfTests" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest (Apropos :: Int :+ IntProp)
+        permutationGeneratorSelfTest @IntProp

@@ -1,7 +1,4 @@
 module Apropos (
-  -- Apropos.Type
-  Apropos (..),
-  (:+),
   -- Apropos.LogicalModel
   LogicalModel (..),
   -- Apropos.LogicalModel.Enumerable
@@ -94,6 +91,5 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Apropos.Pure
-import Apropos.Type
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)

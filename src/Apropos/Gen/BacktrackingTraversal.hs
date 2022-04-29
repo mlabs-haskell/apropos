@@ -1,21 +1,23 @@
 module Apropos.Gen.BacktrackingTraversal (
   Traversal (..),
   traversalAsGen,
+  traversalInGen,
   traversalContainRetry,
 ) where
 
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Except (runExceptT)
-import Control.Monad.Trans.Writer (runWriterT)
-import Data.String (fromString)
+import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 
 data Traversal p m where
   FromSource :: Gen m -> Traversal p m
   Traversal :: Traversal p m -> (m -> Gen [Morphism p m]) -> Traversal p m
+
+traversalInGen :: Show m => Traversal p m -> Gen m
+traversalInGen = liftPropertyT . traversalContainRetry 1000
 
 traversalAsGen :: Traversal p m -> Gen m
 traversalAsGen (FromSource g) = g
@@ -44,7 +46,9 @@ traversalWithRetries retries m =
     genTraversal :: (a -> Gen [Morphism p a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
     genTraversal gt = \a -> do
       tr <- forAllWith (unwords . (name <$>)) $ prune (gt a)
-      pure $ sizableTr <$> (morphism <$> tr)
+      case tr of
+        Right tra -> pure $ sizableTr <$> (morphism <$> tra)
+        Left _ -> undefined
     sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
     sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
 
@@ -53,15 +57,6 @@ unTraversal (FromSource s) = (s, [])
 unTraversal (Traversal s t) = case unTraversal s of
   (s', t') -> (s', t' <> [t])
 
-forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
-forAllRetryToMaybeScale g s = do
-  (ee, labels) <- H.forAll $ runWriterT (runExceptT $ gen $ scale (2 * s +) g)
-  mapM_ (H.label . fromString) labels
-  case ee of
-    Left Retry -> pure Nothing
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure $ Just a
-
 backtrackingRetryTraversals ::
   forall a m.
   Monad m =>
@@ -69,24 +64,9 @@ backtrackingRetryTraversals ::
   (Int -> m (Maybe a)) ->
   [a -> m [Int -> a -> m (Maybe a)]] ->
   m (Maybe a)
-backtrackingRetryTraversals retries g trs = go 1
+backtrackingRetryTraversals retries g trs =
+  backtrackingBind retries 1 g (\x -> continueTraversal x 1 trs)
   where
-    go :: Int -> m (Maybe a)
-    go l = do
-      res <- g l
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- continueTraversal so 1 trs
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
     continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
     continueTraversal s _ [] = pure $ Just s
     continueTraversal s l (t : ts) = do
@@ -105,21 +85,26 @@ backtrackingRetryTraversals retries g trs = go 1
 
 backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
 backtrackingRetryTraverse _ s [] = pure $ Just s
-backtrackingRetryTraverse retries s (t : ts) = go 1
-  where
-    go :: Int -> m (Maybe a)
-    go l = do
-      res <- t l s
-      case res of
-        Nothing ->
-          if l > retries
-            then pure Nothing
-            else go (l + 1)
-        Just so -> do
-          res' <- backtrackingRetryTraverse retries so ts
-          case res' of
-            Nothing ->
-              if l > retries
-                then pure Nothing
-                else go (l + 1)
-            Just so' -> pure $ Just so'
+backtrackingRetryTraverse retries s (t : ts) =
+  backtrackingBind retries 1 (`t` s) (flip (backtrackingRetryTraverse retries) ts)
+
+backtrackingBind :: Monad m => Int -> Int -> (Int -> m (Maybe a)) -> (a -> m (Maybe a)) -> m (Maybe a)
+backtrackingBind retries counter f g = do
+  runMaybeT
+    ( do
+        res <- MaybeT $ f counter
+        MaybeT $ g res
+    )
+    >>= \case
+      Just so -> pure $ Just so
+      Nothing
+        | counter > retries -> pure Nothing
+        | otherwise -> backtrackingBind retries (counter + 1) f g
+
+forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
+forAllRetryToMaybeScale g s = do
+  ee <- forAll $ scale (2 * s +) g
+  case ee of
+    Left Retry -> pure Nothing
+    Left (GenException err) -> H.footnote err >> H.failure
+    Right a -> pure $ Just a

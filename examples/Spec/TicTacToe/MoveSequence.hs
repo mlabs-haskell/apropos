@@ -116,4 +116,4 @@ moveSequencePermutationGenSelfTest =
   testGroup "moveSequencePermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest (Apropos :: [Int] :+ MoveSequenceProperty)
+        permutationGeneratorSelfTest @MoveSequenceProperty

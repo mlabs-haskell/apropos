@@ -73,4 +73,4 @@ playerLocationSequencePairPermutationGenSelfTest =
   testGroup "playerLocationSequencePairPermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest (Apropos :: ([Int], [Int]) :+ PlayerLocationSequencePairProperty)
+        permutationGeneratorSelfTest @PlayerLocationSequencePairProperty

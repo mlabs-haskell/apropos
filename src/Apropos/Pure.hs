@@ -1,54 +1,48 @@
 module Apropos.Pure (HasPureRunner (..)) where
 
-import Apropos.Gen (forAll)
-
--- import Apropos.Gen.BacktrackingTraversal
+import Apropos.Gen (forAll,(===),errorHandler)
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.LogicalModel
-import Apropos.Type
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
+import Hedgehog (Group (..), Property, TestLimit, property, withTests)
 
 class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m where
-  expect :: m :+ p -> Formula p
-  script :: m :+ p -> (m -> Bool)
+  expect :: Formula p
+  script :: m -> Bool
 
-  runPureTest :: m :+ p -> Set p -> Property
-  runPureTest apropos s = property $ do
-    -- (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
-    m <- forAll $ parameterisedGenerator s
-    satisfiesFormula (expect apropos) s === script apropos m
+  runPureTest :: Set p -> Property
+  runPureTest s = property (test >>= errorHandler)
+    where
+      test = forAll $ do
+        (m :: m) <- parameterisedGenerator s
+        satisfiesFormula (expect @p) s === script @p m
 
-  -- where
-  --  numRetries :: Int
-  --  numRetries = rootRetryLimit (Apropos :: m :+ p)
-
-  runPureTestsWhere :: m :+ p -> String -> Formula p -> Group
-  runPureTestsWhere pm name condition =
+  runPureTestsWhere :: String -> Formula p -> Group
+  runPureTestsWhere name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario
-        , runPureTest pm scenario
+        , runPureTest scenario
         )
       | scenario <- enumerateScenariosWhere condition
       ]
 
-  enumeratePureTest :: m :+ p -> Set p -> Property
-  enumeratePureTest apropos s = withTests (1 :: TestLimit) $
-    property $ do
-      let -- (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
-          (ms :: [m]) = enumerate $ parameterisedGenerator s
-          run m = satisfiesFormula (expect apropos) s === script apropos m
-      sequence_ (run <$> ms)
+  enumeratePureTest :: Set p -> Property
+  enumeratePureTest s = withTests (1 :: TestLimit) $ property $ test >>= errorHandler
+    where
+      test = forAll $ do
+        let (ms :: [m]) = enumerate $ parameterisedGenerator s
+            run m = satisfiesFormula (expect @p) s === script @p m
+        sequence_ (run <$> ms)
 
-  enumeratePureTestsWhere :: m :+ p -> String -> Formula p -> Group
-  enumeratePureTestsWhere pm name condition =
+  enumeratePureTestsWhere :: String -> Formula p -> Group
+  enumeratePureTestsWhere name condition =
     Group (fromString name) $
       [ ( fromString $ show $ Set.toList scenario
-        , enumeratePureTest pm scenario
+        , enumeratePureTest scenario
         )
       | scenario <- enumerateScenariosWhere condition
       ]

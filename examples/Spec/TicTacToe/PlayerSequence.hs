@@ -117,4 +117,4 @@ playerSequencePermutationGenSelfTest =
   testGroup "playerSequencePermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest (Apropos :: [Int] :+ PlayerSequenceProperty)
+        permutationGeneratorSelfTest @PlayerSequenceProperty

@@ -62,7 +62,6 @@ intEitherGenTests =
   testGroup "intPairGenTests" $
     fromGroup
       <$> [ runGeneratorTestsWhere
-              (Apropos :: Either Int Int :+ IntEitherProp)
               "Either Int Int Generator"
-              Yes
+              (Yes @IntEitherProp)
           ]

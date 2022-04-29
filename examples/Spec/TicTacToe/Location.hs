@@ -48,4 +48,4 @@ locationPermutationGenSelfTest =
   testGroup "locationPermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest (Apropos :: Int :+ LocationProperty)
+        permutationGeneratorSelfTest @LocationProperty

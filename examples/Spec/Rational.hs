@@ -77,7 +77,7 @@ instance HasAbstractions RatProp Rat where
 instance HasPermutationGenerator RatProp Rat where
   -- Some of the morphisms generated are nonsensicle ie. make Large >>> fix sign >>> fix small
   -- so we set this to true to disable the check that each morphism is usefull
-  allowRedundentMorphisms _ = True
+  allowRedundentMorphisms = True
 
   generators =
     ( abstractionMorphisms
@@ -195,4 +195,4 @@ ratSampleTests :: TestTree
 ratSampleTests =
   testGroup
     "ratSampleTests"
-    [testProperty "ratSampleTest" (sampleGenTest (Apropos :: Rat :+ RatProp))]
+    [testProperty "ratSampleTest" (sampleGenTest @RatProp)]

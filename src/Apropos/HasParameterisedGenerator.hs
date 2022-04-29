@@ -12,7 +12,6 @@ import Apropos.Gen
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.LogicalModel
-import Apropos.Type
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -26,10 +25,9 @@ class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
 runGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Set p ->
   Property
-runGeneratorTest _ s = property $ test >>= errorHandler
+runGeneratorTest s = property $ test >>= errorHandler
   where
     test = forAll $ do
       (m :: m) <- parameterisedGenerator s
@@ -37,19 +35,18 @@ runGeneratorTest _ s = property $ test >>= errorHandler
 
 runGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
-  m :+ p ->
   String ->
   Formula p ->
   Group
-runGeneratorTestsWhere proxy name condition =
+runGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, runGeneratorTest proxy scenario)
+    [ (fromString $ show $ Set.toList scenario, runGeneratorTest scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
 
 genPropSet :: forall p. LogicalModel p => Gen (Set p)
 genPropSet = do
-  let x = length $ scenarios @p
+  let x = length (scenarios @p)
   i <- int (linear 0 (x - 1))
   case Map.lookup i scenarioMap of
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
@@ -58,9 +55,8 @@ genPropSet = do
 sampleGenTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Property
-sampleGenTest _ = property $ test >>= errorHandler
+sampleGenTest = property $ test >>= errorHandler
   where
     test = forAll $ do
       (ps :: Set p) <- genPropSet @p
@@ -70,10 +66,9 @@ sampleGenTest _ = property $ test >>= errorHandler
 enumerateGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Set p ->
   Property
-enumerateGeneratorTest _ s =
+enumerateGeneratorTest s =
   withTests (1 :: TestLimit) $
     property $ test >>= errorHandler
   where
@@ -84,13 +79,12 @@ enumerateGeneratorTest _ s =
 
 enumerateGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
-  m :+ p ->
   String ->
   Formula p ->
   Group
-enumerateGeneratorTestsWhere proxy name condition =
+enumerateGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest proxy scenario)
+    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
 

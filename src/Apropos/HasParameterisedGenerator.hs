@@ -1,5 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-
 module Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator (..),
   runGeneratorTest,

@@ -57,29 +57,27 @@ intPairGenTests =
   testGroup "intPairGenTests" $
     fromGroup
       <$> [ runGeneratorTestsWhere
-              (Apropos :: (Int, Int) :+ IntPairProp)
               "(Int,Int) Generator"
-              Yes
+              (Yes @IntPairProp)
           ]
 
 instance HasPureRunner IntPairProp (Int, Int) where
-  expect _ =
+  expect =
     All $
       Var
         <$> join
           [ L <$> [IsSmall, IsNegative]
           , R <$> [IsSmall, IsPositive]
           ]
-  script _ (l, r) = l < 0 && l >= -10 && r > 0 && r <= 10
+  script (l, r) = l < 0 && l >= -10 && r > 0 && r <= 10
 
 intPairGenPureTests :: TestTree
 intPairGenPureTests =
   testGroup "intPairGenPureTests" $
     fromGroup
       <$> [ runPureTestsWhere
-              (Apropos :: (Int, Int) :+ IntPairProp)
               "AcceptsLeftSmallNegativeRightSmallPositive"
-              Yes
+              (Yes @IntPairProp)
           ]
 
 intPairGenSelfTests :: TestTree

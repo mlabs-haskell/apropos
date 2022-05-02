@@ -1,13 +1,15 @@
-module Spec.IntOverlay
-  (intSmplPermutationGenTests
-  ,IntSmpl(..)) where
+module Spec.IntOverlay (
+  intSmplPermutationGenTests,
+  IntSmpl (..),
+) where
 
 import Apropos
+
 -- TODO this should probably be rexported eventually
 import Apropos.Overlay
-import Spec.IntPermutationGen ( IntProp(IsNegative) )
-import Test.Tasty ( testGroup, TestTree )
-import Test.Tasty.Hedgehog ( fromGroup )
+import Spec.IntPermutationGen (IntProp (IsNegative))
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.Hedgehog (fromGroup)
 
 data IntSmpl = NonNegative
   deriving stock (Eq, Ord, Show, Generic)
@@ -19,17 +21,11 @@ instance LogicalModel IntSmpl where
 instance Overlay IntSmpl IntProp where
   overlays NonNegative = Not $ Var IsNegative
 
--- TODO ideally you wouldn't need even this but I can't get it to work as a generic instance
-deriving anyclass instance HasLogicalModel IntSmpl Int
+instance HasLogicalModel IntSmpl Int where
+  satisfiesProperty = deduceFromOverlay
 
 instance HasPermutationGenerator IntSmpl Int where
-  sources =
-    [ Source
-      {sourceName = "overlay"
-      , covers = Yes
-      , pgen = \ps -> genSatisfying (All [ (if p `elem` ps then id else Not) $ overlays p | p <- enumerated ])
-      }
-    ]
+  sources = overlaySources
 
 intSmplPermutationGenTests :: TestTree
 intSmplPermutationGenTests =

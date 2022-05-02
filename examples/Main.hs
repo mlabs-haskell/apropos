@@ -1,7 +1,9 @@
 module Main (main) where
 
+import Apropos.Overlay
 import Spec.Int
 import Spec.IntEither
+import Spec.IntOverlay
 import Spec.IntPair
 import Spec.IntPermutationGen
 import Spec.Rational
@@ -12,8 +14,6 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
-import Spec.IntOverlay
-import Apropos.Overlay
 import Test.Tasty
 import Test.Tasty.Hedgehog (testProperty)
 
@@ -30,10 +30,10 @@ tests =
         , intPureTests
         ]
     , testGroup
-      "IntSmpl tests"
-      [ testProperty "antiValidity check" (soundOverlay @IntSmpl)
-      , intSmplPermutationGenTests
-      ]
+        "IntSmpl tests"
+        [ testProperty "antiValidity check" (soundOverlay @IntSmpl)
+        , intSmplPermutationGenTests
+        ]
     , testGroup
         "Int model using Permutation Generator"
         [ intPermutationGenTests

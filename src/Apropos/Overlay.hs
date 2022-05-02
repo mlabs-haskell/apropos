@@ -4,14 +4,19 @@
 module Apropos.Overlay (
   Overlay (..),
   soundOverlay,
+  overlaySources,
+  deduceFromOverlay,
 ) where
 
+import Apropos.HasLogicalModel
+import Apropos.HasParameterisedGenerator
+import Apropos.HasPermutationGenerator.Source
 import Apropos.LogicalModel
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Hedgehog (Property,property,footnote,failure)
+import Hedgehog (Property, failure, footnote, property)
 
 class (LogicalModel op, LogicalModel sp) => Overlay op sp | op -> sp where
   overlays :: op -> Formula sp
@@ -30,27 +35,26 @@ soundOverlay = property $
             "internal apropos error, found overlay inconsistancy but failed to find exact problem.\n"
               ++ "please report this as a bug\n"
               ++ "here's some info that might help "
-              ++   "(and which ideally should be included in the bug report):\n"
+              ++ "(and which ideally should be included in the bug report):\n"
               ++ show violation
       failure
     [] -> case emptyOverlays @sp @op of
-            (empty:_) -> do
-               footnote $
-                 "found solution to overlay with no coresponding sub model solutions\n"
-                    ++ show (Set.toList empty)
-               failure
-            [] -> pure ()
+      (empty : _) -> do
+        footnote $
+          "found solution to overlay with no coresponding sub model solutions\n"
+            ++ show (Set.toList empty)
+        failure
+      [] -> pure ()
 
 conectingLogic :: Overlay op sp => Formula (Either op sp)
 conectingLogic = All [Var (Left op) :<->: (Right <$> overlays op) | op <- enumerated]
 
 -- we want to assure: conectingLogic => (Left <$> logic) === (Right <$> logic)
 antiValidity :: Overlay op sp => Formula (Either op sp)
-antiValidity = let
-    overlayLogic = Left <$>  logic
-    subModelLogic = Right <$> logic
-    in Not ((conectingLogic :&&: subModelLogic) :->: overlayLogic)
-
+antiValidity =
+  let overlayLogic = Left <$> logic
+      subModelLogic = Right <$> logic
+   in Not ((conectingLogic :&&: subModelLogic) :->: overlayLogic)
 
 -- list of solutions to the overlay logic which have no coresponding solutions in the sub-model
 -- if this is not empty that is considered unsound
@@ -78,9 +82,14 @@ uncoveredSubSolutions =
                                               (Right <$> form) :&&: (Left <$> logic @op) :&&: conectingLogic
       ]
 
+overlaySources :: (Overlay p op, HasParameterisedGenerator op m) => [Source p m]
+overlaySources =
+  [ Source
+      { sourceName = "overlay"
+      , covers = Yes
+      , pgen = \ps -> genSatisfying (All [(if p `elem` ps then id else Not) $ overlays p | p <- enumerated])
+      }
+  ]
 
---parameterisedGeneratorFromOverlay :: Overlay op sp => Set op -> Gen m
---parameterisedGeneratorFromOverlay props = let
---  newLogic = [ if p `elem` props then overlays p else Not (overlays p) | p <- enumerated ]
---    in genSatisfying newLogic
-
+deduceFromOverlay :: (HasLogicalModel sp m, Overlay op sp) => op -> m -> Bool
+deduceFromOverlay = satisfiesExpression . overlays

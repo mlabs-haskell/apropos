@@ -29,11 +29,6 @@ instance HasPermutationGenerator IntSmpl Int where
       , covers = Yes
       , pgen = \ps -> genSatisfying (All [ (if p `elem` ps then id else Not) $ overlays p | p <- enumerated ])
       }
-    , Source
-      { sourceName = ""
-      , covers = Var NonNegative
-      , pgen = const $ pure 2
-      }
     ]
 
 intSmplPermutationGenTests :: TestTree

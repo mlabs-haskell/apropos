@@ -29,5 +29,3 @@ wrapSourceWithCheck s = s {pgen = wraped}
             ++ "\ngot:"
             ++ show (properties m :: Set p)
       pure m
-
--- TODO add source tests to perumutation generator tests

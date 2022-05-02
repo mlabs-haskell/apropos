@@ -68,6 +68,7 @@ addPropCheck (inps, outps) mo = mo {morphism = wrap}
   where
     wrap :: m -> Gen m
     wrap m = do
+      label $ name mo
       unless (properties m == inps) $
         error $
           "internal apropos error morphism given bad input"

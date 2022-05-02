@@ -27,7 +27,7 @@ runGeneratorTest ::
   HasParameterisedGenerator p m =>
   Set p ->
   Property
-runGeneratorTest s = property $ test >>= errorHandler
+runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       (m :: m) <- parameterisedGenerator s
@@ -56,7 +56,7 @@ sampleGenTest ::
   forall p m.
   HasParameterisedGenerator p m =>
   Property
-sampleGenTest = property $ test >>= errorHandler
+sampleGenTest = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       (ps :: Set p) <- genPropSet @p
@@ -70,7 +70,7 @@ enumerateGeneratorTest ::
   Property
 enumerateGeneratorTest s =
   withTests (1 :: TestLimit) $
-    property $ test >>= errorHandler
+    property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       let (ms :: [m]) = enumerate $ parameterisedGenerator s

@@ -6,7 +6,7 @@ module Apropos.HasPermutationGenerator (
   (>>>),
 ) where
 
-import Apropos.Gen (Gen, choice, element, errorHandler, failWithFootnote, forAll, liftPropertyT)
+import Apropos.Gen (Gen, choice, element, errorHandler, failWithFootnote, forAllWithRetries, runGenModifiable, (===))
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
@@ -20,7 +20,7 @@ import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, property, (===))
+import Hedgehog (Group (..), Property, property)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -38,7 +38,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   sources :: [Source p m]
 
   traversalRetryLimit :: Int
-  traversalRetryLimit = 10
+  traversalRetryLimit = 100
 
   allowRedundentMorphisms :: Bool
   allowRedundentMorphisms = False
@@ -60,10 +60,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Morphism p m ->
     Property
   testEdge (inprops, outprops) m =
-    property $ do
-      (inModel :: m) <- errorHandler =<< forAll (buildGen inprops :: Gen m)
-      (outModel :: m) <- errorHandler =<< forAll (morphism m inModel)
+    property $ errorHandler =<< runGenModifiable ( forAllWithRetries (traversalRetryLimit @p) $ do
+      (inModel :: m) <- buildGen inprops :: Gen m
+      (outModel :: m) <- morphism m inModel
       (properties outModel :: Set p) === (outprops :: Set p)
+                                )
 
   buildGen :: Set p -> Gen m
   buildGen ps = do
@@ -94,7 +95,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           morphisms <- choseMorphism path
           let withPropChecks = zipWith addPropCheck path morphisms
           pure withPropChecks
-    liftPropertyT $ traversalContainRetry (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
+    traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
 
   choseMorphism ::
     [(Set p, Set p)] ->

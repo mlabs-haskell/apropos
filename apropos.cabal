@@ -6,6 +6,7 @@ extra-source-files: CHANGELOG.md
 common lang
   default-language:   Haskell2010
   default-extensions:
+    AllowAmbiguousTypes
     BangPatterns
     BinaryLiterals
     ConstraintKinds
@@ -21,6 +22,7 @@ common lang
     EmptyCase
     FlexibleContexts
     FlexibleInstances
+    FunctionalDependencies
     GADTs
     GeneralizedNewtypeDeriving
     HexFloatLiterals
@@ -73,18 +75,18 @@ library
     Apropos.Gen.Enumerate
     Apropos.Gen.Range
     Apropos.HasAbstractions
+    Apropos.HasAbstractions.Abstraction
     Apropos.HasLogicalModel
     Apropos.HasParameterisedGenerator
     Apropos.HasPermutationGenerator
-    Apropos.HasPermutationGenerator.Abstraction
     Apropos.HasPermutationGenerator.Contract
     Apropos.HasPermutationGenerator.Morphism
+    Apropos.HasPermutationGenerator.Source
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
     Apropos.LogicalModel.Formula
     Apropos.Overlay
     Apropos.Pure
-    Apropos.Type
 
   hs-source-dirs:  src
 

@@ -8,52 +8,50 @@ module Apropos.HasParameterisedGenerator (
   sampleGenTest,
 ) where
 
-import Apropos.Gen hiding ((===))
-import Apropos.Gen.BacktrackingTraversal
-import Apropos.Gen.Enumerate
-import Apropos.HasLogicalModel
-import Apropos.LogicalModel
-import Apropos.Type
+import Apropos.Gen
+import Apropos.Gen.Enumerate (enumerate)
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.LogicalModel (
+  Formula,
+  LogicalModel (scenarios),
+  enumerateScenariosWhere,
+  scenarioMap,
+ )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
+import Hedgehog (Group (..), Property, TestLimit, property, withTests)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: Set p -> Traversal p m
-  rootRetryLimit :: m :+ p -> Int
-  rootRetryLimit _ = 100
+  parameterisedGenerator :: Set p -> Gen m
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 runGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Set p ->
   Property
-runGeneratorTest _ s = property $ do
-  (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
-  properties m === s
+runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
   where
-    numRetries :: Int
-    numRetries = rootRetryLimit (Apropos :: Apropos (m, p))
+    test = forAll $ do
+      (m :: m) <- parameterisedGenerator s
+      properties m === s
 
 runGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
-  m :+ p ->
   String ->
   Formula p ->
   Group
-runGeneratorTestsWhere proxy name condition =
+runGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, runGeneratorTest proxy scenario)
+    [ (fromString $ show $ Set.toList scenario, runGeneratorTest scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
 
 genPropSet :: forall p. LogicalModel p => Gen (Set p)
 genPropSet = do
-  let x = length $ scenarios @p
+  let x = length (scenarios @p)
   i <- int (linear 0 (x - 1))
   case Map.lookup i scenarioMap of
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
@@ -62,34 +60,36 @@ genPropSet = do
 sampleGenTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Property
-sampleGenTest _ = property $ do
-  (ps :: Set p) <- forAll (genPropSet @p)
-  (m :: m) <- forAll $ traversalAsGen $ parameterisedGenerator ps
-  properties m === ps
+sampleGenTest = property $ runGenModifiable test >>= errorHandler
+  where
+    test = forAll $ do
+      (ps :: Set p) <- genPropSet @p
+      (m :: m) <- parameterisedGenerator ps
+      properties m === ps
 
 enumerateGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>
-  m :+ p ->
   Set p ->
   Property
-enumerateGeneratorTest _ s = withTests (1 :: TestLimit) $
-  property $ do
-    let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
-        run m = properties m === s
-    sequence_ (run <$> ms)
+enumerateGeneratorTest s =
+  withTests (1 :: TestLimit) $
+    property $ runGenModifiable test >>= errorHandler
+  where
+    test = forAll $ do
+      let (ms :: [m]) = enumerate $ parameterisedGenerator s
+          run m = properties m === s
+      sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
-  m :+ p ->
   String ->
   Formula p ->
   Group
-enumerateGeneratorTestsWhere proxy name condition =
+enumerateGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest proxy scenario)
+    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest scenario)
     | scenario <- enumerateScenariosWhere condition
     ]
 
@@ -97,7 +97,4 @@ genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  traversalAsGen $ parameterisedGenerator s -- TODO this doesn't do shrink containment...
-  -- we can lift a Traversal into Gen
-  -- like GenWrap but for Traversal
-  -- or something...
+  parameterisedGenerator s

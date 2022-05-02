@@ -1,7 +1,4 @@
 module Apropos (
-  -- Apropos.Type
-  Apropos (..),
-  (:+),
   -- Apropos.LogicalModel
   LogicalModel (..),
   -- Apropos.LogicalModel.Enumerable
@@ -40,18 +37,24 @@ module Apropos (
   -- Apropos.HasPermutationGenerator
   HasPermutationGenerator (..),
   Morphism (..),
-  Abstraction (..),
-  abstract,
-  gotoSum,
-  abstractsProperties,
+  Source (..),
   (&&&),
   (>>>),
   -- Apropos.HasAbstractions
-  HasAbstractions (abstractions),
-  AbstractionFor (WrapAbs),
+  HasAbstractions (..),
+  ProductAbstraction (..),
+  SumAbstraction (..),
+  SourceAbstraction (..),
+  ProductAbstractionFor (..),
+  SumAbstractionFor (..),
+  SourceAbstractionFor (..),
+  PAbs (..),
+  Correction (..),
   abstractionMorphisms,
+  abstractionSources,
   parallelAbstractionMorphisms,
   abstractionLogic,
+  abstractsProperties,
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
   runContract,
@@ -88,6 +91,5 @@ import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Apropos.Pure
-import Apropos.Type
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)

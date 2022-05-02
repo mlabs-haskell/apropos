@@ -243,7 +243,7 @@ type GenModifiable = ReaderT GenModifier (ExceptT GenException (PropertyT IO))
 resizeGen :: (Int -> Int) -> GenModifiable a -> GenModifiable a
 resizeGen f c = do
   gm <- ask
-  lift $ runReaderT c (gm {genSize = f . genSize gm})
+  lift $ runReaderT c (gm {genSize = f})
 
 pruneGen :: GenModifiable a -> GenModifiable a
 pruneGen c = do

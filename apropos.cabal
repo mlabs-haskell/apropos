@@ -101,6 +101,7 @@ test-suite examples
     Spec.IntEither
     Spec.IntOverlay
     Spec.IntPair
+    Spec.IntPairOverlay
     Spec.IntPermutationGen
     Spec.Rational
     Spec.TicTacToe.Location

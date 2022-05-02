@@ -5,11 +5,9 @@ module Spec.IntOverlay (
 
 import Apropos
 
--- TODO this should probably be rexported eventually
-import Apropos.Overlay
 import Spec.IntPermutationGen (IntProp (IsNegative))
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+import Test.Tasty.Hedgehog (fromGroup,testProperty)
 
 data IntSmpl = NonNegative
   deriving stock (Eq, Ord, Show, Generic)
@@ -27,9 +25,12 @@ instance HasLogicalModel IntSmpl Int where
 instance HasPermutationGenerator IntSmpl Int where
   sources = overlaySources
 
+instance HasParameterisedGenerator IntSmpl Int where
+  parameterisedGenerator = buildGen
+
 intSmplPermutationGenTests :: TestTree
 intSmplPermutationGenTests =
-  testGroup "intSmplPermutationGenTests" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @IntSmpl
+  testGroup "intSmplPermutationGenTests"
+    [ testProperty "overlay is sound" $ soundOverlay @IntSmpl
+    , fromGroup $ permutationGeneratorSelfTest @IntSmpl
+    ]

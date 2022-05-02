@@ -37,8 +37,9 @@ import Apropos.HasPermutationGenerator.Source (
   wrapSourceWithCheck,
  )
 import Apropos.LogicalModel (
-  Formula ((:&&:)),
+  Formula (..),
   LogicalModel (logic, scenarios),
+  enumerated,
   solveAll,
  )
 import Data.DiGraph (
@@ -197,7 +198,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         (<>)
         [ (ps, [g])
         | s <- wrapSourceWithCheck <$> sources @p
-        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s)
+        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
         , let g :: Gen m = pgen s ps
         ]
 

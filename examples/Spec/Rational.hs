@@ -152,7 +152,7 @@ instance HasPermutationGenerator RatProp Rat where
   generators =
     abstractionMorphisms
       -- the negate morphisms will violate the model logic on their own becasue they don't
-      -- know about the rat sign properties, postponing a morphism that re deduces the sign
+      -- know about the rat sign properties, apending a morphism that re-deduces the sign
       -- from the model logic fixes this
       >>> [ Morphism
               { name = "fix sign"

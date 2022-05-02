@@ -81,7 +81,7 @@ module Apropos (
   Hashable,
   Generic,
   -- Overlay
-  Overlay(overlays),
+  Overlay (overlays),
   soundOverlay,
   deduceFromOverlay,
   overlaySources,

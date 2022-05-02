@@ -7,7 +7,7 @@ import Apropos
 
 import Spec.IntPermutationGen (IntProp (IsNegative))
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup,testProperty)
+import Test.Tasty.Hedgehog (fromGroup, testProperty)
 
 data IntSmpl = NonNegative
   deriving stock (Eq, Ord, Show, Generic)
@@ -30,7 +30,8 @@ instance HasParameterisedGenerator IntSmpl Int where
 
 intSmplPermutationGenTests :: TestTree
 intSmplPermutationGenTests =
-  testGroup "intSmplPermutationGenTests"
+  testGroup
+    "intSmplPermutationGenTests"
     [ testProperty "overlay is sound" $ soundOverlay @IntSmpl
     , fromGroup $ permutationGeneratorSelfTest @IntSmpl
     ]

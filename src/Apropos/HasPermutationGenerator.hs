@@ -6,14 +6,52 @@ module Apropos.HasPermutationGenerator (
   (>>>),
 ) where
 
-import Apropos.Gen (Gen, choice, element, errorHandler, failWithFootnote, forAllWithRetries, runGenModifiable, (===))
-import Apropos.Gen.BacktrackingTraversal
-import Apropos.HasLogicalModel
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.HasPermutationGenerator.Morphism
-import Apropos.HasPermutationGenerator.Source
-import Apropos.LogicalModel
-import Data.DiGraph (DiGraph, ShortestPathCache, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_, union, unsafeFromList)
+import Apropos.Gen (
+  Gen,
+  choice,
+  element,
+  errorHandler,
+  failWithFootnote,
+  forAll,
+  forAllWithRetries,
+  runGenModifiable,
+  (===),
+ )
+import Apropos.Gen.BacktrackingTraversal (
+  Traversal (FromSource, Traversal),
+  traversalInGen,
+ )
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.HasPermutationGenerator.Contract (
+  matches,
+  solveContract,
+ )
+import Apropos.HasPermutationGenerator.Morphism (
+  Morphism (..),
+  addPropCheck,
+  (&&&),
+  (>>>),
+ )
+import Apropos.HasPermutationGenerator.Source (
+  Source (..),
+  wrapSourceWithCheck,
+ )
+import Apropos.LogicalModel (
+  Formula ((:&&:)),
+  LogicalModel (logic, scenarios),
+  solveAll,
+ )
+import Data.DiGraph (
+  DiGraph,
+  ShortestPathCache,
+  distance_,
+  fromEdges,
+  insertVertex,
+  shortestPathCache,
+  shortestPath_,
+  union,
+  unsafeFromList,
+ )
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -45,15 +83,36 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
 
   permutationGeneratorSelfTest :: Group
   permutationGeneratorSelfTest =
-    -- TODO all nodes reachable test here
-    -- TODO test sources as well
-    Group "permutationGeneratorSelfTest" $
-      [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
-        , testEdge e m
-        )
-      | (e, ms) <- Map.toList $ findMorphisms @p
-      , m <- ms
-      ]
+    let pedges = findMorphisms @p
+        edges = Map.keys pedges
+        graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges edges
+        sourceMap = findSources @p
+        munreachable = unreachableNode (Map.keys sourceMap) cache
+        cache = shortestPathCache graph
+     in case munreachable of
+          Just unreachable ->
+            Group
+              "reachability"
+              [
+                ( "reachability test"
+                , property $
+                  errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
+                )
+              ]
+          Nothing ->
+            Group "permutationGeneratorSelfTest" $
+              [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
+                , testEdge e m
+                )
+              | (e, ms) <- Map.toList $ findMorphisms @p
+              , m <- ms
+              ]
+                ++ [ ( fromString $ "source" ++ sourceName s ++ " on " ++ show ps
+                     , testSource s (Map.keysSet $ Map.filter id ps)
+                     )
+                   | s <- sources @p
+                   , ps <- solveAll (logic :&&: covers s)
+                   ]
 
   testEdge ::
     (Set p, Set p) ->
@@ -69,6 +128,19 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
               (properties outModel :: Set p) === (outprops :: Set p)
           )
 
+  testSource ::
+    Source p m ->
+    Set p ->
+    Property
+  testSource source ps =
+    property $
+      errorHandler
+        =<< runGenModifiable
+          ( forAllWithRetries (traversalRetryLimit @p) $ do
+              (m :: m) <- pgen source ps
+              properties m === ps
+          )
+
   buildGen :: Set p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
@@ -80,11 +152,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         viableSources = filter (\source -> reachable cache source ps) (Map.keys sourceMap)
     case munreachable of
       Nothing -> pure ()
-      Just unreachable ->
-        failWithFootnote $
-          renderStyle ourStyle $
-            "Some nodes not reachable"
-              $+$ hang "Could not reach node:" 4 (ppDoc unreachable)
+      Just unreachable -> failUnreachable unreachable
     let sourceGen = do
           sourceNode <- element viableSources
           fromMaybe (failWithFootnote "internal apropos error, lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
@@ -158,3 +226,10 @@ ourStyle = style {lineLength = 80}
 
 reachable :: (Eq a, Hashable a) => ShortestPathCache a -> a -> a -> Bool
 reachable cache s e = isJust $ distance_ s e cache
+
+failUnreachable :: Show p => Set p -> Gen ()
+failUnreachable unreachable =
+  failWithFootnote $
+    renderStyle ourStyle $
+      "Some nodes not reachable"
+        $+$ hang "Could not reach node:" 4 (ppDoc unreachable)

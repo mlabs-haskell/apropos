@@ -79,7 +79,7 @@ instance HasPermutationGenerator IntProp Int where
     ]
 
 instance HasParameterisedGenerator IntProp Int where
-  parameterisedGenerator = buildGen -- baseGen
+  parameterisedGenerator = buildGen
 
 intPermutationGenTests :: TestTree
 intPermutationGenTests =

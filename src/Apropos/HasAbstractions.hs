@@ -18,11 +18,28 @@ module Apropos.HasAbstractions (
 ) where
 
 import Apropos.Gen
-import Apropos.HasAbstractions.Abstraction
+import Apropos.HasAbstractions.Abstraction (
+  Constructor,
+  PAbs (..),
+  ProductAbstraction (..),
+  SourceAbstraction (..),
+  SumAbstraction (..),
+  abstractLogicProduct,
+  abstractLogicSum,
+  abstractProd,
+  abstractSum,
+  abstractsProperties,
+  sumSource,
+ )
 import Apropos.HasParameterisedGenerator (
   HasParameterisedGenerator,
  )
-import Apropos.HasPermutationGenerator
+import Apropos.HasPermutationGenerator (
+  HasPermutationGenerator (generators, sources),
+  Morphism,
+  Source (Source, sourceName),
+  (&&&),
+ )
 import Apropos.LogicalModel (Enumerable, LogicalModel)
 import Apropos.LogicalModel.Formula
 import Control.Lens ((#), (^?))

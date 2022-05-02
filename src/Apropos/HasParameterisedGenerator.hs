@@ -9,9 +9,14 @@ module Apropos.HasParameterisedGenerator (
 ) where
 
 import Apropos.Gen
-import Apropos.Gen.Enumerate
-import Apropos.HasLogicalModel
-import Apropos.LogicalModel
+import Apropos.Gen.Enumerate (enumerate)
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.LogicalModel (
+  Formula,
+  LogicalModel (scenarios),
+  enumerateScenariosWhere,
+  scenarioMap,
+ )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set

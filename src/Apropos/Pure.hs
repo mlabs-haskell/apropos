@@ -1,6 +1,6 @@
 module Apropos.Pure (HasPureRunner (..)) where
 
-import Apropos.Gen (forAll,(===),errorHandler,runGenModifiable)
+import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator

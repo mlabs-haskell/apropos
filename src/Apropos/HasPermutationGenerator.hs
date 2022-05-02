@@ -7,6 +7,7 @@ module Apropos.HasPermutationGenerator (
 ) where
 
 import Apropos.Gen (Gen, choice, element, errorHandler, failWithFootnote, forAllWithRetries, runGenModifiable, (===))
+import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.HasPermutationGenerator.Morphism
@@ -29,7 +30,6 @@ import Text.PrettyPrint (
   ($+$),
  )
 import Text.Show.Pretty (ppDoc)
-import Apropos.Gen.BacktrackingTraversal
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
@@ -43,7 +43,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms :: Bool
   allowRedundentMorphisms = False
 
-  permutationGeneratorSelfTest ::  Group
+  permutationGeneratorSelfTest :: Group
   permutationGeneratorSelfTest =
     -- TODO all nodes reachable test here
     -- TODO test sources as well
@@ -60,11 +60,14 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     Morphism p m ->
     Property
   testEdge (inprops, outprops) m =
-    property $ errorHandler =<< runGenModifiable ( forAllWithRetries (traversalRetryLimit @p) $ do
-      (inModel :: m) <- buildGen inprops :: Gen m
-      (outModel :: m) <- morphism m inModel
-      (properties outModel :: Set p) === (outprops :: Set p)
-                                )
+    property $
+      errorHandler
+        =<< runGenModifiable
+          ( forAllWithRetries (traversalRetryLimit @p) $ do
+              (inModel :: m) <- buildGen inprops :: Gen m
+              (outModel :: m) <- morphism m inModel
+              (properties outModel :: Set p) === (outprops :: Set p)
+          )
 
   buildGen :: Set p -> Gen m
   buildGen ps = do

@@ -37,8 +37,8 @@ import Control.Monad (replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
+import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
-import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -93,9 +93,10 @@ forAllWithG s g = do
 modifyHGen :: GenModifier -> H.Gen a -> H.Gen a
 modifyHGen gm g = do
   let s = genSize gm
-  let p = if genPrune gm
-             then HGen.prune
-             else id
+  let p =
+        if genPrune gm
+          then HGen.prune
+          else id
   HGen.scale (\(HRange.Size x) -> HRange.Size (s x)) (p g)
 
 interleaved :: forall a. Show a => Interleaved a -> GenModifiable a
@@ -232,9 +233,8 @@ retryLimit lim g done = go lim
     then pure ()
     else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
-data GenModifier =
-  GenModifier {
-    genSize :: Int -> Int
+data GenModifier = GenModifier
+  { genSize :: Int -> Int
   , genPrune :: Bool
   }
 
@@ -243,12 +243,12 @@ type GenModifiable = ReaderT GenModifier (ExceptT GenException (PropertyT IO))
 resizeGen :: (Int -> Int) -> GenModifiable a -> GenModifiable a
 resizeGen f c = do
   gm <- ask
-  lift $ runReaderT c (gm { genSize = f . genSize gm } )
+  lift $ runReaderT c (gm {genSize = f . genSize gm})
 
 pruneGen :: GenModifiable a -> GenModifiable a
 pruneGen c = do
   gm <- ask
-  lift $ runReaderT c (gm { genPrune = True })
+  lift $ runReaderT c (gm {genPrune = True})
 
 data GenException = GenException String | Retry deriving stock (Show)
 

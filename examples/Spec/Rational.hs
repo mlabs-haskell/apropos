@@ -160,7 +160,6 @@ instance HasPermutationGenerator RatProp Rat where
               }
           ]
 
-
 instance HasParameterisedGenerator RatProp Rat where
   parameterisedGenerator = buildGen
 

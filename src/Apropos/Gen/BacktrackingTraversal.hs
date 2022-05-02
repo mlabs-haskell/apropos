@@ -2,14 +2,14 @@ module Apropos.Gen.BacktrackingTraversal (
   Traversal (..),
   traversalAsGen,
   traversalInGen,
-  traversalWithRetries
+  traversalWithRetries,
 ) where
 
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Except (ExceptT (..), runExceptT, throwE)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT (..), runExceptT, throwE)
 
 data Traversal p m where
   FromSource :: Gen m -> Traversal p m
@@ -98,4 +98,3 @@ backtrackingBind retries counter f g = do
 
 forAllScale :: Show a => Gen a -> Int -> GenModifiable (Either GenException a)
 forAllScale g s = lift $ lift $ runGenModifiable $ forAll $ scale (2 * s +) g
-

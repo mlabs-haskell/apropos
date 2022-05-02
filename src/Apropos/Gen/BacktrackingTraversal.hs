@@ -2,22 +2,21 @@ module Apropos.Gen.BacktrackingTraversal (
   Traversal (..),
   traversalAsGen,
   traversalInGen,
-  traversalContainRetry,
+  traversalWithRetries,
 ) where
 
 import Apropos.Gen
 import Apropos.HasPermutationGenerator.Morphism
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
-import Hedgehog (PropertyT)
-import Hedgehog qualified as H
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT (..), runExceptT, throwE)
 
 data Traversal p m where
   FromSource :: Gen m -> Traversal p m
   Traversal :: Traversal p m -> (m -> Gen [Morphism p m]) -> Traversal p m
 
-traversalInGen :: Show m => Traversal p m -> Gen m
-traversalInGen = liftPropertyT . traversalContainRetry 1000
+traversalInGen :: Show m => Int -> Traversal p m -> Gen m
+traversalInGen retries = liftGenModifiable . traversalWithRetries retries
 
 traversalAsGen :: Traversal p m -> Gen m
 traversalAsGen (FromSource g) = g
@@ -26,16 +25,12 @@ traversalAsGen (Traversal m g) = do
   t <- g n
   foldl (>=>) pure (morphism <$> t) n
 
-traversalContainRetry :: Show m => Int -> Traversal p m -> PropertyT IO m
-traversalContainRetry retries m = do
-  r <- traversalWithRetries retries m
-  case r of
-    Nothing -> H.footnote "retry limit reached" >> H.discard
-    Just so -> pure so
-
-traversalWithRetries :: forall p a. Show a => Int -> Traversal p a -> PropertyT IO (Maybe a)
-traversalWithRetries retries m =
-  backtrackingRetryTraversals retries (forAllRetryToMaybeScale s) (genTraversal <$> t)
+traversalWithRetries :: forall p a. Show a => Int -> Traversal p a -> GenModifiable a
+traversalWithRetries retries m = do
+  res <- backtrackingRetryTraversals retries (forAllScale s) (genTraversal <$> t)
+  case res of
+    Left e -> lift $ throwE e
+    Right so -> pure so
   where
     st :: (Gen a, [a -> Gen [Morphism p a]])
     st = unTraversal m
@@ -43,14 +38,12 @@ traversalWithRetries retries m =
     s = fst st
     t :: [a -> Gen [Morphism p a]]
     t = snd st
-    genTraversal :: (a -> Gen [Morphism p a]) -> (a -> PropertyT IO [Int -> a -> PropertyT IO (Maybe a)])
+    genTraversal :: (a -> Gen [Morphism p a]) -> (a -> GenModifiable [Int -> a -> GenModifiable (Either GenException a)])
     genTraversal gt = \a -> do
       tr <- forAllWith (unwords . (name <$>)) $ prune (gt a)
-      case tr of
-        Right tra -> pure $ sizableTr <$> (morphism <$> tra)
-        Left _ -> undefined
-    sizableTr :: (a -> Gen a) -> (Int -> a -> PropertyT IO (Maybe a))
-    sizableTr g = \si a -> forAllRetryToMaybeScale (g a) si
+      pure $ sizableTr <$> (morphism <$> tr)
+    sizableTr :: (a -> Gen a) -> (Int -> a -> GenModifiable (Either GenException a))
+    sizableTr g = \si a -> forAllScale (g a) si
 
 unTraversal :: Traversal p a -> (Gen a, [a -> Gen [Morphism p a]])
 unTraversal (FromSource s) = (s, [])
@@ -61,50 +54,47 @@ backtrackingRetryTraversals ::
   forall a m.
   Monad m =>
   Int ->
-  (Int -> m (Maybe a)) ->
-  [a -> m [Int -> a -> m (Maybe a)]] ->
-  m (Maybe a)
+  (Int -> m (Either GenException a)) ->
+  [a -> m [Int -> a -> m (Either GenException a)]] ->
+  m (Either GenException a)
 backtrackingRetryTraversals retries g trs =
   backtrackingBind retries 1 g (\x -> continueTraversal x 1 trs)
   where
-    continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Maybe a)]] -> m (Maybe a)
-    continueTraversal s _ [] = pure $ Just s
+    continueTraversal :: a -> Int -> [a -> m [Int -> a -> m (Either GenException a)]] -> m (Either GenException a)
+    continueTraversal s _ [] = pure $ Right s
     continueTraversal s l (t : ts) = do
       ts' <- t s
       res <- backtrackingRetryTraverse retries s ts'
       case res of
-        Nothing -> pure Nothing
-        Just so -> do
+        Left ex -> pure $ Left ex
+        Right so -> do
           res' <- continueTraversal so 1 ts
           case res' of
-            Nothing ->
+            Left Retry ->
               if l > retries
-                then pure Nothing
+                then pure $ Left Retry
                 else continueTraversal s (l + 1) (t : ts)
-            Just so' -> pure $ Just so'
+            Left ex -> pure $ Left ex
+            Right so' -> pure $ Right so'
 
-backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Maybe a)] -> m (Maybe a)
-backtrackingRetryTraverse _ s [] = pure $ Just s
+backtrackingRetryTraverse :: forall a m. Monad m => Int -> a -> [Int -> a -> m (Either GenException a)] -> m (Either GenException a)
+backtrackingRetryTraverse _ s [] = pure $ Right s
 backtrackingRetryTraverse retries s (t : ts) =
   backtrackingBind retries 1 (`t` s) (flip (backtrackingRetryTraverse retries) ts)
 
-backtrackingBind :: Monad m => Int -> Int -> (Int -> m (Maybe a)) -> (a -> m (Maybe a)) -> m (Maybe a)
+backtrackingBind :: Monad m => Int -> Int -> (Int -> m (Either GenException a)) -> (a -> m (Either GenException a)) -> m (Either GenException a)
 backtrackingBind retries counter f g = do
-  runMaybeT
+  runExceptT
     ( do
-        res <- MaybeT $ f counter
-        MaybeT $ g res
+        res <- ExceptT $ f counter
+        ExceptT $ g res
     )
     >>= \case
-      Just so -> pure $ Just so
-      Nothing
-        | counter > retries -> pure Nothing
+      Right so -> pure $ Right so
+      Left Retry
+        | counter > retries -> pure $ Left Retry
         | otherwise -> backtrackingBind retries (counter + 1) f g
+      Left err -> pure $ Left err
 
-forAllRetryToMaybeScale :: Show a => Gen a -> Int -> PropertyT IO (Maybe a)
-forAllRetryToMaybeScale g s = do
-  ee <- forAll $ scale (2 * s +) g
-  case ee of
-    Left Retry -> pure Nothing
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure $ Just a
+forAllScale :: Show a => Gen a -> Int -> GenModifiable (Either GenException a)
+forAllScale g s = lift $ lift $ runGenModifiable $ forAll $ scale (2 * s +) g

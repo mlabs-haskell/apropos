@@ -9,9 +9,14 @@ module Apropos.HasParameterisedGenerator (
 ) where
 
 import Apropos.Gen
-import Apropos.Gen.Enumerate
-import Apropos.HasLogicalModel
-import Apropos.LogicalModel
+import Apropos.Gen.Enumerate (enumerate)
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.LogicalModel (
+  Formula,
+  LogicalModel (scenarios),
+  enumerateScenariosWhere,
+  scenarioMap,
+ )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -27,7 +32,7 @@ runGeneratorTest ::
   HasParameterisedGenerator p m =>
   Set p ->
   Property
-runGeneratorTest s = property $ test >>= errorHandler
+runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       (m :: m) <- parameterisedGenerator s
@@ -56,7 +61,7 @@ sampleGenTest ::
   forall p m.
   HasParameterisedGenerator p m =>
   Property
-sampleGenTest = property $ test >>= errorHandler
+sampleGenTest = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       (ps :: Set p) <- genPropSet @p
@@ -70,7 +75,7 @@ enumerateGeneratorTest ::
   Property
 enumerateGeneratorTest s =
   withTests (1 :: TestLimit) $
-    property $ test >>= errorHandler
+    property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       let (ms :: [m]) = enumerate $ parameterisedGenerator s

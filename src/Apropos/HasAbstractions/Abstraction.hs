@@ -16,13 +16,22 @@ module Apropos.HasAbstractions.Abstraction (
   sumSource,
 ) where
 
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.HasPermutationGenerator.Contract
+import Apropos.HasParameterisedGenerator (
+  HasParameterisedGenerator,
+ )
+import Apropos.HasPermutationGenerator (
+  HasPermutationGenerator,
+  Morphism (..),
+  Source (..),
+ )
+import Apropos.HasPermutationGenerator.Contract (
+  Contract,
+  labelContract,
+ )
 import Apropos.LogicalModel (Formula (..), LogicalModel (logic))
 import Apropos.LogicalModel.Enumerable
-import Control.Lens
-import Data.Kind
+import Control.Lens (Lens', Prism', prism', review, (#), (^?))
+import Data.Kind (Type)
 import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 

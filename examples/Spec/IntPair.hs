@@ -51,12 +51,7 @@ instance HasPermutationGenerator IntPairProp (Int, Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntPairProp (Int, Int) where
-  parameterisedGenerator = buildGen -- baseGen
-
--- baseGen :: Gen (Int, Int)
--- baseGen =
---  (,) <$> genSatisfying (Yes :: Formula IntProp)
---    <*> genSatisfying (Yes :: Formula IntProp)
+  parameterisedGenerator = buildGen
 
 intPairGenTests :: TestTree
 intPairGenTests =

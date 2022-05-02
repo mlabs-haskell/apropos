@@ -79,6 +79,11 @@ instance HasAbstractions RatProp Rat where
           }
     ]
   sourceCorections =
+    -- the sub models don't know about rat large and rat small
+    -- so they will generate invalid models with respect to these properties
+    -- if they were always large or always small you could just restrict the source
+    -- and create a morphism but because they can be either you need Corrections which
+    -- take the source output and ensure it has the apropriate properties
     [ Correction
         { corName = "large"
         , domain = Var RatLarge
@@ -146,20 +151,22 @@ instance HasPermutationGenerator RatProp Rat where
 
   generators =
     abstractionMorphisms
+      -- the negate morphisms will violate the model logic on their own becasue they don't
+      -- know about the rat sign properties, postponing a morphism that re deduces the sign
+      -- from the model logic fixes this
       >>> [ Morphism
               { name = "fix sign"
               , match = Yes
               , contract =
                   removeAll [RatZero, RatPos, RatNeg]
                     >> branches
-                      [ add RatZero >> matches logic
-                      , add RatPos >> matches logic
-                      , add RatNeg >> matches logic
+                      [ add RatZero
+                      , add RatPos
+                      , add RatNeg
                       ]
               , morphism = pure
               }
           ]
-
 
 instance HasParameterisedGenerator RatProp Rat where
   parameterisedGenerator = buildGen

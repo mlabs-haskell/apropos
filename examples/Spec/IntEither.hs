@@ -55,7 +55,7 @@ instance HasPermutationGenerator IntEitherProp (Either Int Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntEitherProp (Either Int Int) where
-  parameterisedGenerator = buildGen -- baseGen
+  parameterisedGenerator = buildGen
 
 intEitherGenTests :: TestTree
 intEitherGenTests =

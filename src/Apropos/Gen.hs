@@ -4,9 +4,12 @@ module Apropos.Gen (
   FreeGen (..),
   Gen,
   GenException (..),
+  GenModifiable,
+  runGenModifiable,
+  errorHandler,
   forAll,
   forAllWith,
-  errorHandler,
+  forAllWithRetries,
   label,
   failWithFootnote,
   bool,
@@ -18,7 +21,7 @@ module Apropos.Gen (
   genFilter,
   scale,
   prune,
-  liftPropertyT,
+  liftGenModifiable,
   retry,
   onRetry,
   retryLimit,
@@ -34,6 +37,7 @@ import Control.Monad (replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
+import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -43,19 +47,8 @@ import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Range qualified as HRange
 
-forAllWithRetries :: forall a. Show a => Int -> Gen a -> PropertyT IO (Either GenException a)
-forAllWithRetries retries g = go 0
-  where
-    go :: Int -> PropertyT IO (Either GenException a)
-    go l = do
-      res <- forAll $ scale (2 * l +) g
-      case res of
-        Left Retry ->
-          if l > retries
-            then pure $ Left Retry
-            else go (l + 1)
-        Left err -> pure $ Left err
-        Right so -> pure $ Right so
+runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
+runGenModifiable g = runExceptT $ runReaderT g (GenModifier id False)
 
 errorHandler :: Either GenException a -> PropertyT IO a
 errorHandler ee =
@@ -64,36 +57,61 @@ errorHandler ee =
     Left (GenException err) -> H.footnote err >> H.failure
     Right a -> pure a
 
-forAll :: Show a => Gen a -> PropertyT IO (Either GenException a)
+forAllWithRetries :: forall a. Show a => Int -> Gen a -> GenModifiable a
+forAllWithRetries retries g = go 0
+  where
+    go :: Int -> GenModifiable a
+    go l = do
+      res <- lift $ lift $ runGenModifiable $ forAll $ scale (2 * l +) g
+      case res of
+        Left Retry ->
+          if l > retries
+            then lift $ throwE Retry
+            else go (l + 1)
+        Left err -> lift $ throwE err
+        Right so -> pure so
+
+forAll :: Show a => Gen a -> GenModifiable a
 forAll = interleaved . gen2Interleaved
 
-forAllWith :: forall a. (a -> String) -> Gen a -> PropertyT IO (Either GenException a)
+forAllWith :: forall a. (a -> String) -> Gen a -> GenModifiable a
 forAllWith s = interleavedWith s . gen2Interleaved
 
-forAllWithG :: forall a. (a -> String) -> Generator a -> PropertyT IO (Either GenException a)
+forAllWithG :: forall a. (a -> String) -> Generator a -> GenModifiable a
 forAllWithG s g = do
-  (ee, labels) <- H.forAllWith sh $ runWriterT (runExceptT g)
+  gm <- ask
+  (ee, labels) <- lift $ lift $ H.forAllWith sh $ modifyHGen gm $ runWriterT (runExceptT g)
   mapM_ (H.label . fromString) labels
-  pure ee
+  case ee of
+    Left e -> lift $ throwE e
+    Right so -> pure so
   where
     sh :: (Either GenException a, Set String) -> String
     sh (Left e, _) = show e
     sh (Right a, _) = s a
 
-interleaved :: forall a. Show a => Interleaved a -> PropertyT IO (Either GenException a)
+modifyHGen :: GenModifier -> H.Gen a -> H.Gen a
+modifyHGen gm g = do
+  let s = genSize gm
+  let p =
+        if genPrune gm
+          then HGen.prune
+          else id
+  HGen.scale (\(HRange.Size x) -> HRange.Size (s x)) (p g)
+
+interleaved :: forall a. Show a => Interleaved a -> GenModifiable a
 interleaved = interleavedWith show
 
-interleavedWith :: forall a. (a -> String) -> Interleaved a -> PropertyT IO (Either GenException a)
+interleavedWith :: forall a. (a -> String) -> Interleaved a -> GenModifiable a
 interleavedWith s m = do
   res <- forAllWithG sh $ gSteps m
   case res of
-    Right (Right a) -> pure $ Right a
-    Right (Left c) -> do
+    Right a -> pure a
+    Left c -> do
       pres <- pSteps c
       case pres of
-        Right a -> pure $ Right a
-        Left pc -> interleavedWith s pc
-    Left err -> pure $ Left err
+        (Right a) -> pure a
+        (Left pc) -> interleavedWith s pc
   where
     sh :: Either (Interleaved a) a -> String
     sh (Left _) = "This is unexpected. Generator interleaving failed. Please contact a customer support representative."
@@ -134,9 +152,9 @@ data FreeGen next where
     Gen a ->
     (a -> next) ->
     FreeGen next
-  Scale :: forall a next. (Int -> Int) -> Gen a -> (a -> next) -> FreeGen next
-  Prune :: forall a next. Gen a -> (a -> next) -> FreeGen next
-  LiftPropertyT :: forall a next. PropertyT IO a -> (a -> next) -> FreeGen next
+  Scale :: forall a next. Show a => (Int -> Int) -> Gen a -> (a -> next) -> FreeGen next
+  Prune :: forall a next. Show a => Gen a -> (a -> next) -> FreeGen next
+  LiftGenModifiable :: forall a next. GenModifiable a -> (a -> next) -> FreeGen next
   ThrowRetry :: forall a next. (a -> next) -> FreeGen next
   OnRetry :: forall a next. Show a => Gen a -> Gen a -> (a -> next) -> FreeGen next
 
@@ -152,7 +170,7 @@ instance Functor FreeGen where
   fmap f (GenFilter c g next) = GenFilter c g (f . next)
   fmap f (Scale s g next) = Scale s g (f . next)
   fmap f (Prune g next) = Prune g (f . next)
-  fmap f (LiftPropertyT p next) = LiftPropertyT p (f . next)
+  fmap f (LiftGenModifiable p next) = LiftGenModifiable p (f . next)
   fmap f (ThrowRetry next) = ThrowRetry (f . next)
   fmap f (OnRetry a b next) = OnRetry a b (f . next)
 
@@ -185,14 +203,14 @@ choice g = liftF (GenChoice g id)
 genFilter :: Show a => (a -> Bool) -> Gen a -> Gen a
 genFilter c g = liftF (GenFilter c g id)
 
-scale :: (Int -> Int) -> Gen a -> Gen a
+scale :: Show a => (Int -> Int) -> Gen a -> Gen a
 scale s g = liftF (Scale s g id)
 
-prune :: Gen a -> Gen a
+prune :: Show a => Gen a -> Gen a
 prune g = liftF (Prune g id)
 
-liftPropertyT :: PropertyT IO a -> Gen a
-liftPropertyT p = liftF (LiftPropertyT p id)
+liftGenModifiable :: GenModifiable a -> Gen a
+liftGenModifiable p = liftF (LiftGenModifiable p id)
 
 retry :: Gen a
 retry = liftF (ThrowRetry id)
@@ -215,26 +233,36 @@ retryLimit lim g done = go lim
     then pure ()
     else failWithFootnote $ "expected: " <> show l <> " === " <> show r
 
+data GenModifier = GenModifier
+  { genSize :: Int -> Int
+  , genPrune :: Bool
+  }
+
+type GenModifiable = ReaderT GenModifier (ExceptT GenException (PropertyT IO))
+
+resizeGen :: (Int -> Int) -> GenModifiable a -> GenModifiable a
+resizeGen f c = do
+  gm <- ask
+  lift $ runReaderT c (gm {genSize = f})
+
+pruneGen :: GenModifiable a -> GenModifiable a
+pruneGen c = do
+  gm <- ask
+  lift $ runReaderT c (gm {genPrune = True})
+
 data GenException = GenException String | Retry deriving stock (Show)
 
-type GenContext = H.Gen
-
-type Generator = ExceptT GenException (WriterT (Set String) GenContext)
+type Generator = ExceptT GenException (WriterT (Set String) H.Gen)
 
 data FreeInterleaved next where
   G :: forall a next. Generator a -> (a -> next) -> FreeInterleaved next
-  P :: forall a next. PropertyT IO a -> (a -> next) -> FreeInterleaved next
+  P :: forall a next. GenModifiable a -> (a -> next) -> FreeInterleaved next
 
 instance Functor FreeInterleaved where
   fmap f (G g next) = G g (fmap f next)
   fmap f (P p next) = P p (fmap f next)
 
 type Interleaved = Free FreeInterleaved
-
-mapG :: (forall a. Generator a -> Generator a) -> Interleaved b -> Interleaved b
-mapG m (Free (G g next)) = Free (G (m g) (mapG m <$> next))
-mapG m (Free (P p next)) = Free (P p (mapG m <$> next))
-mapG _ (Pure r) = Pure r
 
 gStep :: Interleaved a -> Generator (Either (Maybe (Interleaved a)) a)
 gStep (Pure a) = pure $ Right a
@@ -249,20 +277,12 @@ gSteps m = do
     Left Nothing -> pure $ Left m
     Left (Just so) -> gSteps so
 
-gStepsA :: Interleaved a -> Generator (Interleaved a)
-gStepsA m = do
-  mg <- gStep m
-  case mg of
-    Right a -> pure $ Pure a
-    Left Nothing -> pure m
-    Left (Just so) -> gStepsA so
-
-pStep :: Interleaved a -> PropertyT IO (Either (Maybe (Interleaved a)) a)
+pStep :: Interleaved a -> GenModifiable (Either (Maybe (Interleaved a)) a)
 pStep (Pure a) = pure $ Right a
 pStep (Free (P g f)) = Left . Just . f <$> g
 pStep _ = pure $ Left Nothing
 
-pSteps :: Interleaved a -> PropertyT IO (Either (Interleaved a) a)
+pSteps :: Interleaved a -> GenModifiable (Either (Interleaved a) a)
 pSteps m = do
   mg <- pStep m
   case mg of
@@ -273,11 +293,11 @@ pSteps m = do
 liftG :: Generator a -> Interleaved a
 liftG g = liftF (G g id)
 
-liftP :: PropertyT IO a -> Interleaved a
+liftP :: GenModifiable a -> Interleaved a
 liftP p = liftF (P p id)
 
 gen2Interleaved :: Gen a -> Interleaved a
-gen2Interleaved (Free (LiftPropertyT p next)) = liftP p >>= (gen2Interleaved . next)
+gen2Interleaved (Free (LiftGenModifiable p next)) = liftP p >>= (gen2Interleaved . next)
 gen2Interleaved (Free (Label s next)) = liftG (lift (tell (Set.singleton s))) >> gen2Interleaved next
 gen2Interleaved (Free (FailWithFootnote s _)) = liftG $ throwE $ GenException s
 gen2Interleaved (Free (GenBool next)) = liftG (lift HGen.bool) >>= (gen2Interleaved . next)
@@ -310,18 +330,16 @@ gen2Interleaved (Free (GenFilter c g next)) = do
           then pure res
           else retry
   res <- liftP $ forAllWithRetries 100 f
-  case res of
-    Left err -> liftG (throwE err)
-    Right a -> gen2Interleaved $ next a
+  gen2Interleaved $ next res
 gen2Interleaved (Free (Scale s g next)) = do
-  sr <- mapG (HGen.scale (\(HRange.Size x) -> HRange.Size (s x))) (liftG (gStepsA (gen2Interleaved g)))
-  sr >>= gen2Interleaved . next
+  res <- liftP $ resizeGen s (interleaved $ gen2Interleaved g)
+  gen2Interleaved $ next res
 gen2Interleaved (Free (Prune g next)) = do
-  gr <- mapG HGen.prune $ liftG (gStepsA (gen2Interleaved g))
-  gr >>= gen2Interleaved . next
+  res <- liftP $ pruneGen (interleaved $ gen2Interleaved g)
+  gen2Interleaved $ next res
 gen2Interleaved (Free (ThrowRetry _)) = liftG $ throwE Retry
 gen2Interleaved (Free (OnRetry a b next)) = do
-  res <- liftP $ forAll a
+  res <- liftP $ lift $ lift $ runGenModifiable $ forAll a
   case res of
     Right r -> gen2Interleaved $ next r
     Left Retry -> gen2Interleaved b >>= (gen2Interleaved . next)

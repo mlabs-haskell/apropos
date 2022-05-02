@@ -45,7 +45,7 @@ instance HasAbstractions MoveProperty (Int, Int) where
     ]
 
 instance HasPermutationGenerator MoveProperty (Int, Int) where
-  sources = []
+  sources = abstractionSources
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator MoveProperty (Int, Int) where

@@ -1,6 +1,6 @@
 module Apropos.Pure (HasPureRunner (..)) where
 
-import Apropos.Gen (forAll,(===),errorHandler)
+import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
@@ -15,7 +15,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
   script :: m -> Bool
 
   runPureTest :: Set p -> Property
-  runPureTest s = property (test >>= errorHandler)
+  runPureTest s = property $ runGenModifiable test >>= errorHandler
     where
       test = forAll $ do
         (m :: m) <- parameterisedGenerator s
@@ -31,7 +31,7 @@ class (HasLogicalModel p m, HasParameterisedGenerator p m) => HasPureRunner p m 
       ]
 
   enumeratePureTest :: Set p -> Property
-  enumeratePureTest s = withTests (1 :: TestLimit) $ property $ test >>= errorHandler
+  enumeratePureTest s = withTests (1 :: TestLimit) $ property $ runGenModifiable test >>= errorHandler
     where
       test = forAll $ do
         let (ms :: [m]) = enumerate $ parameterisedGenerator s

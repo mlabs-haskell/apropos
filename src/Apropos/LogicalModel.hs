@@ -20,7 +20,7 @@ class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p
 
   scenarios :: [Set p]
-  scenarios = enumerateScenariosWhere (logic :&&: All [Var p :||: Not (Var p) | p <- enumerated ])
+  scenarios = enumerateScenariosWhere (logic :&&: All [Var p :||: Not (Var p) | p <- enumerated])
 
   satisfiedBy :: [p]
   satisfiedBy = Set.toList $

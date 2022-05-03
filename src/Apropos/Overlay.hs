@@ -82,10 +82,11 @@ uncoveredSubSolutions =
 overlaySources :: (Overlay p op, HasParameterisedGenerator op m) => [Source p m]
 overlaySources =
   [ Source
-      { sourceName = "overlay"
-      , covers = Yes
-      , pgen = \ps -> genSatisfying (All [(if p `elem` ps then id else Not) $ overlays p | p <- enumerated])
-      }
+    { sourceName = "overlay"
+    , covers = All [if p `elem` ps then Var p else Not (Var p) | p <- enumerated]
+    , gen = genSatisfying (All [(if p `elem` ps then id else Not) $ overlays p | p <- enumerated])
+    }
+  | ps <- scenarios
   ]
 
 deduceFromOverlay :: (HasLogicalModel sp m, Overlay op sp) => op -> m -> Bool

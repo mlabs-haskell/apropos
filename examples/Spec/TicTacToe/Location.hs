@@ -26,17 +26,16 @@ instance HasPermutationGenerator LocationProperty Int where
     [ Source
         { sourceName = "in bounds"
         , covers = Var LocationIsWithinBounds
-        , pgen = const $ int (linear 0 8)
+        , gen = int (linear 0 8)
         }
     , Source
         { sourceName = "out of bounds"
         , covers = Var LocationIsOutOfBounds
-        , pgen =
-            const $
-              choice
-                [ int (linear minBound (-1))
-                , int (linear 9 maxBound)
-                ]
+        , gen =
+            choice
+              [ int (linear minBound (-1))
+              , int (linear 9 maxBound)
+              ]
         }
     ]
 

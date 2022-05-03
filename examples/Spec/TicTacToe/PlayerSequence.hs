@@ -45,28 +45,27 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
     [ Source
         { sourceName = "player singleton take turns"
         , covers = Var TakeTurns :&&: Var PlayerSequenceSingleton
-        , pgen = const $ list (singleton 1) $ int (linear 0 1)
+        , gen = list (singleton 1) $ int (linear 0 1)
         }
     , Source
         { sourceName = "player singleton don't take turns"
         , covers = Var Don'tTakeTurns :&&: Var PlayerSequenceSingleton
-        , pgen =
-            const $
-              list (singleton 1) $
-                choice
-                  [ int (linear minBound (-1))
-                  , int (linear 2 maxBound)
-                  ]
+        , gen =
+            list (singleton 1) $
+              choice
+                [ int (linear minBound (-1))
+                , int (linear 2 maxBound)
+                ]
         }
     , Source
         { sourceName = "null"
         , covers = Var PlayerSequenceNull
-        , pgen = const $ pure []
+        , gen = pure []
         }
     , Source
         { sourceName = "turns longer than name"
         , covers = Var PlayerSequenceIsLongerThanGame :&&: Var TakeTurns
-        , pgen = const $ do
+        , gen = do
             let numMoves = 10
             pat <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pat)

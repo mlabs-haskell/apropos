@@ -30,10 +30,8 @@ import Apropos.HasPermutationGenerator.Contract (
  )
 import Apropos.LogicalModel (Formula (..), LogicalModel (logic))
 import Apropos.LogicalModel.Enumerable
-import Control.Lens (Lens', Prism', prism', review, (#), (^?))
+import Control.Lens (Lens', Prism', prism', review, (#))
 import Data.Kind (Type)
-import Data.Maybe (mapMaybe)
-import Data.Set qualified as Set
 
 data SourceAbstraction (l :: [(Type, Type)]) p m = SourceAbstraction
   { sourceAbsName :: String
@@ -98,7 +96,6 @@ abstractSum abstraction@SumAbstraction {abstractionName = absName, propertyAbstr
 
 sumSource ::
   forall ap am bp bm.
-  HasParameterisedGenerator ap am =>
   SumAbstraction ap am bp bm ->
   Source ap am ->
   Source bp bm
@@ -109,11 +106,11 @@ sumSource
     , sumModelAbstraction = mAbs
     , propLabel = l
     }
-  Source {sourceName = sname, covers = c, pgen = pg} =
+  Source {sourceName = sname, covers = c, gen = pg} =
     Source
       { sourceName = absName <> " of " <> sname
       , covers = Var l :&&: ((propAbs #) <$> c)
-      , pgen = \liftedPs -> (mAbs #) <$> pg (Set.fromList $ mapMaybe (^? propAbs) $ Set.toList liftedPs)
+      , gen = (mAbs #) <$> pg
       }
 
 abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a

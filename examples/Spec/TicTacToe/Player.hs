@@ -31,20 +31,19 @@ instance HasPermutationGenerator PlayerProperty Int where
     [ Source
         { sourceName = "X"
         , covers = Var PlayerIsX
-        , pgen = const $ pure 1
+        , gen = pure 1
         }
     , Source
         { sourceName = "O"
         , covers = Var PlayerIsO
-        , pgen = const $ pure 0
+        , gen = pure 0
         }
     , Source
         { sourceName = "invalid"
         , covers = Var PlayerIsInvalid
-        , pgen =
-            const $
-              genFilter (\i -> i `notElem` [0, 1]) $
-                int (linear minBound maxBound)
+        , gen =
+            genFilter (\i -> i `notElem` [0, 1]) $
+              int (linear minBound maxBound)
         }
     ]
 

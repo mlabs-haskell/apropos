@@ -49,7 +49,6 @@ module Apropos (
   SumAbstractionFor (..),
   SourceAbstractionFor (..),
   PAbs (..),
-  Correction (..),
   abstractionMorphisms,
   abstractionSources,
   parallelAbstractionMorphisms,

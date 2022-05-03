@@ -71,6 +71,7 @@ smplPairTests :: TestTree
 smplPairTests =
   testGroup
     "smplPairTests"
-    [ testProperty "overlay is sound" $ soundOverlay @PairSmpl
-    , fromGroup $ permutationGeneratorSelfTest @IntSmpl
+    [ fromGroup $ permutationGeneratorSelfTest @PairOfSmpl
+    , testProperty "overlay is sound" $ soundOverlay @PairSmpl
+    , fromGroup $ permutationGeneratorSelfTest @PairSmpl
     ]

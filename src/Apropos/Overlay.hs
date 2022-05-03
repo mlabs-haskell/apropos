@@ -1,6 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FunctionalDependencies #-}
-
 module Apropos.Overlay (
   Overlay (..),
   soundOverlay,

@@ -1,5 +1,3 @@
-{-# LANGUAGE FunctionalDependencies #-}
-
 module Apropos.HasLogicalModel (
   HasLogicalModel (..),
 ) where

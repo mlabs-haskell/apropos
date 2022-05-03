@@ -106,7 +106,13 @@ runContract :: LogicalModel p => Contract p () -> Set p -> Either String (Set p)
 runContract c s =
   let ss = interprets (toInstructions c) s
    in case filter (satisfiesFormula logic) (Set.toList ss) of
-        [] -> Left "contract has no result"
+        [] ->
+          Left $
+            "contract has no result"
+              ++ "  contract:"
+              ++ show (execWriter c)
+              ++ "  input:"
+              ++ show s
         [x] -> Right x
         xs -> Left $ "contract has multiple results " <> show xs
 

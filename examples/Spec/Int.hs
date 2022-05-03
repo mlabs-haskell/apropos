@@ -33,7 +33,7 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 
 instance HasParameterisedGenerator IntProp Int where
-  parameterisedGenerator s = Source $ do
+  parameterisedGenerator s = do
     i <-
       if IsZero `elem` s
         then pure 0

@@ -62,7 +62,7 @@
             ];
           };
           sha256map = {
-            "https://github.com/Geometer1729/digraph"."d4dfec22f6a6eb646dcfa9591eaca0a9be88d260" = "sha256-ytQkJ18tYs13rt66s4jdbaGa5mLNEIerF8u24PvyPLA=";
+            "https://github.com/jhodgdev/digraph"."a567351949be05000e174b43be9ed82312fa7926" = "sha256-YjWPtwxpEcw9DNpJiJDjd6LdFLrDHBP4KOYNMLBirYw=";
 
           };
         };

@@ -112,7 +112,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                      , testSource s (Map.keysSet $ Map.filter id ps)
                      )
                    | s <- sources @p
-                   , ps <- solveAll (logic :&&: covers s)
+                   , ps <- solveAll (logic :&&: covers s :&&: All [ Var p :||: Not (Var p) | p <- enumerated ] )
                    ]
 
   testEdge ::

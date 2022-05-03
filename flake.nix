@@ -59,7 +59,16 @@
             # We use the ones from Nixpkgs, since they are cached reliably.
             # Eventually we will probably want to build these with haskell.nix.
             nativeBuildInputs =
-              [ fmt pkgs.cabal-install pkgs.hlint (fourmoluFor system) pkgs.nixpkgs-fmt pkgs.haskellPackages.cabal-fmt pkgs.fd ];
+              [
+                fmt
+                pkgs.cabal-install
+                pkgs.hlint
+                (fourmoluFor system)
+                pkgs.nixpkgs-fmt
+                pkgs.haskellPackages.cabal-fmt
+                pkgs.haskellPackages.apply-refact
+                pkgs.fd
+              ];
             additional = ps: [
               ps.digraph
             ];

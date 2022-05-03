@@ -20,6 +20,7 @@ wrapSourceWithCheck s = s {pgen = wraped}
   where
     wraped :: Set p -> Gen m
     wraped ps = do
+      label $ sourceName s
       m <- pgen s ps
       unless (ps == properties m) $
         failWithFootnote $

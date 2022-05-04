@@ -124,7 +124,7 @@ sourcesFromAbstraction :: LogicalModel p => SourceAbstraction l p m -> [Source p
 sourcesFromAbstraction (SourceAbstraction sname con pabs) = do
   s <- withSources (pure con) pabs
   guard $ satisfiable (logic :&&: covers s) -- remove sources which can never be used
-  pure $ s {sourceName = sname ++ " over" ++ "[" ++ init (sourceName s) ++ "]"} -- init drops a trailing ,
+  pure $ s {sourceName = sname ++ " over [" ++ init (sourceName s) ++ "]"} -- init drops a trailing ,
 
 withSources :: Gen (Constructor l m) -> PAbs l p m -> [Source p m]
 withSources c Nil = pure $ Source "" Yes c

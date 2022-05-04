@@ -81,7 +81,7 @@ instance HasPermutationGenerator RatProp Rat where
   sources =
     -- the morphisms that would make this source strongly conected end up looking more like sources
     -- so I filter it out and add the sub sources
-    filter (("make rat over[numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
+    filter (("make rat over [numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
       ++ [ Source
             { sourceName = "source large (large,large)"
             , covers =

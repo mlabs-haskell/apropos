@@ -56,7 +56,6 @@ module Apropos (
   abstractsProperties,
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
-  runContract,
   branches,
   branchIf,
   has,

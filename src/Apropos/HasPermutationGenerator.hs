@@ -202,9 +202,10 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         cache = shortestPathCache graph
     s <- sources @p
     let c = covers s
-        sols = Map.keysSet . Map.filter id
-                  <$> solveAll
-                  (logic :&&: c :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        sols =
+          Map.keysSet . Map.filter id
+            <$> solveAll
+              (logic :&&: c :&&: All [Var p :||: Not (Var p) | p <- enumerated])
         esLocal =
           Set.unions
             [ es'

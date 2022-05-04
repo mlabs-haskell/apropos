@@ -137,7 +137,7 @@ translateInstruction (Delta rs as) =
     1
 translateInstruction (Forget fs) =
   EdgeFormula
-    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated , v `notElem` fs ])
+    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` fs])
     1
     0
     1

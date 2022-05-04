@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
-
 module Spec.Rational (
   ratGenSelfTests,
   ratSampleTests,
@@ -84,43 +82,41 @@ instance HasPermutationGenerator RatProp Rat where
     -- the morphisms that would make this source strongly conected end up looking more like sources
     -- so I filter it out and add the sub sources
     filter (("make rat over[numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
-    ++
-    [ Source
-      { sourceName = "source large (large,large)"
-      , covers =
-          Var (Num IsLarge)
-          :&&: Not (Var (Num IsMaxBound))
-          :&&: Var (Num IsPositive)
-          :&&: Var (Den IsLarge)
-          :&&: Var (Den IsPositive)
-          :&&: Var RatLarge
-      , gen = do
-         n' <- int (linear 111 (maxBound - 1))
-         d' <- int (linear 11 (n' `div` 10))
-         pure $ Rational n' d'
-      }
-    , Source
-      { sourceName = "source small (large,large)"
-      , covers =
-          Var (Num IsLarge)
-          :&&: Not (Var (Num IsMaxBound))
-          :&&: Var (Num IsPositive)
-          :&&: Var (Den IsLarge)
-          :&&: Var (Den IsPositive)
-          :&&: Not (Var (Den IsMaxBound))
-          :&&: Var RatSmall
-      , gen = do
-         d' <- int (linear 11 (maxBound `div` 10))
-         n' <- int (linear 11 (10 * d' - 1))
-         pure $ Rational n' d'
-      }
-    ]
-
+      ++ [ Source
+            { sourceName = "source large (large,large)"
+            , covers =
+                Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
+                  :&&: Var RatLarge
+            , gen = do
+                n' <- int (linear 111 (maxBound - 1))
+                d' <- int (linear 11 (n' `div` 10))
+                pure $ Rational n' d'
+            }
+         , Source
+            { sourceName = "source small (large,large)"
+            , covers =
+                Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
+                  :&&: Not (Var (Den IsMaxBound))
+                  :&&: Var RatSmall
+            , gen = do
+                d' <- int (linear 11 (maxBound `div` 10))
+                n' <- int (linear 11 (10 * d' - 1))
+                pure $ Rational n' d'
+            }
+         ]
 
   generators =
     ( abstractionMorphisms
         -- the negate morphisms will violate the model logic on their own becasue they don't
-        -- know about the rat sign properties, apending a morphism that re-deduces the sign
+        -- know about the rat sign properties, apending a morphism that deduces them
         -- from the model logic fixes this
         >>> [ Morphism
                 { name = "fix sign"

@@ -35,6 +35,7 @@ common lang
     OverloadedStrings
     ScopedTypeVariables
     StandaloneDeriving
+    Strict
     TupleSections
     TypeApplications
     TypeOperators

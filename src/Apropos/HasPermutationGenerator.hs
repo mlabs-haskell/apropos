@@ -197,20 +197,23 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
 
   unconectedSource :: Maybe (Source p m, Set p, Set p)
   unconectedSource = listToMaybe $ do
+    let es = Map.keysSet findMorphisms
+        graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
+        cache = shortestPathCache graph
     s <- sources @p
     let c = covers s
-    let sols = Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
-        -- morphism edges that start and end in the source region
-        -- TODO it's good enough if sources are connected only by morphisms that leave the source but this wouldn't accept that
-        es =
+        sols = Map.keysSet . Map.filter id
+                  <$> solveAll
+                  (logic :&&: c :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        esLocal =
           Set.unions
             [ es'
             | m <- generators @p
             , let (es' :: Set (Set p, Set p)) = solveContract (matches (c :&&: match m) >> contract m >> matches c)
             ]
-        graph = unsafeFromList ((,[]) <$> sols) `union` fromEdges es
-        cache = shortestPathCache graph
-    guard $ isNothing $ diameter_ cache
+    when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
+    -- this is a weak test but seems to be faster than a strong test
+    guard $ isNothing $ diameter_ (shortestPathCache (unsafeFromList ((,[]) <$> scenarios) `union` fromEdges esLocal))
     p1 <- sols
     p2 <- sols
     guard $ isNothing $ distance_ p1 p2 cache

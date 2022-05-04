@@ -22,6 +22,8 @@ module Apropos.HasPermutationGenerator.Contract (
   solveEdgesMap,
   runContract,
   labelContract,
+  forget,
+  deduce,
 ) where
 
 import Apropos.LogicalModel (
@@ -32,6 +34,7 @@ import Apropos.LogicalModel (
   solveAll,
  )
 import Control.Monad.Writer (Writer, execWriter, tell)
+import Control.Monad(when)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -90,6 +93,12 @@ clear = removeAll enumerated
 
 terminal :: Contract p ()
 terminal = matches No
+
+forget :: Enumerable p => [p] -> Contract p ()
+forget xs = removeAll xs >> branches [ when b $ add p | p <- enumerated , b <- [True,False] ]
+
+deduce :: LogicalModel p => [p] -> Contract p ()
+deduce xs = forget xs >> matches logic
 
 data Instruction p
   = Delta (Set p) (Set p) -- removes then adds lists have an empty intersection

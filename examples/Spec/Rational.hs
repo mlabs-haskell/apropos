@@ -80,10 +80,42 @@ instance HasAbstractions RatProp Rat where
     ]
 
 instance HasPermutationGenerator RatProp Rat where
-  -- Some of the morphisms generated are nonsensicle ie. make Large >>> fix sign >>> fix small
-  -- so we set this to true to disable the check that each morphism is usefull
-  allowRedundentMorphisms = True
-  sources = abstractionSources
+  sources =
+    -- the morphisms that would make this source strongly conected end up looking more like sources
+    -- so I filter it out and add the sub sources
+    filter (("make rat over[numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
+    ++
+    [ Source
+      { sourceName = "source large (large,large)"
+      , covers =
+          Var (Num IsLarge)
+          :&&: Not (Var (Num IsMaxBound))
+          :&&: Var (Num IsPositive)
+          :&&: Var (Den IsLarge)
+          :&&: Var (Den IsPositive)
+          :&&: Var RatLarge
+      , gen = do
+         n' <- int (linear 111 (maxBound - 1))
+         d' <- int (linear 11 (n' `div` 10))
+         pure $ Rational n' d'
+      }
+    , Source
+      { sourceName = "source small (large,large)"
+      , covers =
+          Var (Num IsLarge)
+          :&&: Not (Var (Num IsMaxBound))
+          :&&: Var (Num IsPositive)
+          :&&: Var (Den IsLarge)
+          :&&: Var (Den IsPositive)
+          :&&: Not (Var (Den IsMaxBound))
+          :&&: Var RatSmall
+      , gen = do
+         d' <- int (linear 11 (maxBound `div` 10))
+         n' <- int (linear 11 (10 * d' - 1))
+         pure $ Rational n' d'
+      }
+    ]
+
 
   generators =
     ( abstractionMorphisms
@@ -93,17 +125,13 @@ instance HasPermutationGenerator RatProp Rat where
         >>> [ Morphism
                 { name = "fix sign"
                 , match = Yes
-                , contract =
-                    removeAll [RatZero, RatPos, RatNeg]
-                      >> branches
-                        [ add RatZero
-                        , add RatPos
-                        , add RatNeg
-                        ]
+                , contract = deduce [RatZero, RatPos, RatNeg]
                 , morphism = pure
                 }
             ]
     )
+      -- thse morphisms are needed to strongly connect the sources which contain both the
+      -- rat large and rat small solutions
       ++ [ Morphism
             { name = "make large (large,small)"
             , match = Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var RatSmall
@@ -150,26 +178,6 @@ instance HasPermutationGenerator RatProp Rat where
             , morphism = \r -> do
                 d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
                 pure $ r {den = d'}
-            }
-         -- TODO these last 2 are just sources
-         -- but the broader source wouldn't be connected if they were made sources
-         , Morphism
-            { name = "make large (large,large)"
-            , match = Var (Num IsLarge) :&&: Not (Var (Num IsMaxBound)) :&&: Var (Num IsPositive) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
-            , contract = remove RatSmall >> add RatLarge
-            , morphism = \_r -> do
-                n' <- int (linear 111 (maxBound - 1))
-                d' <- int (linear 11 (n' `div` 10))
-                pure $ Rational n' d'
-            }
-         , Morphism
-            { name = "make small (large,large)"
-            , match = Var (Num IsLarge) :&&: Not (Var (Num IsMaxBound)) :&&: Var (Num IsPositive) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
-            , contract = remove RatLarge >> add RatSmall
-            , morphism = \_r -> do
-                d' <- int (linear 11 (maxBound `div` 10))
-                n' <- int (linear 11 (10 * d' - 1))
-                pure $ Rational n' d'
             }
          ]
 

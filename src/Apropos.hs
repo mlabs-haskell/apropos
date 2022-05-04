@@ -74,6 +74,8 @@ module Apropos (
   clear,
   terminal,
   matches,
+  forget,
+  deduce,
   -- Apropos.Pure
   HasPureRunner (..),
   -- Usefull Reexports

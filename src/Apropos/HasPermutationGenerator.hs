@@ -45,7 +45,6 @@ import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
   DiGraph,
   ShortestPathCache,
-  diameter_,
   distance_,
   fromEdges,
   insertVertex,
@@ -57,7 +56,7 @@ import Data.DiGraph (
 import Data.Hashable (Hashable)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust, isNothing, listToMaybe)
+import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -201,23 +200,13 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
         cache = shortestPathCache graph
     s <- sources @p
-    let c = covers s
-        sols =
+    let sols =
           Map.keysSet . Map.filter id
             <$> solveAll
-              (logic :&&: c :&&: All [Var p :||: Not (Var p) | p <- enumerated])
-        esLocal =
-          Set.unions
-            [ es'
-            | m <- generators @p
-            , let (es' :: Set (Set p, Set p)) = solveContract (matches (c :&&: match m) >> contract m >> matches c)
-            ]
+              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
     when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
-    -- this is a weak test but seems to be faster than a strong test
-    guard $ isNothing $ diameter_ (shortestPathCache (unsafeFromList ((,[]) <$> scenarios) `union` fromEdges esLocal))
-    p1 <- sols
-    p2 <- sols
-    guard $ isNothing $ distance_ p1 p2 cache
+    (p1, p2) <- zip sols (tail sols ++ [head sols])
+    guard $ not $ reachable cache p1 p2
     pure (s, p1, p2)
 
   choseMorphism ::

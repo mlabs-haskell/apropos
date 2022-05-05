@@ -2,6 +2,7 @@ module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
   intPairGenSelfTests,
+  intPairGenPureRunner,
 ) where
 
 import Apropos
@@ -62,21 +63,25 @@ intPairGenTests =
               (Yes @IntPairProp)
           ]
 
-instance HasPureRunner IntPairProp (Int, Int) where
-  expect =
-    All $
-      Var
-        <$> join
-          [ L <$> [IsSmall, IsNegative]
-          , R <$> [IsSmall, IsPositive]
-          ]
-  script (l, r) = l < 0 && l >= -10 && r > 0 && r <= 10
+intPairGenPureRunner :: PureRunner IntPairProp (Int, Int)
+intPairGenPureRunner =
+  PureRunner
+    { expect =
+        All $
+          Var
+            <$> join
+              [ L <$> [IsSmall, IsNegative]
+              , R <$> [IsSmall, IsPositive]
+              ]
+    , script = \(l, r) -> l < 0 && l >= -10 && r > 0 && r <= 10
+    }
 
 intPairGenPureTests :: TestTree
 intPairGenPureTests =
   testGroup "intPairGenPureTests" $
     fromGroup
       <$> [ runPureTestsWhere
+              intPairGenPureRunner
               "AcceptsLeftSmallNegativeRightSmallPositive"
               (Yes @IntPairProp)
           ]

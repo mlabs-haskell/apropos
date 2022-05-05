@@ -1,4 +1,4 @@
-module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests) where
+module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, intPureRunner) where
 
 import Apropos
 import Test.Tasty (TestTree, testGroup)
@@ -58,13 +58,16 @@ intGenTests =
       <$> [ runGeneratorTestsWhere "Int Generator" (Yes @IntProp)
           ]
 
-instance HasPureRunner IntProp Int where
-  expect = Var IsSmall :&&: Var IsNegative
-  script i = i < 0 && i >= -10
+intPureRunner :: PureRunner IntProp Int
+intPureRunner =
+  PureRunner
+    { expect = Var IsSmall :&&: Var IsNegative
+    , script = \i -> i < 0 && i >= -10
+    }
 
 intPureTests :: TestTree
 intPureTests =
   testGroup "intPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere "AcceptsSmallNegativeInts" (Yes @IntProp)
+      <$> [ runPureTestsWhere intPureRunner "AcceptsSmallNegativeInts" (Yes @IntProp)
           ]

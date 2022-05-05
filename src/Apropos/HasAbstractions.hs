@@ -9,7 +9,6 @@ module Apropos.HasAbstractions (
   ProductAbstractionFor (..),
   SourceAbstractionFor (..),
   PAbs (..),
-  Correction (..),
   abstractionLogic,
   abstractionMorphisms,
   abstractionSources,
@@ -37,16 +36,13 @@ import Apropos.HasParameterisedGenerator (
 import Apropos.HasPermutationGenerator (
   HasPermutationGenerator (generators, sources),
   Morphism,
-  Source (Source, sourceName),
+  Source (Source, covers, sourceName),
   (&&&),
  )
-import Apropos.LogicalModel (Enumerable, LogicalModel)
+import Apropos.LogicalModel (Enumerable, LogicalModel (logic))
 import Apropos.LogicalModel.Formula
-import Control.Lens ((#), (^?))
-import Control.Monad (join, (>=>))
-import Data.Maybe (mapMaybe)
-import Data.Set (Set)
-import Data.Set qualified as Set
+import Control.Lens ((#))
+import Control.Monad (guard, join)
 
 class LogicalModel p => HasAbstractions p m where
   sumAbstractions :: [SumAbstractionFor p m]
@@ -55,8 +51,6 @@ class LogicalModel p => HasAbstractions p m where
   productAbstractions = sourceProductAbstractions
   sourceAbstractions :: [SourceAbstractionFor p m]
   sourceAbstractions = []
-  sourceCorections :: [Correction p m]
-  sourceCorections = []
   {-# MINIMAL sumAbstractions | productAbstractions | sourceAbstractions #-}
 
 sourceProductAbstractions :: forall p m. (HasAbstractions p m) => [ProductAbstractionFor p m]
@@ -94,12 +88,6 @@ data SumAbstractionFor p m where
     SumAbstraction ap am bp bm ->
     SumAbstractionFor bp bm
 
-data Correction p m = Correction
-  { corName :: String
-  , domain :: Formula p
-  , modifier :: m -> Gen m
-  }
-
 abstractionMorphisms :: forall p m. (LogicalModel p, HasAbstractions p m) => [Morphism p m]
 abstractionMorphisms =
   let productAbstractionMorphisms = join [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p @m]
@@ -107,14 +95,7 @@ abstractionMorphisms =
    in productAbstractionMorphisms ++ sumAbstractionMorphism
 
 abstractionSources :: forall p m. HasAbstractions p m => [Source p m]
-abstractionSources =
-  let corectedSources = [Source (sn ++ "fixed by " ++ cn) (sc :&&: cd) (pg >=> m) | Source sn sc pg <- abstractionSources', Correction cn cd m <- sourceCorections]
-      uncorectedLogic = All [Not cd | Correction _ cd _ <- sourceCorections @p @m]
-      uncorected = [Source sn (sc :&&: uncorectedLogic) pg | Source sn sc pg <- abstractionSources']
-   in corectedSources ++ uncorected
-
-abstractionSources' :: forall p m. HasAbstractions p m => [Source p m]
-abstractionSources' = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa <- sumAbstractions, s <- sources]
+abstractionSources = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa <- sumAbstractions, s <- sources]
 
 {- | Product types with additional logic sometimes need to include parallel morphisms
  which change both fields of the product to keep some invariant
@@ -139,12 +120,13 @@ abstractionLogic =
 sourcesFromSourceAbstractions :: HasAbstractions p m => [Source p m]
 sourcesFromSourceAbstractions = join [sourcesFromAbstraction a | SoAs a <- sourceAbstractions]
 
-sourcesFromAbstraction :: SourceAbstraction l p m -> [Source p m]
+sourcesFromAbstraction :: LogicalModel p => SourceAbstraction l p m -> [Source p m]
 sourcesFromAbstraction (SourceAbstraction sname con pabs) = do
-  s <- withSources (const $ pure con) pabs
-  pure $ s {sourceName = sname ++ "over" ++ "[" ++ sourceName s ++ "]"}
+  s <- withSources (pure con) pabs
+  guard $ satisfiable (logic :&&: covers s) -- remove sources which can never be used
+  pure $ s {sourceName = sname ++ " over [" ++ init (sourceName s) ++ "]"} -- init drops a trailing ,
 
-withSources :: (Set p -> Gen (Constructor l m)) -> PAbs l p m -> [Source p m]
+withSources :: Gen (Constructor l m) -> PAbs l p m -> [Source p m]
 withSources c Nil = pure $ Source "" Yes c
 withSources
   c
@@ -157,12 +139,8 @@ withSources
       :& ps
     ) =
     do
-      (Source sName sLogic sPGen) <- sources @ap @am
-      let c' =
-            ( \props ->
-                c props
-                  <*> sPGen (Set.fromList . mapMaybe (^? pabs) . Set.toList $ props)
-            )
+      (Source sName sLogic sGen) <- sources @ap @am
+      let c' = c <*> sGen
       (Source sName' sLogic' sPGen') <- withSources c' ps
       pure $
         Source

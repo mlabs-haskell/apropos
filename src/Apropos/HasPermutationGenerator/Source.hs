@@ -4,7 +4,7 @@ module Apropos.HasPermutationGenerator.Source (
 ) where
 
 import Apropos.Gen
-import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.HasLogicalModel (HasLogicalModel (properties), satisfiesExpression)
 import Apropos.LogicalModel (Formula)
 import Control.Monad (unless)
 import Data.Set (Set)
@@ -12,21 +12,23 @@ import Data.Set (Set)
 data Source p m = Source
   { sourceName :: String
   , covers :: Formula p
-  , pgen :: Set p -> Gen m
+  , gen :: Gen m
   }
 
-wrapSourceWithCheck :: forall p m. HasLogicalModel p m => Source p m -> Source p m
-wrapSourceWithCheck s = s {pgen = wraped}
+wrapSourceWithCheck :: forall p m. (Show m, HasLogicalModel p m) => Source p m -> Source p m
+wrapSourceWithCheck s = s {gen = wraped}
   where
-    wraped :: Set p -> Gen m
-    wraped ps = do
+    wraped :: Gen m
+    wraped = do
       label $ sourceName s
-      m <- pgen s ps
-      unless (ps == properties m) $
+      m <- gen s
+      unless (satisfiesExpression (covers s) m) $
         failWithFootnote $
           "source produced incorect model "
-            ++ "\nasked for:"
-            ++ show ps
-            ++ "\ngot:"
+            ++ "\nmodel was:"
+            ++ show m
+            ++ "\nproperties were:"
             ++ show (properties m :: Set p)
+            ++ "\ncover was:"
+            ++ show (covers s)
       pure m

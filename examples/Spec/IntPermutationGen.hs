@@ -42,27 +42,27 @@ instance HasPermutationGenerator IntProp Int where
     [ Source
         { sourceName = "Zero"
         , covers = Var IsZero
-        , pgen = const $ pure 0
+        , gen = pure 0
         }
     , Source
         { sourceName = "MaxBound"
         , covers = Var IsMaxBound
-        , pgen = const $ pure maxBound
+        , gen = pure maxBound
         }
     , Source
         { sourceName = "MinBbound"
         , covers = Var IsMinBound
-        , pgen = const $ pure minBound
+        , gen = pure minBound
         }
     , Source
         { sourceName = "Large"
         , covers = Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound)
-        , pgen = const $ int (linear 11 (maxBound - 1))
+        , gen = int (linear 11 (maxBound - 1))
         }
     , Source
         { sourceName = "Small"
         , covers = Var IsSmall :&&: Var IsPositive
-        , pgen = const $ int (linear 1 10)
+        , gen = int (linear 1 10)
         }
     ]
   generators =

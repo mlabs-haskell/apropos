@@ -15,13 +15,12 @@ import Apropos.Gen (
   forAll,
   forAllWithRetries,
   runGenModifiable,
-  (===),
  )
 import Apropos.Gen.BacktrackingTraversal (
   Traversal (FromSource, Traversal),
   traversalInGen,
  )
-import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.HasLogicalModel (HasLogicalModel (properties, satisfiesExpression))
 import Apropos.HasPermutationGenerator.Contract (
   matches,
   solveContract,
@@ -42,6 +41,7 @@ import Apropos.LogicalModel (
   enumerated,
   solveAll,
  )
+import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
   DiGraph,
   ShortestPathCache,
@@ -90,8 +90,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         sourceMap = findSources @p
         munreachable = unreachableNode (Map.keys sourceMap) cache
         cache = shortestPathCache graph
-     in case munreachable of
-          Just unreachable ->
+     in case (munreachable, unconectedSource @p) of
+          (Just unreachable, _) ->
             Group
               "reachability"
               [
@@ -100,7 +100,28 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                   errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
                 )
               ]
-          Nothing ->
+          (Nothing, Just (s, n1, n2)) ->
+            -- undefined s n1 n2
+            Group
+              "source connectedness"
+              [
+                ( fromString $ "connectedness of " ++ sourceName s
+                , property $
+                  (errorHandler =<<) $
+                    runGenModifiable $
+                      forAll $
+                        failWithFootnote $
+                          "source is not connected"
+                            ++ "\nsource: "
+                            ++ sourceName s
+                            ++ "\nhad no path"
+                            ++ "\nfrom: "
+                            ++ show n1
+                            ++ "\nto: "
+                            ++ show n2
+                )
+              ]
+          (Nothing, Nothing) ->
             Group "permutationGeneratorSelfTest" $
               [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
                 , testEdge e m
@@ -108,11 +129,10 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
               | (e, ms) <- Map.toList $ findMorphisms @p
               , m <- ms
               ]
-                ++ [ ( fromString $ "source" ++ sourceName s ++ " on " ++ show ps
-                     , testSource s (Map.keysSet $ Map.filter id ps)
+                ++ [ ( fromString $ "source " ++ sourceName s
+                     , testSource s
                      )
                    | s <- sources @p
-                   , ps <- solveAll (logic :&&: covers s)
                    ]
 
   testEdge ::
@@ -123,23 +143,27 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     property $
       errorHandler
         =<< runGenModifiable
-          ( forAllWithRetries (traversalRetryLimit @p) $ do
-              (inModel :: m) <- buildGen inprops :: Gen m
-              (outModel :: m) <- morphism m inModel
-              (properties outModel :: Set p) === (outprops :: Set p)
+          ( forAllWithRetries (traversalRetryLimit @p) $
+              buildGen inprops >>= void . morphism (addPropCheck (inprops, outprops) m)
           )
 
   testSource ::
     Source p m ->
-    Set p ->
     Property
-  testSource source ps =
+  testSource source =
     property $
       errorHandler
         =<< runGenModifiable
           ( forAllWithRetries (traversalRetryLimit @p) $ do
-              (m :: m) <- pgen source ps
-              properties m === ps
+              m <- gen source
+              unless (satisfiesExpression (covers source) m) $
+                failWithFootnote $
+                  "source: " ++ sourceName source
+                    ++ "\nfailed to satisfy coverage condition"
+                    ++ "\nmodel was: "
+                    ++ show m
+                    ++ "\nprops were: "
+                    ++ show (properties @p m)
           )
 
   buildGen :: Set p -> Gen m
@@ -160,6 +184,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     let morphismGen model = do
           let sourceNode = properties model -- TODO this is sorta redundant but hard to remove
               viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
+          when (null viableStops) $ error "no stops possible"
           stop <- element viableStops
           pathp1 <- maybe (failWithFootnote "internal apropos error: pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
           pathp2 <- maybe (failWithFootnote "internal apropos error: pathfinding failed post stop") pure $ shortestPath_ stop ps cache
@@ -168,6 +193,21 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           let withPropChecks = zipWith addPropCheck path morphisms
           pure withPropChecks
     traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
+
+  unconectedSource :: Maybe (Source p m, Set p, Set p)
+  unconectedSource = listToMaybe $ do
+    let es = Map.keysSet findMorphisms
+        graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
+        cache = shortestPathCache graph
+    s <- sources @p
+    let sols =
+          Map.keysSet . Map.filter id
+            <$> solveAll
+              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+    when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
+    (p1, p2) <- zip sols (tail sols ++ [head sols])
+    guard $ not $ reachable cache p1 p2
+    pure (s, p1, p2)
 
   choseMorphism ::
     [(Set p, Set p)] ->
@@ -198,8 +238,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         (<>)
         [ (ps, [g])
         | s <- wrapSourceWithCheck <$> sources @p
+        , let g :: Gen m = gen s
         , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
-        , let g :: Gen m = pgen s ps
         ]
 
   findMorphisms ::

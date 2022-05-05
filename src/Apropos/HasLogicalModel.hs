@@ -8,6 +8,7 @@ import Data.Set qualified as Set
 
 class (LogicalModel p) => HasLogicalModel p m | p -> m where
   satisfiesProperty :: p -> m -> Bool
+
   satisfiesAny :: [p] -> m -> Bool
   satisfiesAny ps m = or (flip satisfiesProperty m <$> ps)
   satisfiesAll :: [p] -> m -> Bool

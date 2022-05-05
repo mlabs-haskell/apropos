@@ -2,7 +2,9 @@ module Main (main) where
 
 import Spec.Int
 import Spec.IntEither
+import Spec.IntOverlay
 import Spec.IntPair
+import Spec.IntPairOverlay
 import Spec.IntPermutationGen
 import Spec.Rational
 import Spec.TicTacToe.Location
@@ -25,6 +27,14 @@ tests =
         "Int model Hand Written Parameterised Generator"
         [ intGenTests
         , intPureTests
+        ]
+    , testGroup
+        "Int Overlay tests"
+        [ intSmplPermutationGenTests
+        ]
+    , testGroup
+        "IntPair Overlay tests"
+        [ smplPairTests
         ]
     , testGroup
         "Int model using Permutation Generator"

@@ -49,7 +49,6 @@ module Apropos (
   SumAbstractionFor (..),
   SourceAbstractionFor (..),
   PAbs (..),
-  Correction (..),
   abstractionMorphisms,
   abstractionSources,
   parallelAbstractionMorphisms,
@@ -57,7 +56,6 @@ module Apropos (
   abstractsProperties,
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
-  runContract,
   branches,
   branchIf,
   has,
@@ -75,11 +73,18 @@ module Apropos (
   clear,
   terminal,
   matches,
+  forget,
+  deduce,
   -- Apropos.Pure
   HasPureRunner (..),
   -- Usefull Reexports
   Hashable,
   Generic,
+  -- Overlay
+  Overlay (overlays),
+  soundOverlay,
+  deduceFromOverlay,
+  overlaySources,
 ) where
 
 import Apropos.Gen
@@ -90,6 +95,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Apropos.Overlay
 import Apropos.Pure
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)

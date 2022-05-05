@@ -1,5 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
-
 module Spec.Rational (
   ratGenSelfTests,
   ratSampleTests,
@@ -78,95 +76,106 @@ instance HasAbstractions RatProp Rat where
                 :& Nil
           }
     ]
-  sourceCorections =
-    -- the sub models don't know about rat large and rat small
-    -- so they will generate invalid models with respect to these properties
-    -- if they were always large or always small you could just restrict the source
-    -- and create a morphism but because they can be either you need Corrections which
-    -- take the source output and ensure it has the apropriate properties
-    [ Correction
-        { corName = "large"
-        , domain = Var RatLarge
-        , modifier = \r ->
-            if satisfiesProperty RatLarge r
-              then pure r
-              else
-                let n = num r
-                    d = den r
-                    nl = satisfiesProperty IsLarge (num r)
-                    dl = satisfiesProperty IsLarge (den r)
-                    ns = not nl
-                    ds = not dl
-                 in if
-                        | ns && ds -> pure $ Rational (10 * signum n) (signum d)
-                        | nl && ds -> pure $ Rational (101 * signum n) d
-                        | nl && dl ->
-                            if n `elem` [minBound, maxBound]
-                              then do
-                                d' <- int (linear 11 (maxBound `div` 10))
-                                pure $ Rational n (d' * signum d)
-                              else do
-                                n' <- int (linear 111 maxBound)
-                                d' <- int (linear 11 (n' `div` 10))
-                                pure $ Rational (n' * signum n) (d' * signum d)
-                        | otherwise -> error "unexpected model"
-        }
-    , Correction
-        { corName = "small"
-        , domain = Var RatSmall
-        , modifier = \r ->
-            if satisfiesProperty RatSmall r
-              then pure r
-              else
-                let n = num r
-                    d = den r
-                    nl = satisfiesProperty IsLarge (num r)
-                    dl = satisfiesProperty IsLarge (den r)
-                    ns = not nl
-                    ds = not dl
-                 in if
-                        | ns && ds -> pure $ Rational (9 * signum n) d
-                        | nl && ds -> do
-                            let d' = max (abs d) 2
-                            n' <- int (linear 11 (10 * d' - 1))
-                            pure $ Rational (n' * signum n) (d' * signum d)
-                        | nl && dl ->
-                            if n `elem` [minBound, maxBound]
-                              then do
-                                d' <- int (linear (maxBound `div` 10 + 1) (maxBound - 1))
-                                pure $ Rational n (d' * signum d)
-                              else do
-                                d' <- int (linear 11 (maxBound `div` 10))
-                                n' <- int (linear 11 (10 * d' + 1))
-                                pure $ Rational (n' * signum n) (d' * signum d)
-                        | otherwise -> error "unexpected model"
-        }
-    ]
 
 instance HasPermutationGenerator RatProp Rat where
-  -- Some of the morphisms generated are nonsensicle ie. make Large >>> fix sign >>> fix small
-  -- so we set this to true to disable the check that each morphism is usefull
-  allowRedundentMorphisms = True
-  sources = abstractionSources
+  sources =
+    -- the morphisms that would make this source strongly conected end up looking more like sources
+    -- so I filter it out and add the sub sources
+    filter (("make rat over [numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
+      ++ [ Source
+            { sourceName = "source large (large,large)"
+            , covers =
+                Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
+                  :&&: Var RatLarge
+            , gen = do
+                n' <- int (linear 111 (maxBound - 1))
+                d' <- int (linear 11 (n' `div` 10))
+                pure $ Rational n' d'
+            }
+         , Source
+            { sourceName = "source small (large,large)"
+            , covers =
+                Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
+                  :&&: Not (Var (Den IsMaxBound))
+                  :&&: Var RatSmall
+            , gen = do
+                d' <- int (linear 11 (maxBound `div` 10))
+                n' <- int (linear 11 (10 * d' - 1))
+                pure $ Rational n' d'
+            }
+         ]
 
   generators =
-    abstractionMorphisms
-      -- the negate morphisms will violate the model logic on their own becasue they don't
-      -- know about the rat sign properties, apending a morphism that re-deduces the sign
-      -- from the model logic fixes this
-      >>> [ Morphism
-              { name = "fix sign"
-              , match = Yes
-              , contract =
-                  removeAll [RatZero, RatPos, RatNeg]
-                    >> branches
-                      [ add RatZero
-                      , add RatPos
-                      , add RatNeg
-                      ]
-              , morphism = pure
-              }
-          ]
+    ( abstractionMorphisms
+        -- the negate morphisms will violate the model logic on their own becasue they don't
+        -- know about the rat sign properties, apending a morphism that deduces them
+        -- from the model logic fixes this
+        >>> [ Morphism
+                { name = "fix sign"
+                , match = Yes
+                , contract = deduce [RatZero, RatPos, RatNeg]
+                , morphism = pure
+                }
+            ]
+    )
+      -- thse morphisms are needed to strongly connect the sources which contain both the
+      -- rat large and rat small solutions
+      ++ [ Morphism
+            { name = "make large (large,small)"
+            , match = Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var RatSmall
+            , contract = remove RatSmall >> add RatLarge
+            , morphism = \r -> pure $ r {num = 101}
+            }
+         , Morphism
+            { name = "make small (large,small)"
+            , match = Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var (Den IsPositive) :&&: Var RatLarge
+            , contract = remove RatLarge >> add RatSmall
+            , morphism = \r -> do
+                let d' = max 2 (den r)
+                n' <- int $ linear 11 (10 * d')
+                pure $ Rational n' d'
+            }
+         , Morphism
+            { name = "make large (Max,large)"
+            , match = Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
+            , contract = remove RatSmall >> add RatLarge
+            , morphism = \r -> do
+                d' <- int $ linear 11 (maxBound `div` 10 - 1)
+                pure $ r {den = d'}
+            }
+         , Morphism
+            { name = "make small (Max,large)"
+            , match = Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
+            , contract = remove RatLarge >> add RatSmall
+            , morphism = \r -> do
+                d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
+                pure $ r {den = d'}
+            }
+         , Morphism
+            { name = "make large (Min,large)"
+            , match = Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
+            , contract = remove RatSmall >> add RatLarge
+            , morphism = \r -> do
+                d' <- int $ linear 11 (maxBound `div` 10 - 1)
+                pure $ r {den = d'}
+            }
+         , Morphism
+            { name = "make small (Min,large)"
+            , match = Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
+            , contract = remove RatLarge >> add RatSmall
+            , morphism = \r -> do
+                d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
+                pure $ r {den = d'}
+            }
+         ]
 
 instance HasParameterisedGenerator RatProp Rat where
   parameterisedGenerator = buildGen

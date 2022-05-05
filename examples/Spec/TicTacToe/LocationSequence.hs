@@ -56,25 +56,22 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
     [ Source
         { sourceName = "null"
         , covers = Var LocationSequenceIsNull
-        , pgen = const $ pure []
+        , gen = pure []
         }
     , Source
         { sourceName = "singleton out of bounds"
         , covers = Var LocationSequenceIsSingleton :&&: Var SomeLocationIsOutOfBounds
-        , pgen =
-            const $
-              list (singleton 1) $
-                choice
-                  [ int (linear minBound (-1))
-                  , int (linear 9 maxBound)
-                  ]
+        , gen =
+            list (singleton 1) $
+              choice
+                [ int (linear minBound (-1))
+                , int (linear 9 maxBound)
+                ]
         }
     , Source
         { sourceName = "MakeInBoundsSingleton"
         , covers = Var AllLocationsAreInBounds :&&: Var LocationSequenceIsSingleton
-        , pgen =
-            const $
-              list (singleton 1) $ int (linear 0 8)
+        , gen = list (singleton 1) $ int (linear 0 8)
         }
     , Source
         { sourceName = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
@@ -82,7 +79,7 @@ instance HasPermutationGenerator LocationSequenceProperty [Int] where
             Var SomeLocationIsOccupiedTwice
               :&&: Var SomeLocationIsOutOfBounds
               :&&: Var LocationSequenceIsLongerThanGame
-        , pgen = const $
+        , gen =
             genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
               let locationsLen = 10
               locations' <-

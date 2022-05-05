@@ -59,18 +59,16 @@ instance HasPermutationGenerator MoveSequenceProperty [Int] where
     [ Source
         { sourceName = "InvalidNoWin"
         , covers = Not (Var MoveSequenceValid) :&&: Not (Var MoveSequenceContainsWin)
-        , pgen =
-            const $
-              genFilter (not . containsWin) $
-                genSatisfying $ Not locationSequenceIsValid
+        , gen =
+            genFilter (not . containsWin) $
+              genSatisfying $ Not locationSequenceIsValid
         }
     , Source
         { sourceName = "ValidNoWin"
         , covers = Var MoveSequenceValid :&&: Not (Var MoveSequenceContainsWin)
-        , pgen =
-            const $
-              genFilter (not . containsWin) $
-                genSatisfying locationSequenceIsValid
+        , gen =
+            genFilter (not . containsWin) $
+              genSatisfying locationSequenceIsValid
         }
     ]
   generators =

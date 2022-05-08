@@ -88,15 +88,18 @@ intPermutationGenTests =
       <$> [ runGeneratorTestsWhere "Int Generator" (Yes @IntProp)
           ]
 
-instance HasPureRunner IntProp Int where
-  expect = Var IsSmall :&&: Var IsNegative
-  script i = i < 0 && i >= -10
+intPermutationGenPureRunner :: PureRunner IntProp Int
+intPermutationGenPureRunner =
+  PureRunner
+    { expect = Var IsSmall :&&: Var IsNegative
+    , script = \i -> i < 0 && i >= -10
+    }
 
 intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere "AcceptsSmallNegativeInts" (Yes @IntProp)
+      <$> [ runPureTestsWhere intPermutationGenPureRunner "AcceptsSmallNegativeInts" (Yes @IntProp)
           ]
 
 intPermutationGenSelfTests :: TestTree

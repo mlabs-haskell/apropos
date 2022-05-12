@@ -122,3 +122,6 @@ update_plutus:
 
 haddock: requires_nix_shell
 	cabal haddock --haddock-html --haddock-hoogle --builddir=.haddock
+
+format_apply_all:
+	make format cabalfmt nixpkgsfmt lint refactor

@@ -40,9 +40,6 @@
             cp -rT ${self} $out
             chmod u+w $out/cabal.project
           '';
-          fmt = pkgs.writeShellScriptBin "fmt" ''
-            ${pkgs.gnumake}/bin/make format cabalfmt nixpkgsfmt lint refactor
-          '';
         in
         (nixpkgsFor system).haskell-nix.cabalProject' {
           inherit compiler-nix-name;
@@ -60,7 +57,6 @@
             # Eventually we will probably want to build these with haskell.nix.
             nativeBuildInputs =
               [
-                fmt
                 pkgs.cabal-install
                 pkgs.hlint
                 (fourmoluFor system)

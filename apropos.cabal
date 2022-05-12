@@ -71,6 +71,7 @@ library
   import:          lang
   exposed-modules:
     Apropos
+    Apropos.Error
     Apropos.Gen
     Apropos.Gen.BacktrackingTraversal
     Apropos.Gen.Enumerate

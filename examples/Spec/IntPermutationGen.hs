@@ -74,7 +74,7 @@ instance HasPermutationGenerator IntProp Int where
               [ has IsNegative >> remove IsNegative >> add IsPositive
               , has IsPositive >> remove IsPositive >> add IsNegative
               ]
-        , morphism = \i -> pure (-i)
+        , morphism = pure . negate
         }
     ]
 

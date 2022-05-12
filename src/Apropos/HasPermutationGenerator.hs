@@ -6,6 +6,7 @@ module Apropos.HasPermutationGenerator (
   (>>>),
 ) where
 
+import Apropos.Error
 import Apropos.Gen (
   Gen,
   choice,
@@ -60,7 +61,7 @@ import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, property)
+import Hedgehog (Group (..), Property, PropertyT, property)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -82,8 +83,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms :: Bool
   allowRedundentMorphisms = False
 
-  permutationGeneratorSelfTest :: Group
-  permutationGeneratorSelfTest =
+  permutationValidity :: Maybe (String,PropertyT IO ())
+  permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges edges
@@ -92,36 +93,25 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         cache = shortestPathCache graph
      in case (munreachable, unconectedSource @p) of
           (Just unreachable, _) ->
-            Group
-              "reachability"
-              [
+                Just
                 ( "reachability test"
-                , property $
-                  errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
+                , errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
                 )
-              ]
-          (Nothing, Just (s, n1, n2)) ->
-            -- undefined s n1 n2
-            Group
-              "source connectedness"
-              [
+          (Nothing, Just c@(s,_,_)) ->
+                Just
                 ( fromString $ "connectedness of " ++ sourceName s
-                , property $
-                  (errorHandler =<<) $
+                , (errorHandler =<<) $
                     runGenModifiable $
                       forAll $
-                        failWithFootnote $
-                          "source is not connected"
-                            ++ "\nsource: "
-                            ++ sourceName s
-                            ++ "\nhad no path"
-                            ++ "\nfrom: "
-                            ++ show n1
-                            ++ "\nto: "
-                            ++ show n2
+                        failUnconected c
                 )
-              ]
-          (Nothing, Nothing) ->
+          (Nothing,Nothing) -> Nothing
+
+  permutationGeneratorSelfTest :: Group
+  permutationGeneratorSelfTest =
+     case permutationValidity @p of
+          Just (label,prop) -> Group "permutationValidity test" [(fromString label,property prop)]
+          Nothing ->
             Group "permutationGeneratorSelfTest" $
               [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
                 , testEdge e m
@@ -180,14 +170,18 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       Just unreachable -> failUnreachable unreachable
     let sourceGen = do
           sourceNode <- element viableSources
-          fromMaybe (failWithFootnote "internal apropos error, lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
+          fromMaybe (internalError "lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
     let morphismGen model = do
-          let sourceNode = properties model -- TODO this is sorta redundant but hard to remove
+          let sourceNode = properties model
               viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
-          when (null viableStops) $ error "no stops possible"
+          unless (sourceNode `elem` viableSources) $
+            case unconectedSource @p of
+              Just s -> failUnconected s
+              Nothing -> internalError "source was not viable but graph was valid"
+          when (null viableStops) $ internalError "no stops were possible"
           stop <- element viableStops
-          pathp1 <- maybe (failWithFootnote "internal apropos error: pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
-          pathp2 <- maybe (failWithFootnote "internal apropos error: pathfinding failed post stop") pure $ shortestPath_ stop ps cache
+          pathp1 <- maybe (internalError "pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
+          pathp2 <- maybe (internalError "pathfinding failed post stop") pure $ shortestPath_ stop ps cache
           let path = pairPath $ sourceNode : pathp1 ++ pathp2
           morphisms <- choseMorphism path
           let withPropChecks = zipWith addPropCheck path morphisms
@@ -218,7 +212,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
       go h = do
         pe <- case Map.lookup h (findMorphisms @p) of
           Nothing ->
-            failWithFootnote $
+            error $
               "tried to traverse and edge that doesn't exist from:" ++ show (fst h) ++ " to: " ++ show (snd h)
                 ++ "\nThis is likely because you are using hackage digraph rather than the fork which fixes this"
                 ++ "\nhttps://github.com/mlabs-haskell/digraph"
@@ -274,3 +268,15 @@ failUnreachable unreachable =
     renderStyle ourStyle $
       "Some nodes not reachable"
         $+$ hang "Could not reach node:" 4 (ppDoc unreachable)
+
+failUnconected :: Show p => (Source p m,Set p,Set p) -> Gen ()
+failUnconected (s,n1,n2) =
+  failWithFootnote $
+    "source is not connected"
+      ++ "\nsource: "
+      ++ sourceName s
+      ++ "\nhad no path"
+      ++ "\nfrom: "
+      ++ show n1
+      ++ "\nto: "
+      ++ show n2

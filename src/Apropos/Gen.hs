@@ -33,7 +33,7 @@ module Apropos.Gen (
 ) where
 
 import Apropos.Gen.Range
-import Control.Monad (replicateM)
+import Control.Monad (forM_, replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -42,9 +42,10 @@ import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (PropertyT)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
+import Hedgehog.Internal.Gen (generalize)
+import Hedgehog.Internal.Property (PropertyT (PropertyT))
 import Hedgehog.Range qualified as HRange
 
 runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
@@ -77,18 +78,24 @@ forAll = interleaved . gen2Interleaved
 forAllWith :: forall a. (a -> String) -> Gen a -> GenModifiable a
 forAllWith s = interleavedWith s . gen2Interleaved
 
-forAllWithG :: forall a. (a -> String) -> Generator a -> GenModifiable a
+forAllWithG :: forall a. (a -> Maybe String) -> Generator a -> GenModifiable a
 forAllWithG s g = do
   gm <- ask
-  (ee, labels) <- lift $ lift $ H.forAllWith sh $ modifyHGen gm $ runWriterT (runExceptT g)
+  (ee, labels) <- lift $ lift $ forAllWithMaybe sh $ modifyHGen gm $ runWriterT (runExceptT g)
   mapM_ (H.label . fromString) labels
   case ee of
     Left e -> lift $ throwE e
     Right so -> pure so
   where
-    sh :: (Either GenException a, Set String) -> String
-    sh (Left e, _) = show e
+    sh :: (Either GenException a, Set String) -> Maybe String
+    sh (Left e, _) = Just $ show e
     sh (Right a, _) = s a
+
+forAllWithMaybe :: Monad m => (a -> Maybe String) -> H.Gen a -> PropertyT m a
+forAllWithMaybe maybeRender gen = do
+  x <- PropertyT $ lift $ generalize gen
+  forM_ (maybeRender x) H.annotate
+  pure x
 
 modifyHGen :: GenModifier -> H.Gen a -> H.Gen a
 modifyHGen gm g = do
@@ -113,9 +120,9 @@ interleavedWith s m = do
         (Right a) -> pure a
         (Left pc) -> interleavedWith s pc
   where
-    sh :: Either (Interleaved a) a -> String
-    sh (Left _) = "This is unexpected. Generator interleaving failed. Please contact a customer support representative."
-    sh (Right a) = s a
+    sh :: Either (Interleaved a) a -> Maybe String
+    sh (Left _) = Nothing
+    sh (Right a) = Just $ s a
 
 data FreeGen next where
   Label :: String -> next -> FreeGen next

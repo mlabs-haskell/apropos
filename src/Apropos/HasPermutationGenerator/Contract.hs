@@ -23,6 +23,8 @@ module Apropos.HasPermutationGenerator.Contract (
   labelContract,
   forget,
   deduce,
+  swap,
+  toggle,
 ) where
 
 import Apropos.LogicalModel (
@@ -96,6 +98,21 @@ forget = tell . pure . Forget . Set.fromList
 
 deduce :: LogicalModel p => [p] -> Contract p ()
 deduce xs = forget xs >> matches logic
+
+-- TODO swap and toggle could be faster as primitive instructions
+swap :: Ord p => p -> p -> Contract p ()
+swap a b =
+  branches
+    [ has a >> hasn't b >> remove a >> add b
+    , has b >> hasn't a >> remove b >> add a
+    ]
+
+toggle :: Ord p => p -> Contract p ()
+toggle a =
+  branches
+    [ has a >> remove a
+    , hasn't a >> add a
+    ]
 
 data Instruction p
   = Delta (Set p) (Set p) -- removes then adds lists have an empty intersection

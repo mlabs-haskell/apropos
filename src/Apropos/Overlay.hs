@@ -5,6 +5,7 @@ module Apropos.Overlay (
   deduceFromOverlay,
 ) where
 
+import Apropos.Error
 import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Source
@@ -27,13 +28,7 @@ soundOverlay = property $
           footnote $
             "found solution to sub model which is excluded by overlay logic\n"
               ++ show (Set.toList uncovered)
-        [] ->
-          footnote $
-            "internal apropos error, found overlay inconsistancy but failed to find exact problem.\n"
-              ++ "please report this as a bug\n"
-              ++ "here's some info that might help "
-              ++ "(and which ideally should be included in the bug report):\n"
-              ++ show violation
+        [] -> internalError $ "overlay violation" ++ show violation
       failure
     [] -> case emptyOverlays @sp @op of
       (empty : _) -> do

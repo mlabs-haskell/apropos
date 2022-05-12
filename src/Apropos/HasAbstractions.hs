@@ -44,7 +44,7 @@ import Apropos.LogicalModel.Formula
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 
-class LogicalModel p => HasAbstractions p m where
+class LogicalModel p => HasAbstractions p m | p -> m where
   sumAbstractions :: [SumAbstractionFor p m]
   sumAbstractions = []
   productAbstractions :: [ProductAbstractionFor p m]

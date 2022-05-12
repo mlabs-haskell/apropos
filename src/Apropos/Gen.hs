@@ -33,7 +33,7 @@ module Apropos.Gen (
 ) where
 
 import Apropos.Gen.Range
-import Control.Monad (replicateM,forM_)
+import Control.Monad (forM_, replicateM)
 import Control.Monad.Free
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -44,9 +44,9 @@ import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
+import Hedgehog.Internal.Gen (generalize)
+import Hedgehog.Internal.Property (PropertyT (PropertyT))
 import Hedgehog.Range qualified as HRange
-import Hedgehog.Internal.Property (PropertyT(PropertyT))
-import Hedgehog.Internal.Gen(generalize)
 
 runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
 runGenModifiable g = runExceptT $ runReaderT g (GenModifier id False)

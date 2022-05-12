@@ -75,6 +75,8 @@ module Apropos (
   matches,
   forget,
   deduce,
+  swap,
+  toggle,
   -- Apropos.Pure
   PureRunner (..),
   runPureTest,

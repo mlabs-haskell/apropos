@@ -69,11 +69,7 @@ instance HasPermutationGenerator IntProp Int where
     [ Morphism
         { name = "Negate"
         , match = Not $ Var IsZero
-        , contract =
-            branches
-              [ has IsNegative >> remove IsNegative >> add IsPositive
-              , has IsPositive >> remove IsPositive >> add IsNegative
-              ]
+        , contract = swap IsNegative IsPositive
         , morphism = pure . negate
         }
     ]

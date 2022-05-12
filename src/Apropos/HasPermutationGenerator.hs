@@ -83,7 +83,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms :: Bool
   allowRedundentMorphisms = False
 
-  permutationValidity :: Maybe (String,PropertyT IO ())
+  permutationValidity :: Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -93,37 +93,37 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         cache = shortestPathCache graph
      in case (munreachable, unconectedSource @p) of
           (Just unreachable, _) ->
-                Just
-                ( "reachability test"
-                , errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
-                )
-          (Nothing, Just c@(s,_,_)) ->
-                Just
-                ( fromString $ "connectedness of " ++ sourceName s
-                , (errorHandler =<<) $
-                    runGenModifiable $
-                      forAll $
-                        failUnconected c
-                )
-          (Nothing,Nothing) -> Nothing
+            Just
+              ( "reachability test"
+              , errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
+              )
+          (Nothing, Just c@(s, _, _)) ->
+            Just
+              ( fromString $ "connectedness of " ++ sourceName s
+              , (errorHandler =<<) $
+                runGenModifiable $
+                  forAll $
+                    failUnconected c
+              )
+          (Nothing, Nothing) -> Nothing
 
   permutationGeneratorSelfTest :: Group
   permutationGeneratorSelfTest =
-     case permutationValidity @p of
-          Just (label,prop) -> Group "permutationValidity test" [(fromString label,property prop)]
-          Nothing ->
-            Group "permutationGeneratorSelfTest" $
-              [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
-                , testEdge e m
-                )
-              | (e, ms) <- Map.toList $ findMorphisms @p
-              , m <- ms
-              ]
-                ++ [ ( fromString $ "source " ++ sourceName s
-                     , testSource s
-                     )
-                   | s <- sources @p
-                   ]
+    case permutationValidity @p of
+      Just (label, prop) -> Group "permutationValidity test" [(fromString label, property prop)]
+      Nothing ->
+        Group "permutationGeneratorSelfTest" $
+          [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
+            , testEdge e m
+            )
+          | (e, ms) <- Map.toList $ findMorphisms @p
+          , m <- ms
+          ]
+            ++ [ ( fromString $ "source " ++ sourceName s
+                 , testSource s
+                 )
+               | s <- sources @p
+               ]
 
   testEdge ::
     (Set p, Set p) ->
@@ -269,8 +269,8 @@ failUnreachable unreachable =
       "Some nodes not reachable"
         $+$ hang "Could not reach node:" 4 (ppDoc unreachable)
 
-failUnconected :: Show p => (Source p m,Set p,Set p) -> Gen ()
-failUnconected (s,n1,n2) =
+failUnconected :: Show p => (Source p m, Set p, Set p) -> Gen ()
+failUnconected (s, n1, n2) =
   failWithFootnote $
     "source is not connected"
       ++ "\nsource: "

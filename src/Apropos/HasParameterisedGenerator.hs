@@ -8,21 +8,23 @@ module Apropos.HasParameterisedGenerator (
   sampleGenTest,
 ) where
 
-import Apropos.Gen hiding ((===))
-import Apropos.Gen.BacktrackingTraversal
-import Apropos.Gen.Enumerate
-import Apropos.HasLogicalModel
-import Apropos.LogicalModel
+import Apropos.Gen
+import Apropos.Gen.Enumerate (enumerate)
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.LogicalModel (
+  Formula,
+  LogicalModel (scenarios),
+  enumerateScenariosWhere,
+  scenarioMap,
+ )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, property, withTests, (===))
+import Hedgehog (Group (..), Property, TestLimit, property, withTests)
 
 class (HasLogicalModel p m, Show m) => HasParameterisedGenerator p m where
-  parameterisedGenerator :: Set p -> Traversal p m
-  rootRetryLimit :: Int
-  rootRetryLimit = 100
+  parameterisedGenerator :: Set p -> Gen m
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 runGeneratorTest ::
@@ -30,12 +32,11 @@ runGeneratorTest ::
   HasParameterisedGenerator p m =>
   Set p ->
   Property
-runGeneratorTest s = property $ do
-  (m :: m) <- traversalContainRetry numRetries $ parameterisedGenerator s
-  properties m === s
+runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
   where
-    numRetries :: Int
-    numRetries = rootRetryLimit @p
+    test = forAll $ do
+      (m :: m) <- parameterisedGenerator s
+      properties m === s
 
 runGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
@@ -60,21 +61,26 @@ sampleGenTest ::
   forall p m.
   HasParameterisedGenerator p m =>
   Property
-sampleGenTest = property $ do
-  (ps :: Set p) <- forAll genPropSet
-  (m :: m) <- forAll $ traversalAsGen $ parameterisedGenerator ps
-  properties m === ps
+sampleGenTest = property $ runGenModifiable test >>= errorHandler
+  where
+    test = forAll $ do
+      (ps :: Set p) <- genPropSet @p
+      (m :: m) <- parameterisedGenerator ps
+      properties m === ps
 
 enumerateGeneratorTest ::
   forall p m.
   HasParameterisedGenerator p m =>
   Set p ->
   Property
-enumerateGeneratorTest s = withTests (1 :: TestLimit) $
-  property $ do
-    let (ms :: [m]) = enumerate $ traversalAsGen $ parameterisedGenerator s
-        run m = properties m === s
-    sequence_ (run <$> ms)
+enumerateGeneratorTest s =
+  withTests (1 :: TestLimit) $
+    property $ runGenModifiable test >>= errorHandler
+  where
+    test = forAll $ do
+      let (ms :: [m]) = enumerate $ parameterisedGenerator s
+          run m = properties m === s
+      sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
   HasParameterisedGenerator p m =>
@@ -91,7 +97,4 @@ genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)
-  traversalAsGen $ parameterisedGenerator s -- TODO this doesn't do shrink containment...
-  -- we can lift a Traversal into Gen
-  -- like GenWrap but for Traversal
-  -- or something...
+  parameterisedGenerator s

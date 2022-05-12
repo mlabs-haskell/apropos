@@ -4,17 +4,17 @@ module Apropos.HasPermutationGenerator.Morphism (
   Morphism (..),
   (&&&),
   (>>>),
-  wrapMorphismWithContractCheck,
+  addPropCheck,
+  -- wrapMorphismWithContractCheck,
 ) where
 
 import Apropos.Gen
 import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
-import Control.Monad ((>=>))
+import Control.Monad (unless, (>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.String (fromString)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -63,26 +63,23 @@ seqMorphism a b =
     , morphism = morphism a >=> morphism b
     }
 
-wrapMorphismWithContractCheck :: forall p m. (HasLogicalModel p m, Show m) => Morphism p m -> Morphism p m
-wrapMorphismWithContractCheck mo = mo {morphism = wrap}
+addPropCheck :: forall p m. (HasLogicalModel p m, Show m) => (Set p, Set p) -> Morphism p m -> Morphism p m
+addPropCheck (inps, outps) mo = mo {morphism = wrap}
   where
     wrap :: m -> Gen m
     wrap m = do
-      let inprops = properties m
-      nm <- morphism mo m
-      let observed = properties nm
-      label $ fromString $ name mo
-      case runContract (contract mo) inprops of
-        Left err ->
-          failWithFootnote $
-            renderStyle ourStyle $
-              "Morphism doesn't work. This is a model error"
-                $+$ "This should never happen at this point in the program."
-                $+$ ppDoc err
-        Right expected ->
-          if expected == observed
-            then pure nm
-            else edgeFailsContract mo m nm expected observed
+      label $ name mo
+      unless (properties m == inps) $
+        error $
+          "internal apropos error morphism given bad input"
+            ++ "\nexpected: "
+            ++ show inps
+            ++ "\n got: "
+            ++ show (properties m :: Set p)
+      m' <- morphism mo m
+      unless (properties m' == outps) $
+        edgeFailsContract mo m m' outps (properties m')
+      pure m'
 
     edgeFailsContract ::
       Morphism p m ->

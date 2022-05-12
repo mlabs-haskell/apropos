@@ -1,33 +1,66 @@
 module Apropos.HasPermutationGenerator (
   HasPermutationGenerator (..),
+  Source (..),
   Morphism (..),
-  Abstraction (..),
-  abstract,
-  gotoSum,
-  abstractsProperties,
   (&&&),
   (>>>),
 ) where
 
-import Apropos.Gen
-import Apropos.Gen.BacktrackingTraversal
-import Apropos.HasLogicalModel
-import Apropos.HasPermutationGenerator.Abstraction
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.HasPermutationGenerator.Morphism
-import Apropos.LogicalModel
-import Control.Monad (liftM2, unless, void)
-import Data.DiGraph (DiGraph, ShortestPathCache, diameter_, distance_, fromEdges, insertVertex, shortestPathCache, shortestPath_)
-import Data.Function (on)
+import Apropos.Gen (
+  Gen,
+  choice,
+  element,
+  errorHandler,
+  failWithFootnote,
+  forAll,
+  forAllWithRetries,
+  runGenModifiable,
+  (===),
+ )
+import Apropos.Gen.BacktrackingTraversal (
+  Traversal (FromSource, Traversal),
+  traversalInGen,
+ )
+import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.HasPermutationGenerator.Contract (
+  matches,
+  solveContract,
+ )
+import Apropos.HasPermutationGenerator.Morphism (
+  Morphism (..),
+  addPropCheck,
+  (&&&),
+  (>>>),
+ )
+import Apropos.HasPermutationGenerator.Source (
+  Source (..),
+  wrapSourceWithCheck,
+ )
+import Apropos.LogicalModel (
+  Formula (..),
+  LogicalModel (logic, scenarios),
+  enumerated,
+  solveAll,
+ )
+import Data.DiGraph (
+  DiGraph,
+  ShortestPathCache,
+  distance_,
+  fromEdges,
+  insertVertex,
+  shortestPathCache,
+  shortestPath_,
+  union,
+  unsafeFromList,
+ )
 import Data.Hashable (Hashable)
-import Data.List (minimumBy)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
-import Hedgehog (Group (..), failure, property)
+import Hedgehog (Group (..), Property, property)
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -39,180 +72,135 @@ import Text.Show.Pretty (ppDoc)
 
 class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
+  generators = []
+
+  sources :: [Source p m]
+
   traversalRetryLimit :: Int
   traversalRetryLimit = 100
 
   allowRedundentMorphisms :: Bool
   allowRedundentMorphisms = False
 
-  permutationGeneratorSelfTest :: Bool -> (Morphism p m -> Bool) -> Gen m -> [Group]
-  permutationGeneratorSelfTest testForSuperfluousEdges pefilter bgen =
-    let pedges = findMorphisms
-        graph = buildGraph pedges
-        cache = shortestPathCache graph
-        mGen = buildGen bgen
-        isco = isStronglyConnected cache
-     in if null (Map.keys pedges)
-          then
-            [ Group
-                "No permutation edges defined."
-                [
-                  ( fromString "no edges defined"
-                  , property $ void $ forAll (failWithFootnote "no Morphisms defined" :: Gen String)
-                  )
-                ]
-            ]
-          else
-            if isco
-              then case findDupEdgeNames of
-                [] ->
-                  testEdge testForSuperfluousEdges pedges mGen
-                    <$> filter pefilter generators
-                dups ->
-                  [ Group "HasPermutationGenerator edge names must be unique." $
-                      [ (fromString $ dup <> " not unique", property failure)
-                      | dup <- dups
-                      ]
-                  ]
-              else
-                [ Group
-                    "HasPermutationGenerator Graph Not Strongly Connected"
-                    [(fromString "Not strongly connected", property $ void $ forAll (abortNotSCC cache :: Gen String))]
-                ]
-    where
-      abortNotSCC graph =
-        let (a, b) = findNoPath graph
-         in failWithFootnote $
-              renderStyle ourStyle $
-                "Morphisms do not form a strongly connected graph."
-                  $+$ hang "No Edge Between here:" 4 (ppDoc a)
-                  $+$ hang "            and here:" 4 (ppDoc b)
-      findDupEdgeNames =
-        [ name g | g <- generators :: [Morphism p m], length (filter (== g) generators) > 1
-        ]
-      testEdge ::
-        Bool ->
-        Map (Set p, Set p) [Morphism p m] ->
-        (Set p -> Traversal p m) ->
-        Morphism p m ->
-        Group
-      testEdge testRequired pem mGen pe =
-        Group (fromString (name pe)) $
-          addRequiredTest
-            testRequired
-            [ (edgeTestName f t, runEdgeTest f)
-            | (f, t) <- matchesEdges
-            ]
-        where
-          addRequiredTest False l = l
-          addRequiredTest True l = (fromString "Is Required", runRequiredTest) : l
-          matchesEdges = [e | (e, v) <- Map.toList pem, pe `elem` v]
-          edgeTestName f t = fromString $ name pe <> " : " <> show (Set.toList f) <> " -> " <> show (Set.toList t)
-          isRequired =
-            let inEdges = [length v | (_, v) <- Map.toList pem, pe `elem` v]
-             in elem 1 inEdges
-          runRequiredTest = property $
-            forAll $ do
-              if isRequired || allowRedundentMorphisms @p
-                then pure ()
-                else
-                  failWithFootnote $
-                    renderStyle ourStyle $
-                      fromString ("Morphism " <> name pe <> " is not required to make graph strongly connected.")
-                        $+$ hang "Edge:" 4 (ppDoc $ name pe)
-          runEdgeTest f = property $ do
-            void $ traversalContainRetry (traversalRetryLimit @p) $ Traversal (mGen f) (\_ -> pure [wrapMorphismWithContractCheck pe])
-
-  buildGen :: Gen m -> Set p -> Traversal p m
-  buildGen s tp = do
-    let pedges = findMorphisms
+  permutationGeneratorSelfTest :: Group
+  permutationGeneratorSelfTest =
+    let pedges = findMorphisms @p
         edges = Map.keys pedges
-        graph = fromEdges edges
+        graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges edges
+        sourceMap = findSources @p
+        munreachable = unreachableNode (Map.keys sourceMap) cache
         cache = shortestPathCache graph
-        isco = isStronglyConnected cache
-        go targetProperties m = do
-          if null pedges
-            then failWithFootnote "no Morphisms defined"
-            else pure ()
-          if isco
-            then pure ()
-            else
-              let (a, b) = findNoPath cache
-               in failWithFootnote $
-                    renderStyle ourStyle $
-                      "Morphisms do not form a strongly connected graph."
-                        $+$ hang "No Edge Between here:" 4 (ppDoc a)
-                        $+$ hang "            and here:" 4 (ppDoc b)
-          transformModel cache pedges m targetProperties
-     in Traversal (Source s) (go tp)
+     in case munreachable of
+          Just unreachable ->
+            Group
+              "reachability"
+              [
+                ( "reachability test"
+                , property $
+                  errorHandler =<< runGenModifiable (forAll $ failUnreachable unreachable)
+                )
+              ]
+          Nothing ->
+            Group "permutationGeneratorSelfTest" $
+              [ ( fromString $ name m ++ " on " ++ show (fst e) ++ " -> " ++ show (snd e)
+                , testEdge e m
+                )
+              | (e, ms) <- Map.toList $ findMorphisms @p
+              , m <- ms
+              ]
+                ++ [ ( fromString $ "source" ++ sourceName s ++ " on " ++ show ps
+                     , testSource s (Map.keysSet $ Map.filter id ps)
+                     )
+                   | s <- sources @p
+                   , ps <- solveAll (logic :&&: covers s)
+                   ]
 
-  findNoPath ::
-    ShortestPathCache (Set p) ->
-    (Set p, Set p)
-  findNoPath !cache =
-    minimumBy
-      (compare `on` uncurry score)
-      [ (a, b)
-      | a <- scenarios
-      , b <- scenarios
-      , isNothing (distance_ a b cache)
-      ]
-    where
-      -- The score function is designed to favor sets which are similar and small
-      -- The assumption being that smaller morphisms are more general
-      score :: Ord a => Set a -> Set a -> (Int, Int)
-      score l r = (hamming l r, length $ l `Set.intersection` r)
-      hamming :: Ord a => Set a -> Set a -> Int
-      hamming l r = length (l `setXor` r)
-      setXor :: Ord a => Set a -> Set a -> Set a
-      setXor l r = (l `Set.difference` r) `Set.union` (r `Set.difference` l)
+  testEdge ::
+    (Set p, Set p) ->
+    Morphism p m ->
+    Property
+  testEdge (inprops, outprops) m =
+    property $
+      errorHandler
+        =<< runGenModifiable
+          ( forAllWithRetries (traversalRetryLimit @p) $ do
+              (inModel :: m) <- buildGen inprops :: Gen m
+              (outModel :: m) <- morphism m inModel
+              (properties outModel :: Set p) === (outprops :: Set p)
+          )
 
-  transformModel ::
-    ShortestPathCache (Set p) ->
-    Map (Set p, Set p) [Morphism p m] ->
-    m ->
+  testSource ::
+    Source p m ->
     Set p ->
-    Gen [Morphism p m]
-  transformModel !cache pedges m to = do
-    let ps = properties m
-    unless (satisfiesFormula logic ps) $ do
-      failWithFootnote $
-        renderStyle ourStyle $
-          "Illegal model produced by the base generator:"
-            $+$ hang "model  was:" 4 (ppDoc m)
-            $+$ hang "props were:" 4 (ppDoc ps)
-    pathOptions <- findPathOptions cache ps to
-    sequence $ traversePath pedges pathOptions
+    Property
+  testSource source ps =
+    property $
+      errorHandler
+        =<< runGenModifiable
+          ( forAllWithRetries (traversalRetryLimit @p) $ do
+              (m :: m) <- pgen source ps
+              properties m === ps
+          )
 
-  traversePath ::
-    Map (Set p, Set p) [Morphism p m] ->
+  buildGen :: Set p -> Gen m
+  buildGen ps = do
+    let pedges = findMorphisms @p
+        edges = Map.keys pedges
+        graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges edges
+        sourceMap = findSources @p
+        munreachable = unreachableNode (Map.keys sourceMap) cache
+        cache = shortestPathCache graph
+        viableSources = filter (\source -> reachable cache source ps) (Map.keys sourceMap)
+    case munreachable of
+      Nothing -> pure ()
+      Just unreachable -> failUnreachable unreachable
+    let sourceGen = do
+          sourceNode <- element viableSources
+          fromMaybe (failWithFootnote "internal apropos error, lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
+    let morphismGen model = do
+          let sourceNode = properties model -- TODO this is sorta redundant but hard to remove
+              viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
+          stop <- element viableStops
+          pathp1 <- maybe (failWithFootnote "internal apropos error: pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
+          pathp2 <- maybe (failWithFootnote "internal apropos error: pathfinding failed post stop") pure $ shortestPath_ stop ps cache
+          let path = pairPath $ sourceNode : pathp1 ++ pathp2
+          morphisms <- choseMorphism path
+          let withPropChecks = zipWith addPropCheck path morphisms
+          pure withPropChecks
+    traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
+
+  choseMorphism ::
     [(Set p, Set p)] ->
-    [Gen (Morphism p m)]
-  traversePath edges es = go <$> es
+    Gen [Morphism p m]
+  choseMorphism es = sequence $ go <$> es
     where
       go :: (Set p, Set p) -> Gen (Morphism p m)
       go h = do
-        pe <- case Map.lookup h edges of
+        pe <- case Map.lookup h (findMorphisms @p) of
           Nothing ->
             failWithFootnote $
               "tried to traverse and edge that doesn't exist from:" ++ show (fst h) ++ " to: " ++ show (snd h)
                 ++ "\nThis is likely because you are using hackage digraph rather than the fork which fixes this"
-                ++ "\nhttps://github.com/Geometer1729/digraph"
+                ++ "\nhttps://github.com/mlabs-haskell/digraph"
           Just so -> pure so
-        wrapMorphismWithContractCheck <$> element pe
-
-  findPathOptions ::
-    ShortestPathCache (Set p) ->
-    Set p ->
-    Set p ->
-    Gen [(Set p, Set p)]
-  findPathOptions !cache from to = do
-    pairPath <$> genRandomPath cache from to
+        element pe
 
   buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
     let edges = Map.keys pedges
      in foldr insertVertex (fromEdges edges) scenarios
+
+  findSources :: Map (Set p) (Gen m)
+  findSources =
+    -- chose randomly for overlapping sources
+    Map.map choice $
+      Map.fromListWith
+        (<>)
+        [ (ps, [g])
+        | s <- wrapSourceWithCheck <$> sources @p
+        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        , let g :: Gen m = pgen s ps
+        ]
 
   findMorphisms ::
     Map (Set p, Set p) [Morphism p m]
@@ -229,17 +217,20 @@ pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
-isStronglyConnected :: ShortestPathCache a -> Bool
-isStronglyConnected !cache = isJust $ diameter_ cache
+unreachableNode :: (Hashable p, LogicalModel p) => [Set p] -> ShortestPathCache (Set p) -> Maybe (Set p)
+unreachableNode sourceNodes cache =
+  listToMaybe $
+    [ps | ps <- scenarios, not $ any (\s -> reachable cache s ps) sourceNodes]
 
 ourStyle :: Style
 ourStyle = style {lineLength = 80}
 
-genRandomPath :: (LogicalModel p, Hashable p) => ShortestPathCache (Set p) -> Set p -> Set p -> Gen [Set p]
-genRandomPath !cache from to = do
-  mid <- element scenarios
-  let p1 = shortestPath_ from mid cache
-  let p2 = shortestPath_ mid to cache
-   in case liftM2 (<>) p1 p2 of
-        Just p -> pure $ from : p
-        Nothing -> error "failed to find path despite graph being connected?"
+reachable :: (Eq a, Hashable a) => ShortestPathCache a -> a -> a -> Bool
+reachable cache s e = isJust $ distance_ s e cache
+
+failUnreachable :: Show p => Set p -> Gen ()
+failUnreachable unreachable =
+  failWithFootnote $
+    renderStyle ourStyle $
+      "Some nodes not reachable"
+        $+$ hang "Could not reach node:" 4 (ppDoc unreachable)

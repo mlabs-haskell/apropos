@@ -37,9 +37,9 @@ import Apropos.HasPermutationGenerator.Source (
   wrapSourceWithCheck,
  )
 import Apropos.LogicalModel (
+  Enumerable,
   Formula (..),
   LogicalModel (logic, scenarios),
-  Enumerable,
   enumerated,
   solveAll,
  )

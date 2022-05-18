@@ -12,9 +12,9 @@ import Apropos.Gen
 import Apropos.Gen.Enumerate (enumerate)
 import Apropos.HasLogicalModel (HasLogicalModel (properties))
 import Apropos.LogicalModel (
+  Enumerable,
   Formula,
   LogicalModel (scenarios),
-  Enumerable,
   enumerateScenariosWhere,
   scenarioMap,
  )

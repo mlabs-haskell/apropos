@@ -20,15 +20,17 @@ module Apropos.HasPermutationGenerator.Contract (
   solveContract,
   solveContractList,
   solveEdgesMap,
-  runContract,
   labelContract,
+  forget,
+  deduce,
+  swap,
+  toggle,
 ) where
 
 import Apropos.LogicalModel (
   Enumerable (..),
   Formula (..),
   LogicalModel (logic),
-  satisfiesFormula,
   solveAll,
  )
 import Control.Monad.Writer (Writer, execWriter, tell)
@@ -91,8 +93,30 @@ clear = removeAll enumerated
 terminal :: Contract p ()
 terminal = matches No
 
+forget :: Enumerable p => [p] -> Contract p ()
+forget = tell . pure . Forget . Set.fromList
+
+deduce :: LogicalModel p => [p] -> Contract p ()
+deduce xs = forget xs >> matches logic
+
+-- TODO swap and toggle could be faster as primitive instructions
+swap :: Ord p => p -> p -> Contract p ()
+swap a b =
+  branches
+    [ has a >> hasn't b >> remove a >> add b
+    , has b >> hasn't a >> remove b >> add a
+    ]
+
+toggle :: Ord p => p -> Contract p ()
+toggle a =
+  branches
+    [ has a >> remove a
+    , hasn't a >> add a
+    ]
+
 data Instruction p
   = Delta (Set p) (Set p) -- removes then adds lists have an empty intersection
+  | Forget (Set p) -- a more efficent but narrower alternative to branching
   | Branch [[Instruction p]]
   | Holds (Formula p)
   deriving stock (Show)
@@ -101,32 +125,7 @@ instrMap :: Ord b => (a -> b) -> Instruction a -> Instruction b
 instrMap f (Delta rs as) = Delta (Set.map f rs) (Set.map f as)
 instrMap f (Branch bs) = Branch $ map (map (instrMap f)) bs
 instrMap f (Holds fo) = Holds (fmap f fo)
-
-runContract :: (Enumerable p, LogicalModel p) => Contract p () -> Set p -> Either String (Set p)
-runContract c s =
-  let ss = interprets (toInstructions c) s
-   in case filter (satisfiesFormula logic) (Set.toList ss) of
-        [] -> Left "contract has no result"
-        [x] -> Right x
-        xs -> Left $ "contract has multiple results " <> show xs
-
-interprets :: Enumerable p => [Instruction p] -> Set p -> Set (Set p)
-interprets [] s = Set.singleton s
-interprets (x : xs) s =
-  let r = interpret x s
-      rs = interprets xs <$> Set.toList r
-   in foldr Set.union Set.empty rs
-
-interpret :: forall p. (Enumerable p) => Instruction p -> Set p -> Set (Set p)
-interpret (Delta rs as) is = Set.singleton $ (is `Set.difference` rs) `Set.union` as
-interpret (Holds f) is =
-  if satisfiesFormula f is
-    then Set.singleton is
-    else Set.empty
-interpret (Branch bs) is =
-  let cs :: [Set (Set p)]
-      cs = uncurry interprets <$> zip bs (repeat is)
-   in foldr Set.union Set.empty cs
+instrMap f (Forget fs) = Forget (Set.map f fs)
 
 type Contract p = Writer [Instruction p]
 
@@ -150,6 +149,12 @@ translateInstruction :: Enumerable p => Instruction p -> EdgeFormula p
 translateInstruction (Delta rs as) =
   EdgeFormula
     ((All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` (rs `Set.union` as)]) :&&: All [Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [Var (S 1 p) | p <- Set.toList as])
+    1
+    0
+    1
+translateInstruction (Forget fs) =
+  EdgeFormula
+    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` fs])
     1
     0
     1

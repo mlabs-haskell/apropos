@@ -38,78 +38,69 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 
 instance HasPermutationGenerator IntProp Int where
+  sources =
+    [ Source
+        { sourceName = "Zero"
+        , covers = Var IsZero
+        , gen = pure 0
+        }
+    , Source
+        { sourceName = "MaxBound"
+        , covers = Var IsMaxBound
+        , gen = pure maxBound
+        }
+    , Source
+        { sourceName = "MinBbound"
+        , covers = Var IsMinBound
+        , gen = pure minBound
+        }
+    , Source
+        { sourceName = "Large"
+        , covers = Var IsLarge :&&: Var IsPositive :&&: Not (Var IsMaxBound)
+        , gen = int (linear 11 (maxBound - 1))
+        }
+    , Source
+        { sourceName = "Small"
+        , covers = Var IsSmall :&&: Var IsPositive
+        , gen = int (linear 1 10)
+        }
+    ]
   generators =
     [ Morphism
-        { name = "MakeZero"
-        , match = Not $ Var IsZero
-        , contract = clear >> addAll [IsZero, IsSmall]
-        , morphism = \_ -> pure 0
-        }
-    , Morphism
-        { name = "MakeMaxBound"
-        , match = Not $ Var IsMaxBound
-        , contract = clear >> addAll [IsMaxBound, IsLarge, IsPositive]
-        , morphism = \_ -> pure maxBound
-        }
-    , Morphism
-        { name = "MakeMinBound"
-        , match = Not $ Var IsMinBound
-        , contract = clear >> addAll [IsMinBound, IsLarge, IsNegative]
-        , morphism = \_ -> pure minBound
-        }
-    , Morphism
-        { name = "MakeLarge"
-        , match = Not $ Var IsLarge
-        , contract = clear >> addAll [IsLarge, IsPositive]
-        , morphism = \_ -> int (linear 11 (maxBound - 1))
-        }
-    , Morphism
-        { name = "MakeSmall"
-        , match = Not $ Var IsSmall
-        , contract = clear >> addAll [IsSmall, IsPositive]
-        , morphism = \_ -> int (linear 1 10)
-        }
-    , Morphism
         { name = "Negate"
         , match = Not $ Var IsZero
-        , contract =
-            branches
-              [ has IsNegative >> remove IsNegative >> add IsPositive
-              , has IsPositive >> remove IsPositive >> add IsNegative
-              ]
-        , morphism = \i -> pure (-i)
+        , contract = swap IsNegative IsPositive
+        , morphism = pure . negate
         }
     ]
 
 instance HasParameterisedGenerator IntProp Int where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen Int
-baseGen = int (linear minBound maxBound)
+  parameterisedGenerator = buildGen
 
 intPermutationGenTests :: TestTree
 intPermutationGenTests =
   testGroup "intPermutationGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere (Apropos :: Int :+ IntProp) "Int Generator" Yes
+      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @IntProp)
           ]
 
-instance HasPureRunner IntProp Int where
-  expect _ = Var IsSmall :&&: Var IsNegative
-  script _ i = i < 0 && i >= -10
+intPermutationGenPureRunner :: PureRunner IntProp Int
+intPermutationGenPureRunner =
+  PureRunner
+    { expect = Var IsSmall :&&: Var IsNegative
+    , script = \i -> i < 0 && i >= -10
+    }
 
 intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere (Apropos :: Int :+ IntProp) "AcceptsSmallNegativeInts" Yes
+      <$> [ runPureTestsWhere intPermutationGenPureRunner "AcceptsSmallNegativeInts" (Yes @IntProp)
           ]
 
 intPermutationGenSelfTests :: TestTree
 intPermutationGenSelfTests =
   testGroup "intPermutationGenSelfTests" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism IntProp Int) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest @IntProp

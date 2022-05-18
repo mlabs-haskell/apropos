@@ -33,15 +33,15 @@ instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty (R p) (Right m) = satisfiesProperty p m
 
 instance HasAbstractions IntEitherProp (Either Int Int) where
-  abstractions =
-    [ WrapAbs $
+  sumAbstractions =
+    [ SuAs $
         SumAbstraction
           { abstractionName = "L"
           , propLabel = IsLeft
           , sumModelAbstraction = _Left
           , propertyAbstraction = abstractsProperties L
           }
-    , WrapAbs $
+    , SuAs $
         SumAbstraction
           { abstractionName = "R"
           , propLabel = IsRight
@@ -51,24 +51,17 @@ instance HasAbstractions IntEitherProp (Either Int Int) where
     ]
 
 instance HasPermutationGenerator IntEitherProp (Either Int Int) where
+  sources = abstractionSources
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator IntEitherProp (Either Int Int) where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen (Either Int Int)
-baseGen =
-  choice
-    [ Left <$> genSatisfying @IntProp Yes
-    , Right <$> genSatisfying @IntProp Yes
-    ]
+  parameterisedGenerator = buildGen
 
 intEitherGenTests :: TestTree
 intEitherGenTests =
   testGroup "intPairGenTests" $
     fromGroup
       <$> [ runGeneratorTestsWhere
-              (Apropos :: Either Int Int :+ IntEitherProp)
               "Either Int Int Generator"
-              Yes
+              (Yes @IntEitherProp)
           ]

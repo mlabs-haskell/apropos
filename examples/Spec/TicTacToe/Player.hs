@@ -3,14 +3,7 @@ module Spec.TicTacToe.Player (
   playerPermutationGenSelfTest,
 ) where
 
-import Apropos.Gen
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
+import Apropos
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -34,40 +27,32 @@ instance HasLogicalModel PlayerProperty Int where
     not (satisfiesAny [PlayerIsX, PlayerIsO] player)
 
 instance HasPermutationGenerator PlayerProperty Int where
-  generators =
-    [ Morphism
-        { name = "MakePlayerX"
-        , match = Not $ Var PlayerIsX
-        , contract = removeAll [PlayerIsO, PlayerIsInvalid] >> add PlayerIsX
-        , morphism = \_ -> pure 1
+  sources =
+    [ Source
+        { sourceName = "X"
+        , covers = Var PlayerIsX
+        , gen = pure 1
         }
-    , Morphism
-        { name = "MakePlayerO"
-        , match = Not $ Var PlayerIsO
-        , contract = removeAll [PlayerIsX, PlayerIsInvalid] >> add PlayerIsO
-        , morphism = \_ -> pure 0
+    , Source
+        { sourceName = "O"
+        , covers = Var PlayerIsO
+        , gen = pure 0
         }
-    , Morphism
-        { name = "MakePlayerInvalid"
-        , match = Not $ Var PlayerIsInvalid
-        , contract = removeAll [PlayerIsX, PlayerIsO] >> add PlayerIsInvalid
-        , morphism = \_ ->
+    , Source
+        { sourceName = "invalid"
+        , covers = Var PlayerIsInvalid
+        , gen =
             genFilter (\i -> i `notElem` [0, 1]) $
               int (linear minBound maxBound)
         }
     ]
 
 instance HasParameterisedGenerator PlayerProperty Int where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen Int
-baseGen = int (linear minBound maxBound)
+  parameterisedGenerator = buildGen
 
 playerPermutationGenSelfTest :: TestTree
 playerPermutationGenSelfTest =
   testGroup "playerPermutationGenSelfTest" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism PlayerProperty Int) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest @PlayerProperty

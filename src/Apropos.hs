@@ -1,7 +1,4 @@
 module Apropos (
-  -- Apropos.Type
-  Apropos (..),
-  (:+),
   -- Apropos.LogicalModel
   LogicalModel (..),
   -- Apropos.LogicalModel.Enumerable
@@ -40,21 +37,25 @@ module Apropos (
   -- Apropos.HasPermutationGenerator
   HasPermutationGenerator (..),
   Morphism (..),
-  Abstraction (..),
-  abstract,
-  gotoSum,
-  abstractsProperties,
+  Source (..),
   (&&&),
   (>>>),
   -- Apropos.HasAbstractions
-  HasAbstractions (abstractions),
-  AbstractionFor (WrapAbs),
+  HasAbstractions (..),
+  ProductAbstraction (..),
+  SumAbstraction (..),
+  SourceAbstraction (..),
+  ProductAbstractionFor (..),
+  SumAbstractionFor (..),
+  SourceAbstractionFor (..),
+  PAbs (..),
   abstractionMorphisms,
+  abstractionSources,
   parallelAbstractionMorphisms,
   abstractionLogic,
+  abstractsProperties,
   -- Apropos.HasPermutationGenerator.Contract
   Contract,
-  runContract,
   branches,
   branchIf,
   has,
@@ -72,11 +73,24 @@ module Apropos (
   clear,
   terminal,
   matches,
+  forget,
+  deduce,
+  swap,
+  toggle,
   -- Apropos.Pure
-  HasPureRunner (..),
+  PureRunner (..),
+  runPureTest,
+  runPureTestsWhere,
+  enumeratePureTest,
+  enumeratePureTestsWhere,
   -- Usefull Reexports
   Hashable,
   Generic,
+  -- Overlay
+  Overlay (overlays),
+  soundOverlay,
+  deduceFromOverlay,
+  overlaySources,
 ) where
 
 import Apropos.Gen
@@ -87,7 +101,7 @@ import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
+import Apropos.Overlay
 import Apropos.Pure
-import Apropos.Type
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)

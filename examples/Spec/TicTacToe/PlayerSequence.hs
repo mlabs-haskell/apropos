@@ -3,14 +3,7 @@ module Spec.TicTacToe.PlayerSequence (
   playerSequencePermutationGenSelfTest,
 ) where
 
-import Apropos.Gen
-import Apropos.HasLogicalModel
-import Apropos.HasParameterisedGenerator
-import Apropos.HasPermutationGenerator
-import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
+import Apropos
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -20,11 +13,8 @@ data PlayerSequenceProperty
   | PlayerSequenceNull
   | PlayerSequenceSingleton
   | PlayerSequenceIsLongerThanGame
-  deriving stock (Eq, Ord, Enum, Show, Bounded, Generic)
-  deriving anyclass (Hashable)
-
-instance Enumerable PlayerSequenceProperty where
-  enumerated = [minBound .. maxBound]
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Hashable, Enumerable)
 
 instance LogicalModel PlayerSequenceProperty where
   logic =
@@ -51,6 +41,36 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
   satisfiesProperty PlayerSequenceIsLongerThanGame m = length m > 9
 
 instance HasPermutationGenerator PlayerSequenceProperty [Int] where
+  sources =
+    [ Source
+        { sourceName = "player singleton take turns"
+        , covers = Var TakeTurns :&&: Var PlayerSequenceSingleton
+        , gen = list (singleton 1) $ int (linear 0 1)
+        }
+    , Source
+        { sourceName = "player singleton don't take turns"
+        , covers = Var Don'tTakeTurns :&&: Var PlayerSequenceSingleton
+        , gen =
+            list (singleton 1) $
+              choice
+                [ int (linear minBound (-1))
+                , int (linear 2 maxBound)
+                ]
+        }
+    , Source
+        { sourceName = "null"
+        , covers = Var PlayerSequenceNull
+        , gen = pure []
+        }
+    , Source
+        { sourceName = "turns longer than name"
+        , covers = Var PlayerSequenceIsLongerThanGame :&&: Var TakeTurns
+        , gen = do
+            let numMoves = 10
+            pat <- element [[0, 1], [1, 0]]
+            pure $ take numMoves (cycle pat)
+        }
+    ]
   generators =
     [ Morphism
         { name = "MakeTakeTurnsNotLongerThanGame"
@@ -67,53 +87,6 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
             let numMoves = min 9 (max 2 (length s))
             pat <- element [[0, 1], [1, 0]]
             pure $ take numMoves (cycle pat)
-        }
-    , Morphism
-        { name = "MakeTakeTurnsLongerThanGame"
-        , match = Yes
-        , contract =
-            removeAll
-              [ Don'tTakeTurns
-              , PlayerSequenceSingleton
-              , PlayerSequenceNull
-              ]
-              >> addAll
-                [ TakeTurns
-                , PlayerSequenceIsLongerThanGame
-                ]
-        , morphism = \_ -> do
-            let numMoves = 10
-            pat <- element [[0, 1], [1, 0]]
-            pure $ take numMoves (cycle pat)
-        }
-    , Morphism
-        { name = "MakePlayerSequenceNull"
-        , match = Yes
-        , contract =
-            removeAll [Don'tTakeTurns, PlayerSequenceSingleton]
-              >> addAll [TakeTurns, PlayerSequenceNull]
-        , morphism = \_ -> pure []
-        }
-    , Morphism
-        { name = "MakePlayerSingletonDon'tTakeTurns"
-        , match = Yes
-        , contract =
-            removeAll [TakeTurns, PlayerSequenceNull]
-              >> addAll [Don'tTakeTurns, PlayerSequenceSingleton]
-        , morphism = \_ ->
-            list (singleton 1) $
-              choice
-                [ int (linear minBound (-1))
-                , int (linear 2 maxBound)
-                ]
-        }
-    , Morphism
-        { name = "MakePlayerSingletonTakeTurns"
-        , match = Yes
-        , contract =
-            removeAll [Don'tTakeTurns, PlayerSequenceNull]
-              >> addAll [TakeTurns, PlayerSequenceSingleton]
-        , morphism = \_ -> list (singleton 1) $ int (linear 0 1)
         }
     , Morphism
         { name = "MakeDon'tTakeTurns"
@@ -136,16 +109,11 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
     ]
 
 instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
-  parameterisedGenerator = buildGen baseGen
-
-baseGen :: Gen [Int]
-baseGen = list (linearFrom 5 0 10) $ int (linear minBound maxBound)
+  parameterisedGenerator = buildGen
 
 playerSequencePermutationGenSelfTest :: TestTree
 playerSequencePermutationGenSelfTest =
   testGroup "playerSequencePermutationGenSelfTest" $
-    fromGroup
-      <$> permutationGeneratorSelfTest
-        True
-        (\(_ :: Morphism PlayerSequenceProperty [Int]) -> True)
-        baseGen
+    pure $
+      fromGroup $
+        permutationGeneratorSelfTest @PlayerSequenceProperty

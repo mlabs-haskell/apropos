@@ -58,6 +58,9 @@ common lang
     , template-haskell
     , text
     , transformers
+    , generics-sop
+    , tagged
+    , ilist
 
   -- added Hashable v => Hashable (Set v)
 
@@ -89,6 +92,8 @@ library
     Apropos.LogicalModel.Formula
     Apropos.Overlay
     Apropos.Pure
+
+    Apropos.Description
 
   hs-source-dirs:  src
 

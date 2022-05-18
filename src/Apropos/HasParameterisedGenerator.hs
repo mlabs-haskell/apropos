@@ -14,6 +14,7 @@ import Apropos.HasLogicalModel (HasLogicalModel (properties))
 import Apropos.LogicalModel (
   Formula,
   LogicalModel (scenarios),
+  Enumerable,
   enumerateScenariosWhere,
   scenarioMap,
  )

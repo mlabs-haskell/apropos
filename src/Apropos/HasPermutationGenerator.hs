@@ -39,6 +39,7 @@ import Apropos.HasPermutationGenerator.Source (
 import Apropos.LogicalModel (
   Formula (..),
   LogicalModel (logic, scenarios),
+  Enumerable,
   enumerated,
   solveAll,
  )
@@ -84,6 +85,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms = False
 
   permutationValidity :: Maybe (String, PropertyT IO ())
+  default permutationValidity :: (Enumerable p) => Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -108,6 +110,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           (Nothing, Nothing) -> Nothing
 
   permutationGeneratorSelfTest :: Group
+  default permutationGeneratorSelfTest :: (Enumerable p) => Group
   permutationGeneratorSelfTest =
     case permutationValidity @p of
       Just (label, prop) -> Group "permutationValidity test" [(fromString label, property prop)]
@@ -157,6 +160,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           )
 
   buildGen :: Set p -> Gen m
+  default buildGen :: (Enumerable p) => Set p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -189,6 +193,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
 
   unconectedSource :: Maybe (Source p m, Set p, Set p)
+  default unconectedSource :: (Enumerable p) => Maybe (Source p m, Set p, Set p)
   unconectedSource = listToMaybe $ do
     let es = Map.keysSet findMorphisms
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
@@ -206,6 +211,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   choseMorphism ::
     [(Set p, Set p)] ->
     Gen [Morphism p m]
+  default choseMorphism :: (Enumerable p) => [(Set p, Set p)] -> Gen [Morphism p m]
   choseMorphism es = sequence $ go <$> es
     where
       go :: (Set p, Set p) -> Gen (Morphism p m)
@@ -225,6 +231,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
      in foldr insertVertex (fromEdges edges) scenarios
 
   findSources :: Map (Set p) (Gen m)
+  default findSources :: (Enumerable p) => Map (Set p) (Gen m)
   findSources =
     -- chose randomly for overlapping sources
     Map.map choice $

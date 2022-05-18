@@ -63,7 +63,7 @@ seqMorphism a b =
     , morphism = morphism a >=> morphism b
     }
 
-addPropCheck :: forall p m. (HasLogicalModel p m, Show m, Enumerable p) => (Set p, Set p) -> Morphism p m -> Morphism p m
+addPropCheck :: forall p m. (HasLogicalModel p m, Show m) => (Set p, Set p) -> Morphism p m -> Morphism p m
 addPropCheck (inps, outps) mo = mo {morphism = wrap}
   where
     wrap :: m -> Gen m

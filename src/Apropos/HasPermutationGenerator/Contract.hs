@@ -96,7 +96,7 @@ terminal = matches No
 forget :: Enumerable p => [p] -> Contract p ()
 forget = tell . pure . Forget . Set.fromList
 
-deduce :: LogicalModel p => [p] -> Contract p ()
+deduce :: (LogicalModel p, Enumerable p) => [p] -> Contract p ()
 deduce xs = forget xs >> matches logic
 
 -- TODO swap and toggle could be faster as primitive instructions

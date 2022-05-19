@@ -90,8 +90,8 @@ data SumAbstractionFor p m where
 
 abstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
 abstractionMorphisms =
-  let productAbstractionMorphisms = join [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p @m]
-      sumAbstractionMorphism = join [abstractSum abstraction <$> generators | SuAs abstraction <- sumAbstractions @p @m]
+  let productAbstractionMorphisms = join [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p]
+      sumAbstractionMorphism = join [abstractSum abstraction <$> generators | SuAs abstraction <- sumAbstractions @p]
    in productAbstractionMorphisms ++ sumAbstractionMorphism
 
 abstractionSources :: forall p m. HasAbstractions p m => [Source p m]
@@ -102,7 +102,7 @@ abstractionSources = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa 
 -}
 parallelAbstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
 parallelAbstractionMorphisms =
-  let abstractProductMorphisms = [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p @m]
+  let abstractProductMorphisms = [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p]
    in join
         [ foldl (&&&) m ms
         | m : ms@(_ : _) <- seqs abstractProductMorphisms
@@ -114,8 +114,8 @@ parallelAbstractionMorphisms =
 
 abstractionLogic :: forall m p. HasAbstractions p m => Formula p
 abstractionLogic =
-  All [abstractLogicProduct @p @m abstraction | PAs abstraction <- productAbstractions @p @m]
-    :&&: All [abstractLogicSum @p @m abstraction | SuAs abstraction <- sumAbstractions @p @m]
+  All [abstractLogicProduct @p abstraction | PAs abstraction <- productAbstractions @p]
+    :&&: All [abstractLogicSum @p abstraction | SuAs abstraction <- sumAbstractions @p]
 
 sourcesFromSourceAbstractions :: HasAbstractions p m => [Source p m]
 sourcesFromSourceAbstractions = join [sourcesFromAbstraction a | SoAs a <- sourceAbstractions]

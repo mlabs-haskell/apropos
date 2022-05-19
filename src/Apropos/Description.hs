@@ -14,7 +14,7 @@ module Apropos.Description (
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Data.Tree (Tree (Node))
+import Data.Tree (Tree (Node), foldTree)
 
 import Data.List.Index (iconcatMap, imap)
 
@@ -49,9 +49,16 @@ import Data.Tagged (Tagged, unproxy, untag)
 import SAT.MiniSat (Formula ((:&&:), (:++:), (:->:), (:<->:), (:||:)))
 import SAT.MiniSat qualified as SAT
 
+{- | A type describing an object.
+
+  You use description types by defining a type that captures the desired properties
+  of the object.
+-}
 class Description a d | d -> a where
+  -- | Describe an object; generate a description object from an object.
   describe :: a -> d
 
+  -- | optionally add additional logic constraining valid description types
   additionalLogic :: Formula (VariableRep a)
   additionalLogic = SAT.Yes
 
@@ -142,11 +149,18 @@ pushVR cn i (Var vrs cn') = Var ((cn, i) : vrs) cn'
 variableSet :: (DeepHasDatatypeInfo a) => a -> Set (VariableRep a)
 variableSet = constructorsToVariables . unFlatPack . flatpack
 
-data Constructor = Cstr
-  { cstrName :: ConstructorName
-  , cstrFields :: [[Constructor]]
+data TwoTree a = TwoNode
+  { rootLabel :: a
+  , subForest :: [[TwoTree a]]
   }
-  deriving stock (Show)
+  deriving stock (Functor, Show)
+
+foldTwoTree :: (t -> [[b]] -> b) -> TwoTree t -> b
+foldTwoTree f = go
+  where
+    go (TwoNode x tss) = f x (map (map go) tss)
+
+type Constructor = TwoTree ConstructorName
 
 toConstructors :: forall a. (DeepHasDatatypeInfo a) => [Constructor]
 toConstructors = untag (toConstructors' @a)
@@ -160,7 +174,7 @@ toConstructors = untag (toConstructors' @a)
           . datatypeInfo
 
     constr :: forall xs. (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> K Constructor xs
-    constr ci = K $ Cstr (constructorName ci) (hcollapse $ aux @xs)
+    constr ci = K $ TwoNode (constructorName ci) (hcollapse $ aux @xs)
 
     aux :: forall xs. (All DeepHasDatatypeInfo xs) => NP (K [Constructor]) xs
     aux = hcpure (Proxy @DeepHasDatatypeInfo) constructorK
@@ -200,16 +214,16 @@ typeLogic = SAT.All . sumLogic $ toConstructors @a
     sumLogic :: [Constructor] -> [Formula (VariableRep a)]
     -- Only one of the constructors can be selected
     sumLogic cs =
-      SAT.ExactlyOne (map (rootVar . cstrName) cs) :
+      SAT.ExactlyOne (map (rootVar . rootLabel) cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
     prodLogic :: Constructor -> [Formula (VariableRep a)]
-    prodLogic (Cstr cn cs) =
+    prodLogic (TwoNode cn cs) =
       -- for each present constructor, apply 'sumLogic'
       [ rootVar cn :->: SAT.All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
       , -- for each absent constructor, none of the constructors of its fields can be selected
-        SAT.Not (rootVar cn) :->: SAT.None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . cstrName)) cs)
+        SAT.Not (rootVar cn) :->: SAT.None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . rootLabel)) cs)
       ]
 
     pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
@@ -236,20 +250,48 @@ typeLogic = SAT.All . sumLogic $ toConstructors @a
     rootVar :: ConstructorName -> Formula (VariableRep a)
     rootVar = SAT.Var . rootVarRep
 
+{- | Enumerate all the variables of a type.
+
+  = Examples
+
+  >>> allVariables @Bool
+  fromList [Var [] "GHC.Types.False",Var [] "GHC.Types.True"]
+
+  >>> allVariables @(Bool, Bool)
+  fromList
+  [ Var [] "GHC.Tuple.(,)"
+  , Var [("GHC.Tuple.(,)",0)] "GHC.Types.False"
+  , Var [("GHC.Tuple.(,)",0)] "GHC.Types.True"
+  , Var [("GHC.Tuple.(,)",1)] "GHC.Types.False"
+  , Var [("GHC.Tuple.(,)",1)] "GHC.Types.True"
+ ]
+
+ >>> allVariables @(Maybe Bool)
+ fromList
+  [ Var [] "GHC.Maybe.Just"
+  , Var [] "GHC.Maybe.Nothing"
+  , Var [("GHC.Maybe.Just",0)] "GHC.Types.False"
+  , Var [("GHC.Maybe.Just",0)] "GHC.Types.True"
+  ]
+-}
 allVariables :: forall a. (DeepHasDatatypeInfo a) => Set (VariableRep a)
-allVariables =
-  Set.unions
-    . map (constructorsToVariables . flattenConstructor)
-    $ toConstructors @a
+allVariables = Set.unions . map allVariables' $ toConstructors @a
   where
-    flattenConstructor :: Constructor -> Tree ConstructorName
-    flattenConstructor (Cstr cn flds) =
-      Node cn (map flattenConstructor . concat $ flds)
+    allVariables' :: Constructor -> Set (VariableRep a)
+    allVariables' =
+      foldTwoTree
+        ( \cn flds ->
+            Set.singleton (rootVarRep cn)
+              <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
+        )
 
 constructorsToVariables :: Tree ConstructorName -> Set (VariableRep a)
-constructorsToVariables (Node cn cs) =
-  Set.singleton (rootVarRep cn)
-    <> Set.unions (imap (\i -> Set.map (pushVR cn i) . constructorsToVariables) cs)
+constructorsToVariables =
+  foldTree
+    ( \cn flds ->
+        Set.singleton (rootVarRep cn)
+          <> Set.unions (imap (Set.map . pushVR cn) flds)
+    )
 
 qualifiedConstructorInfo :: (SListI xss) => DatatypeInfo xss -> NP ConstructorInfo xss
 qualifiedConstructorInfo di = hmap adjust (constructorInfo di)

@@ -12,6 +12,7 @@ import Apropos.Gen
 import Apropos.Gen.Enumerate (enumerate)
 import Apropos.HasLogicalModel (HasLogicalModel (properties))
 import Apropos.LogicalModel (
+  Enumerable,
   Formula,
   LogicalModel (scenarios),
   enumerateScenariosWhere,
@@ -39,7 +40,7 @@ runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
       properties m === s
 
 runGeneratorTestsWhere ::
-  HasParameterisedGenerator p m =>
+  (HasParameterisedGenerator p m, Enumerable p) =>
   String ->
   Formula p ->
   Group
@@ -83,7 +84,7 @@ enumerateGeneratorTest s =
       sequence_ (run <$> ms)
 
 enumerateGeneratorTestsWhere ::
-  HasParameterisedGenerator p m =>
+  (HasParameterisedGenerator p m, Enumerable p) =>
   String ->
   Formula p ->
   Group
@@ -93,7 +94,7 @@ enumerateGeneratorTestsWhere name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genSatisfying :: HasParameterisedGenerator p m => Formula p -> Gen m
+genSatisfying :: (HasParameterisedGenerator p m, Enumerable p) => Formula p -> Gen m
 genSatisfying f = do
   label $ fromString $ show f
   s <- element (enumerateScenariosWhere f)

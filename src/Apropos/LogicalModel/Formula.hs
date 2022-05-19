@@ -4,10 +4,13 @@
 module Apropos.LogicalModel.Formula (
   Formula (..),
   solveAll,
+  enumerateSolutions,
   satisfiable,
 ) where
 
-import Data.Map
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.Set (Set)
 import GHC.Generics (Generic)
 import SAT.MiniSat qualified as S
 
@@ -64,3 +67,6 @@ satisfiable = S.satisfiable . translateToSAT
 
 solveAll :: Ord v => Formula v -> [Map v Bool]
 solveAll = S.solve_all . translateToSAT
+
+enumerateSolutions :: (Ord p) => Formula p -> [Set p]
+enumerateSolutions f = Map.keysSet . Map.filter id <$> solveAll f

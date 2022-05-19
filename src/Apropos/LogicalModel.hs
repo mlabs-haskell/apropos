@@ -3,7 +3,6 @@ module Apropos.LogicalModel (
   Enumerable (..),
   enumerateScenariosWhere,
   satisfiesFormula,
-  enumerateSolutions,
   scenarioMap,
   module Apropos.LogicalModel.Formula,
   module Apropos.LogicalModel.Enumerable,
@@ -16,11 +15,12 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
+class (Eq p, Ord p, Show p) => LogicalModel p where
   logic :: Formula p
 
   scenarios :: [Set p]
-  scenarios = enumerateScenariosWhere (logic :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+  default scenarios :: (Enumerable p) => [Set p]
+  scenarios = enumerateScenariosWhere (logic :: Formula p)
 
   satisfiedBy :: [p]
   satisfiedBy = Set.toList $
@@ -31,7 +31,7 @@ class (Enumerable p, Eq p, Ord p, Show p) => LogicalModel p where
 scenarioMap :: LogicalModel p => Map Int (Set p)
 scenarioMap = Map.fromList $ zip [0 ..] scenarios
 
-enumerateScenariosWhere :: forall p. LogicalModel p => Formula p -> [Set p]
+enumerateScenariosWhere :: forall p. (Enumerable p, LogicalModel p) => Formula p -> [Set p]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPresentInFormula
   where
     allPresentInFormula :: Formula p
@@ -39,15 +39,7 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds :&&: allPr
     mention :: p -> Formula p
     mention p = Var p :||: Not (Var p)
 
-enumerateSolutions :: LogicalModel p => Formula p -> [Set p]
-enumerateSolutions f = fromSolution <$> solveAll f
-  where
-    fromSolution :: LogicalModel p => Map.Map p Bool -> Set p
-    fromSolution m = Set.fromList $ filter isInSet enumerated
-      where
-        isInSet k = Just True == Map.lookup k m
-
-satisfiesFormula :: forall p. Enumerable p => Formula p -> Set p -> Bool
+satisfiesFormula :: forall p. (Enumerable p) => Formula p -> Set p -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
   where
     set :: [p]

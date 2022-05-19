@@ -96,7 +96,7 @@ terminal = matches No
 forget :: Enumerable p => [p] -> Contract p ()
 forget = tell . pure . Forget . Set.fromList
 
-deduce :: LogicalModel p => [p] -> Contract p ()
+deduce :: (LogicalModel p, Enumerable p) => [p] -> Contract p ()
 deduce xs = forget xs >> matches logic
 
 -- TODO swap and toggle could be faster as primitive instructions
@@ -204,7 +204,7 @@ solveEdgesList c =
   , inprops /= outprops
   ]
 
-withLogic :: LogicalModel p => EdgeFormula p -> EdgeFormula p
+withLogic :: (Enumerable p, LogicalModel p) => EdgeFormula p -> EdgeFormula p
 withLogic e@EdgeFormula {form = f} =
   e
     { form =
@@ -217,10 +217,10 @@ withLogic e@EdgeFormula {form = f} =
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
 
-solveContractList :: LogicalModel p => Contract p () -> [(Set p, Set p)]
+solveContractList :: (Enumerable p, LogicalModel p) => Contract p () -> [(Set p, Set p)]
 solveContractList = solveEdgesList . withLogic . translateInstructions . toInstructions
 
-solveContract :: LogicalModel p => Contract p () -> Set (Set p, Set p)
+solveContract :: (Enumerable p, LogicalModel p) => Contract p () -> Set (Set p, Set p)
 solveContract = Set.fromList . solveContractList
 
 labelContract :: Ord b => (a -> b) -> Contract a () -> Contract b ()

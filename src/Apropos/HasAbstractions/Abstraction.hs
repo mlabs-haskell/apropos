@@ -47,7 +47,7 @@ infixr 9 :&
 
 data PAbs (l :: [(Type, Type)]) p m where
   Nil :: PAbs '[] p m
-  (:&) :: (HasParameterisedGenerator ap am, HasPermutationGenerator ap am) => ProductAbstraction ap am p m -> PAbs l p m -> PAbs ('(ap, am) ': l) p m
+  (:&) :: (HasParameterisedGenerator ap am, HasPermutationGenerator ap am, Enumerable ap, Enumerable p) => ProductAbstraction ap am p m -> PAbs l p m -> PAbs ('(ap, am) ': l) p m
 
 data ProductAbstraction ap am bp bm = ProductAbstraction
   { abstractionName :: String
@@ -127,7 +127,7 @@ abstractContract a = labelContract (review a)
 abstractLogicProduct :: forall bp bm ap am. LogicalModel ap => ProductAbstraction ap am bp bm -> Formula bp
 abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = (propAbs #) <$> logic
 
-abstractLogicSum :: forall bp bm ap am. LogicalModel ap => SumAbstraction ap am bp bm -> Formula bp
+abstractLogicSum :: forall bp bm ap am. (LogicalModel ap, Enumerable ap) => SumAbstraction ap am bp bm -> Formula bp
 abstractLogicSum SumAbstraction {propertyAbstraction = propAbs, propLabel = sumLabel} =
   (Var sumLabel :->: (propAbs #) <$> logic)
     :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> enumerated))

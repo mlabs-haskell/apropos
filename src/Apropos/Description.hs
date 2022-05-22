@@ -46,8 +46,8 @@ import Generics.SOP (
 
 import Data.Tagged (Tagged, unproxy, untag)
 
-import SAT.MiniSat (Formula ((:&&:), (:++:), (:->:), (:<->:), (:||:)))
-import SAT.MiniSat qualified as SAT
+import Apropos.Formula hiding (Var)
+import Apropos.Formula qualified as A
 
 {- | A type describing an object.
 
@@ -60,7 +60,7 @@ class Description a d | d -> a where
 
   -- | optionally add additional logic constraining valid description types
   additionalLogic :: Formula (VariableRep a)
-  additionalLogic = SAT.Yes
+  additionalLogic = Yes
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.
@@ -209,46 +209,28 @@ toConstructors = untag (toConstructors' @a)
  ]
 -}
 typeLogic :: forall a. (DeepHasDatatypeInfo a) => Formula (VariableRep a)
-typeLogic = SAT.All . sumLogic $ toConstructors @a
+typeLogic = All . sumLogic $ toConstructors @a
   where
     sumLogic :: [Constructor] -> [Formula (VariableRep a)]
     -- Only one of the constructors can be selected
     sumLogic cs =
-      SAT.ExactlyOne (map (rootVar . rootLabel) cs) :
+      ExactlyOne (map (rootVar . rootLabel) cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
     prodLogic :: Constructor -> [Formula (VariableRep a)]
     prodLogic (TwoNode cn cs) =
       -- for each present constructor, apply 'sumLogic'
-      [ rootVar cn :->: SAT.All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
+      [ rootVar cn :->: All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
       , -- for each absent constructor, none of the constructors of its fields can be selected
-        SAT.Not (rootVar cn) :->: SAT.None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . rootLabel)) cs)
+        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . rootLabel)) cs)
       ]
 
     pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
-    pushdownFormula cn i = mapFormula (pushVR cn i)
-
-    mapFormula :: (v -> v) -> Formula v -> Formula v
-    mapFormula f (SAT.Var v) = SAT.Var (f v)
-    mapFormula _ SAT.Yes = SAT.Yes
-    mapFormula _ SAT.No = SAT.No
-    mapFormula f (SAT.Not a) = SAT.Not (mapFormula f a)
-    mapFormula f (a :&&: b) = mapFormula f a :&&: mapFormula f b
-    mapFormula f (a :||: b) = mapFormula f a :||: mapFormula f b
-    mapFormula f (a :++: b) = mapFormula f a :++: mapFormula f b
-    mapFormula f (a :->: b) = mapFormula f a :->: mapFormula f b
-    mapFormula f (a :<->: b) = mapFormula f a :<->: mapFormula f b
-    mapFormula f (SAT.All fs) = SAT.All (map (mapFormula f) fs)
-    mapFormula f (SAT.Some fs) = SAT.Some (map (mapFormula f) fs)
-    mapFormula f (SAT.None fs) = SAT.None (map (mapFormula f) fs)
-    mapFormula f (SAT.ExactlyOne fs) = SAT.ExactlyOne (map (mapFormula f) fs)
-    mapFormula f (SAT.AtMostOne fs) = SAT.AtMostOne (map (mapFormula f) fs)
-    mapFormula f (SAT.Let a f') = SAT.Let (mapFormula f a) f'
-    mapFormula _ (SAT.Bound i) = SAT.Bound i
+    pushdownFormula cn i = fmap (pushVR cn i)
 
     rootVar :: ConstructorName -> Formula (VariableRep a)
-    rootVar = SAT.Var . rootVarRep
+    rootVar = A.Var . rootVarRep
 
 {- | Enumerate all the variables of a type.
 

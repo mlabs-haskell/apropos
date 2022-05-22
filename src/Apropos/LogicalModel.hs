@@ -4,12 +4,12 @@ module Apropos.LogicalModel (
   enumerateScenariosWhere,
   satisfiesFormula,
   scenarioMap,
-  module Apropos.LogicalModel.Formula,
+  module Apropos.Formula,
   module Apropos.LogicalModel.Enumerable,
 ) where
 
 import Apropos.LogicalModel.Enumerable
-import Apropos.LogicalModel.Formula
+import Apropos.Formula
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
@@ -20,7 +20,7 @@ class (Eq p, Ord p, Show p) => LogicalModel p where
 
   scenarios :: [Set p]
   default scenarios :: (Enumerable p) => [Set p]
-  scenarios = enumerateScenariosWhere (logic :: Formula p)
+  scenarios = enumerateScenariosWhere Yes
 
   satisfiedBy :: [p]
   satisfiedBy = Set.toList $

@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Apropos.LogicalModel.Formula (
+module Apropos.Formula (
   Formula (..),
   solveAll,
   enumerateSolutions,

@@ -40,7 +40,7 @@ import Apropos.HasPermutationGenerator (
   (&&&),
  )
 import Apropos.LogicalModel (Enumerable, LogicalModel (logic))
-import Apropos.LogicalModel.Formula
+import Apropos.Formula
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 

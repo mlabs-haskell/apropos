@@ -9,7 +9,7 @@ module Apropos.HasPermutationGenerator.Morphism (
 ) where
 
 import Apropos.Gen
-import Apropos.HasLogicalModel
+import Apropos.LogicalModel.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.LogicalModel
 import Control.Monad (unless, (>=>))

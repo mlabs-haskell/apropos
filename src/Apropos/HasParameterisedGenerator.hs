@@ -10,7 +10,7 @@ module Apropos.HasParameterisedGenerator (
 
 import Apropos.Gen
 import Apropos.Gen.Enumerate (enumerate)
-import Apropos.HasLogicalModel (HasLogicalModel (properties))
+import Apropos.LogicalModel.HasLogicalModel (HasLogicalModel (properties))
 import Apropos.LogicalModel (
   Enumerable,
   Formula,

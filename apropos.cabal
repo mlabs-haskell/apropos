@@ -82,7 +82,7 @@ library
     Apropos.Gen.Range
     Apropos.HasAbstractions
     Apropos.HasAbstractions.Abstraction
-    Apropos.HasLogicalModel
+    Apropos.LogicalModel.HasLogicalModel
     Apropos.HasParameterisedGenerator
     Apropos.HasPermutationGenerator
     Apropos.HasPermutationGenerator.Contract

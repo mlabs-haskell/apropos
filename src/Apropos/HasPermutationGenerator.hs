@@ -21,7 +21,7 @@ import Apropos.Gen.BacktrackingTraversal (
   Traversal (FromSource, Traversal),
   traversalInGen,
  )
-import Apropos.HasLogicalModel (HasLogicalModel (properties, satisfiesExpression))
+import Apropos.LogicalModel.HasLogicalModel (HasLogicalModel (properties, satisfiesExpression))
 import Apropos.HasPermutationGenerator.Contract (
   matches,
   solveContract,

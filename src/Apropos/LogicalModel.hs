@@ -8,8 +8,8 @@ module Apropos.LogicalModel (
   module Apropos.LogicalModel.Enumerable,
 ) where
 
-import Apropos.LogicalModel.Enumerable
 import Apropos.Formula
+import Apropos.LogicalModel.Enumerable
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)

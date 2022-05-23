@@ -16,6 +16,7 @@ module Apropos.HasAbstractions (
   abstractsProperties,
 ) where
 
+import Apropos.Formula
 import Apropos.Gen
 import Apropos.HasAbstractions.Abstraction (
   Constructor,
@@ -40,7 +41,6 @@ import Apropos.HasPermutationGenerator (
   (&&&),
  )
 import Apropos.LogicalModel (Enumerable, LogicalModel (logic))
-import Apropos.Formula
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 

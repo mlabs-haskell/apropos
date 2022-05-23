@@ -96,7 +96,7 @@ module Apropos (
 import Apropos.Gen
 import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasAbstractions
-import Apropos.HasLogicalModel
+import Apropos.LogicalModel.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract

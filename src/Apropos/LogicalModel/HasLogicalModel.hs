@@ -1,4 +1,4 @@
-module Apropos.HasLogicalModel (
+module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
 ) where
 

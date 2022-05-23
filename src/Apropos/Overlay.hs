@@ -6,7 +6,7 @@ module Apropos.Overlay (
 ) where
 
 import Apropos.Error
-import Apropos.HasLogicalModel
+import Apropos.LogicalModel.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Source
 import Apropos.LogicalModel

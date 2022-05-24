@@ -16,7 +16,7 @@ module Apropos.HasAbstractions (
   abstractsProperties,
 ) where
 
-import Apropos.Formula
+import Apropos.Logic
 import Apropos.Gen
 import Apropos.HasAbstractions.Abstraction (
   Constructor,
@@ -40,11 +40,11 @@ import Apropos.HasPermutationGenerator (
   Source (Source, covers, sourceName),
   (&&&),
  )
-import Apropos.LogicalModel (Enumerable, LogicalModel (logic))
+import Apropos.LogicalModel (Enumerable)
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 
-class LogicalModel p => HasAbstractions p m | p -> m where
+class (Strategy p m) => HasAbstractions p m | p -> m where
   sumAbstractions :: [SumAbstractionFor p m]
   sumAbstractions = []
   productAbstractions :: [ProductAbstractionFor p m]
@@ -94,7 +94,7 @@ abstractionMorphisms =
       sumAbstractionMorphism = join [abstractSum abstraction <$> generators | SuAs abstraction <- sumAbstractions @p @m]
    in productAbstractionMorphisms ++ sumAbstractionMorphism
 
-abstractionSources :: forall p m. HasAbstractions p m => [Source p m]
+abstractionSources :: forall p m. (Ord p, HasAbstractions p m) => [Source p m]
 abstractionSources = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa <- sumAbstractions, s <- sources]
 
 {- | Product types with additional logic sometimes need to include parallel morphisms
@@ -117,10 +117,10 @@ abstractionLogic =
   All [abstractLogicProduct @p @m abstraction | PAs abstraction <- productAbstractions @p @m]
     :&&: All [abstractLogicSum @p @m abstraction | SuAs abstraction <- sumAbstractions @p @m]
 
-sourcesFromSourceAbstractions :: HasAbstractions p m => [Source p m]
+sourcesFromSourceAbstractions :: (Ord p, HasAbstractions p m) => [Source p m]
 sourcesFromSourceAbstractions = join [sourcesFromAbstraction a | SoAs a <- sourceAbstractions]
 
-sourcesFromAbstraction :: LogicalModel p => SourceAbstraction l p m -> [Source p m]
+sourcesFromAbstraction :: (Ord p, Strategy p m) => SourceAbstraction l p m -> [Source p m]
 sourcesFromAbstraction (SourceAbstraction sname con pabs) = do
   s <- withSources (pure con) pabs
   guard $ satisfiable (logic :&&: covers s) -- remove sources which can never be used

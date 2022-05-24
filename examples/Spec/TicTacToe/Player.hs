@@ -4,6 +4,7 @@ module Spec.TicTacToe.Player (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -26,28 +27,28 @@ instance HasLogicalModel PlayerProperty Int where
   satisfiesProperty PlayerIsInvalid player =
     not (satisfiesAny [PlayerIsX, PlayerIsO] player)
 
-instance HasPermutationGenerator PlayerProperty Int where
+instance HasPermutationGenerator (Prop PlayerProperty) Int where
   sources =
     [ Source
         { sourceName = "X"
-        , covers = Var PlayerIsX
+        , covers = Var (Prop PlayerIsX)
         , gen = pure 1
         }
     , Source
         { sourceName = "O"
-        , covers = Var PlayerIsO
+        , covers = Var (Prop PlayerIsO)
         , gen = pure 0
         }
     , Source
         { sourceName = "invalid"
-        , covers = Var PlayerIsInvalid
+        , covers = Var (Prop PlayerIsInvalid)
         , gen =
             genFilter (\i -> i `notElem` [0, 1]) $
               int (linear minBound maxBound)
         }
     ]
 
-instance HasParameterisedGenerator PlayerProperty Int where
+instance HasParameterisedGenerator (Prop PlayerProperty) Int where
   parameterisedGenerator = buildGen
 
 playerPermutationGenSelfTest :: TestTree
@@ -55,4 +56,4 @@ playerPermutationGenSelfTest =
   testGroup "playerPermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @PlayerProperty
+        permutationGeneratorSelfTest @(Prop PlayerProperty)

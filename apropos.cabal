@@ -90,7 +90,7 @@ library
     Apropos.HasPermutationGenerator.Source
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
-    Apropos.Formula
+    Apropos.Logic
     Apropos.Overlay
     Apropos.Pure
 

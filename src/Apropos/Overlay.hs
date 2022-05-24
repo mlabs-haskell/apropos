@@ -6,20 +6,20 @@ module Apropos.Overlay (
 ) where
 
 import Apropos.Error
-import Apropos.LogicalModel.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Source
-import Apropos.LogicalModel
+import Apropos.Logic (Formula(..), Strategy(logic), solveAll, scenarios, satisfiesExpression)
+import Apropos.LogicalModel hiding (logic)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Hedgehog (Property, failure, footnote, property)
 
-class (LogicalModel op, LogicalModel sp) => Overlay op sp | op -> sp where
+class (Strategy op o, Strategy sp s) => Overlay op sp o s | op -> sp where
   overlays :: op -> Formula sp
 
-soundOverlay :: forall op sp. (Overlay op sp, Enumerable op) => Property
+soundOverlay :: forall op sp o s. (Ord sp, Show sp, Show op, Overlay op sp o s, Enumerable op) => Property
 soundOverlay = property $
   case solveAll (antiValidity @op @sp) of
     (violation : _) -> do
@@ -38,11 +38,11 @@ soundOverlay = property $
         failure
       [] -> pure ()
 
-conectingLogic :: (Overlay op sp, Enumerable op) => Formula (Either op sp)
+conectingLogic :: (Overlay op sp o p, Enumerable op) => Formula (Either op sp)
 conectingLogic = All [Var (Left op) :<->: (Right <$> overlays op) | op <- enumerated]
 
 -- we want to assure: conectingLogic => (Left <$> logic) === (Right <$> logic)
-antiValidity :: (Overlay op sp, Enumerable op) => Formula (Either op sp)
+antiValidity :: (Overlay op sp o p, Enumerable op) => Formula (Either op sp)
 antiValidity =
   let overlayLogic = Left <$> logic
       subModelLogic = Right <$> logic
@@ -50,7 +50,7 @@ antiValidity =
 
 -- list of solutions to the overlay logic which have no coresponding solutions in the sub-model
 -- if this is not empty that is considered unsound
-emptyOverlays :: forall sp op. (Overlay op sp, Enumerable op) => [Set op]
+emptyOverlays :: forall sp op o s. (Ord sp, Overlay op sp o s, Enumerable op) => [Set op]
 emptyOverlays =
   let sols :: [Map op Bool]
       sols = solveAll (logic :: Formula op)
@@ -63,7 +63,7 @@ emptyOverlays =
 
 -- list of sub model solutions that aren't covered by any solutions to the overlaying model
 -- if this is not empty that is also unsound
-uncoveredSubSolutions :: forall sp op. (Overlay op sp, Enumerable op) => [Set sp]
+uncoveredSubSolutions :: forall sp op s o. (Ord sp, Overlay op sp o s, Enumerable op) => [Set sp]
 uncoveredSubSolutions =
   let sols :: [Map sp Bool]
       sols = solveAll (logic :: Formula sp)
@@ -74,7 +74,7 @@ uncoveredSubSolutions =
                                               (Right <$> form) :&&: (Left <$> logic @op) :&&: conectingLogic
       ]
 
-overlaySources :: (Overlay p op, HasParameterisedGenerator op m, Enumerable p, Enumerable op) => [Source p m]
+overlaySources :: (Ord op, Show op, Overlay p op o m, HasParameterisedGenerator op m, Enumerable p) => [Source p m]
 overlaySources =
   [ Source
     { sourceName = "overlay"
@@ -84,5 +84,5 @@ overlaySources =
   | ps <- scenarios
   ]
 
-deduceFromOverlay :: (HasLogicalModel sp m, Overlay op sp) => op -> m -> Bool
+deduceFromOverlay :: (Ord sp, Strategy sp m, Overlay op sp o s) => op -> m -> Bool
 deduceFromOverlay = satisfiesExpression . overlays

@@ -21,7 +21,6 @@ import Apropos.Gen.BacktrackingTraversal (
   Traversal (FromSource, Traversal),
   traversalInGen,
  )
-import Apropos.LogicalModel.HasLogicalModel (HasLogicalModel (properties, satisfiesExpression))
 import Apropos.HasPermutationGenerator.Contract (
   matches,
   solveContract,
@@ -36,12 +35,16 @@ import Apropos.HasPermutationGenerator.Source (
   Source (..),
   wrapSourceWithCheck,
  )
+import Apropos.Logic (
+  Formula (..),
+  solveAll,
+  scenarios,
+  Strategy(variablesSet, logic),
+  satisfiesExpression,
+  )
 import Apropos.LogicalModel (
   Enumerable,
-  Formula (..),
-  LogicalModel (logic, scenarios),
   enumerated,
-  solveAll,
  )
 import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
@@ -72,7 +75,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
   generators = []
 
@@ -85,7 +88,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms = False
 
   permutationValidity :: Maybe (String, PropertyT IO ())
-  default permutationValidity :: (Enumerable p) => Maybe (String, PropertyT IO ())
+  default permutationValidity :: (Enumerable p, Show p) => Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -110,7 +113,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           (Nothing, Nothing) -> Nothing
 
   permutationGeneratorSelfTest :: Group
-  default permutationGeneratorSelfTest :: (Enumerable p) => Group
+  default permutationGeneratorSelfTest :: (Enumerable p, Show p) => Group
   permutationGeneratorSelfTest =
     case permutationValidity @p of
       Just (label, prop) -> Group "permutationValidity test" [(fromString label, property prop)]
@@ -132,6 +135,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     (Set p, Set p) ->
     Morphism p m ->
     Property
+  default testEdge ::
+    (Eq p, Show p) =>
+    (Set p, Set p) ->
+    Morphism p m ->
+    Property
   testEdge (inprops, outprops) m =
     property $
       errorHandler
@@ -141,6 +149,10 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           )
 
   testSource ::
+    Source p m ->
+    Property
+  default testSource ::
+    (Show p, Ord p) =>
     Source p m ->
     Property
   testSource source =
@@ -156,11 +168,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                     ++ "\nmodel was: "
                     ++ show m
                     ++ "\nprops were: "
-                    ++ show (properties @p m)
+                    ++ show (variablesSet @p m)
           )
 
   buildGen :: Set p -> Gen m
-  default buildGen :: (Enumerable p) => Set p -> Gen m
+  default buildGen :: (Show p, Enumerable p) => Set p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -176,7 +188,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           sourceNode <- element viableSources
           fromMaybe (internalError "lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
     let morphismGen model = do
-          let sourceNode = properties model
+          let sourceNode = variablesSet model
               viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
           unless (sourceNode `elem` viableSources) $
             case unconectedSource @p of
@@ -211,7 +223,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   choseMorphism ::
     [(Set p, Set p)] ->
     Gen [Morphism p m]
-  default choseMorphism :: (Enumerable p) => [(Set p, Set p)] -> Gen [Morphism p m]
+  default choseMorphism :: (Enumerable p, Show p) => [(Set p, Set p)] -> Gen [Morphism p m]
   choseMorphism es = sequence $ go <$> es
     where
       go :: (Set p, Set p) -> Gen (Morphism p m)
@@ -225,13 +237,13 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           Just so -> pure so
         element pe
 
-  buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
+  buildGraph :: (Ord p, Strategy p m) => Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
     let edges = Map.keys pedges
      in foldr insertVertex (fromEdges edges) scenarios
 
   findSources :: Map (Set p) (Gen m)
-  default findSources :: (Enumerable p) => Map (Set p) (Gen m)
+  default findSources :: (Show p, Enumerable p) => Map (Set p) (Gen m)
   findSources =
     -- chose randomly for overlapping sources
     Map.map choice $
@@ -259,7 +271,7 @@ pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
-unreachableNode :: (Hashable p, LogicalModel p) => [Set p] -> ShortestPathCache (Set p) -> Maybe (Set p)
+unreachableNode :: (Ord p, Hashable p, Strategy p m) => [Set p] -> ShortestPathCache (Set p) -> Maybe (Set p)
 unreachableNode sourceNodes cache =
   listToMaybe $
     [ps | ps <- scenarios, not $ any (\s -> reachable cache s ps) sourceNodes]

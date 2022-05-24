@@ -4,8 +4,7 @@ module Apropos.HasPermutationGenerator.Source (
 ) where
 
 import Apropos.Gen
-import Apropos.LogicalModel.HasLogicalModel (HasLogicalModel (properties), satisfiesExpression)
-import Apropos.LogicalModel (Formula)
+import Apropos.Logic (Formula, Strategy(variablesSet), satisfiesExpression,)
 import Control.Monad (unless)
 import Data.Set (Set)
 
@@ -15,7 +14,7 @@ data Source p m = Source
   , gen :: Gen m
   }
 
-wrapSourceWithCheck :: forall p m. (Show m, HasLogicalModel p m) => Source p m -> Source p m
+wrapSourceWithCheck :: forall p m. (Show m, Ord p, Show p, Strategy p m) => Source p m -> Source p m
 wrapSourceWithCheck s = s {gen = wraped}
   where
     wraped :: Gen m
@@ -28,7 +27,7 @@ wrapSourceWithCheck s = s {gen = wraped}
             ++ "\nmodel was:"
             ++ show m
             ++ "\nproperties were:"
-            ++ show (properties m :: Set p)
+            ++ show (variablesSet m :: Set p)
             ++ "\ncover was:"
             ++ show (covers s)
       pure m

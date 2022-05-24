@@ -28,7 +28,7 @@ import Apropos.HasPermutationGenerator.Contract (
   Contract,
   labelContract,
  )
-import Apropos.LogicalModel (Formula (..), LogicalModel (logic))
+import Apropos.Logic (Formula (..), Strategy(logic))
 import Apropos.LogicalModel.Enumerable
 import Control.Lens (Lens', Prism', prism', review, (#))
 import Data.Kind (Type)
@@ -124,10 +124,10 @@ abstractsProperties injection = prism' injection (computeProjection injection)
 abstractContract :: Ord b => Prism' b a -> Contract a () -> Contract b ()
 abstractContract a = labelContract (review a)
 
-abstractLogicProduct :: forall bp bm ap am. LogicalModel ap => ProductAbstraction ap am bp bm -> Formula bp
+abstractLogicProduct :: forall bp bm ap am. (Strategy ap am) => ProductAbstraction ap am bp bm -> Formula bp
 abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = (propAbs #) <$> logic
 
-abstractLogicSum :: forall bp bm ap am. (LogicalModel ap, Enumerable ap) => SumAbstraction ap am bp bm -> Formula bp
+abstractLogicSum :: forall bp bm ap am. (Enumerable ap, Strategy ap am) => SumAbstraction ap am bp bm -> Formula bp
 abstractLogicSum SumAbstraction {propertyAbstraction = propAbs, propLabel = sumLabel} =
   (Var sumLabel :->: (propAbs #) <$> logic)
     :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> enumerated))

@@ -1,10 +1,13 @@
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
+  Prop(Prop, unProp),
 ) where
 
-import Apropos.LogicalModel
+import Apropos.Logic as L
+import Apropos.LogicalModel as LM
 import Data.Set (Set)
 import Data.Set qualified as Set
+import Data.Hashable(Hashable)
 
 class (LogicalModel p) => HasLogicalModel p m | p -> m where
   satisfiesProperty :: p -> m -> Bool
@@ -13,9 +16,22 @@ class (LogicalModel p) => HasLogicalModel p m | p -> m where
   satisfiesAny ps m = or (flip satisfiesProperty m <$> ps)
   satisfiesAll :: [p] -> m -> Bool
   satisfiesAll ps m = and (flip satisfiesProperty m <$> ps)
-  satisfiesExpression :: Formula p -> m -> Bool
-  default satisfiesExpression :: (Enumerable p) => Formula p -> m -> Bool
-  satisfiesExpression f m = satisfiesFormula f (properties m)
   properties :: m -> Set p
   default properties :: (Enumerable p) => m -> Set p
   properties x = Set.fromList $ filter (`satisfiesProperty` x) enumerated
+
+newtype Prop p = Prop { unProp :: p }
+  deriving stock (Eq, Ord, Show)
+  deriving (Enumerable, Hashable) via p
+
+instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
+  logic = Prop <$> (LM.logic :&&: allPresentInFormula)
+    where
+      allPresentInFormula :: Formula p
+      allPresentInFormula = All (mention <$> (enumerated :: [p]))
+      mention :: p -> Formula p
+      mention p = Var p :||: Not (Var p)
+
+  universe = enumerated
+
+  variablesSet = Set.map Prop . properties

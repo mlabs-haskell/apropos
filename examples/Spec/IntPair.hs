@@ -6,6 +6,8 @@ module Spec.IntPair (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
+
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
@@ -14,44 +16,44 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data IntPairProp
-  = L IntProp
-  | R IntProp
+  = L (Prop IntProp)
+  | R (Prop IntProp)
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntPairProp where
-  logic = abstractionLogic @(Int, Int)
+  logic = unProp <$> abstractionLogic @(Int, Int) @(Prop IntPairProp)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
-  satisfiesProperty (L p) (i, _) = satisfiesProperty p i
-  satisfiesProperty (R p) (_, i) = satisfiesProperty p i
+  satisfiesProperty (L (Prop p)) (i, _) = satisfiesProperty p i
+  satisfiesProperty (R (Prop p)) (_, i) = satisfiesProperty p i
 
-instance HasAbstractions IntPairProp (Int, Int) where
+instance HasAbstractions (Prop IntPairProp) (Int, Int) where
   sourceAbstractions =
     [ SoAs $
         SourceAbstraction
           { sourceAbsName = "make pair"
           , constructor = (,)
           , productAbs =
-              ProductAbstraction
+              ProductAbstraction 
                 { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties L
+                , propertyAbstraction = abstractsProperties (Prop . L)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties R
+                  , propertyAbstraction = abstractsProperties (Prop . R)
                   , productModelAbstraction = _2
                   }
                 :& Nil
           }
     ]
 
-instance HasPermutationGenerator IntPairProp (Int, Int) where
+instance HasPermutationGenerator (Prop IntPairProp) (Int, Int) where
   sources = abstractionSources
   generators = abstractionMorphisms
 
-instance HasParameterisedGenerator IntPairProp (Int, Int) where
+instance HasParameterisedGenerator (Prop IntPairProp) (Int, Int) where
   parameterisedGenerator = buildGen
 
 intPairGenTests :: TestTree
@@ -60,18 +62,18 @@ intPairGenTests =
     fromGroup
       <$> [ runGeneratorTestsWhere
               "(Int,Int) Generator"
-              (Yes @IntPairProp)
+              (Yes @(Prop IntPairProp))
           ]
 
-intPairGenPureRunner :: PureRunner IntPairProp (Int, Int)
+intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
 intPairGenPureRunner =
   PureRunner
     { expect =
-        All $
+        fmap Prop . All $
           Var
             <$> join
-              [ L <$> [IsSmall, IsNegative]
-              , R <$> [IsSmall, IsPositive]
+              [ L . Prop <$> [IsSmall, IsNegative]
+              , R . Prop <$> [IsSmall, IsPositive]
               ]
     , script = \(l, r) -> l < 0 && l >= -10 && r > 0 && r <= 10
     }
@@ -83,7 +85,7 @@ intPairGenPureTests =
       <$> [ runPureTestsWhere
               intPairGenPureRunner
               "AcceptsLeftSmallNegativeRightSmallPositive"
-              (Yes @IntPairProp)
+              (Yes @(Prop IntPairProp))
           ]
 
 intPairGenSelfTests :: TestTree
@@ -91,4 +93,4 @@ intPairGenSelfTests =
   testGroup "intPairGenSelfTests" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @IntPairProp
+        permutationGeneratorSelfTest @(Prop IntPairProp)

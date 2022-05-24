@@ -9,7 +9,7 @@ module Apropos.Pure (
 import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasParameterisedGenerator
-import Apropos.LogicalModel
+import Apropos.Logic (Formula(..), satisfiesFormula, enumerateScenariosWhere)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -20,14 +20,14 @@ data PureRunner p m = PureRunner
   , script :: m -> Bool
   }
 
-runPureTest :: forall p m. (HasParameterisedGenerator p m, Enumerable p) => PureRunner p m -> Set p -> Property
+runPureTest :: forall p m. (Ord p, HasParameterisedGenerator p m) => PureRunner p m -> Set p -> Property
 runPureTest runner s = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
       (m :: m) <- parameterisedGenerator s
       satisfiesFormula (expect runner) s === script runner m
 
-runPureTestsWhere :: forall p m. (HasParameterisedGenerator p m, Enumerable p) => PureRunner p m -> String -> Formula p -> Group
+runPureTestsWhere :: forall p m. (Show p, Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
 runPureTestsWhere runner name condition =
   Group (fromString name) $
     [ ( fromString $ show $ Set.toList scenario
@@ -36,7 +36,7 @@ runPureTestsWhere runner name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-enumeratePureTest :: forall p m. (HasParameterisedGenerator p m, Enumerable p) => PureRunner p m -> Set p -> Property
+enumeratePureTest :: forall p m. (Ord p, HasParameterisedGenerator p m) => PureRunner p m -> Set p -> Property
 enumeratePureTest runner s = withTests (1 :: TestLimit) $ property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
@@ -44,7 +44,7 @@ enumeratePureTest runner s = withTests (1 :: TestLimit) $ property $ runGenModif
           run m = satisfiesFormula (expect runner) s === script runner m
       sequence_ (run <$> ms)
 
-enumeratePureTestsWhere :: forall p m. (HasParameterisedGenerator p m, Enumerable p) => PureRunner p m -> String -> Formula p -> Group
+enumeratePureTestsWhere :: forall p m. (Show p, Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
 enumeratePureTestsWhere runner name condition =
   Group (fromString name) $
     [ ( fromString $ show $ Set.toList scenario

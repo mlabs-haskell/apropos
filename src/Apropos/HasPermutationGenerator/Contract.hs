@@ -27,11 +27,14 @@ module Apropos.HasPermutationGenerator.Contract (
   toggle,
 ) where
 
+import Apropos.Logic (
+  Formula (..),
+  Strategy (..),
+  solveAll,
+  )
+
 import Apropos.LogicalModel (
   Enumerable (..),
-  Formula (..),
-  LogicalModel (logic),
-  solveAll,
  )
 import Control.Monad.Writer (Writer, execWriter, tell)
 import Data.Map (Map)
@@ -96,7 +99,7 @@ terminal = matches No
 forget :: Enumerable p => [p] -> Contract p ()
 forget = tell . pure . Forget . Set.fromList
 
-deduce :: (LogicalModel p, Enumerable p) => [p] -> Contract p ()
+deduce :: (Enumerable p, Strategy p m) => [p] -> Contract p ()
 deduce xs = forget xs >> matches logic
 
 -- TODO swap and toggle could be faster as primitive instructions
@@ -204,7 +207,7 @@ solveEdgesList c =
   , inprops /= outprops
   ]
 
-withLogic :: (Enumerable p, LogicalModel p) => EdgeFormula p -> EdgeFormula p
+withLogic :: (Enumerable p, Strategy p m) => EdgeFormula p -> EdgeFormula p
 withLogic e@EdgeFormula {form = f} =
   e
     { form =
@@ -217,10 +220,10 @@ withLogic e@EdgeFormula {form = f} =
 solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
 
-solveContractList :: (Enumerable p, LogicalModel p) => Contract p () -> [(Set p, Set p)]
+solveContractList :: (Enumerable p, Strategy p m) => Contract p () -> [(Set p, Set p)]
 solveContractList = solveEdgesList . withLogic . translateInstructions . toInstructions
 
-solveContract :: (Enumerable p, LogicalModel p) => Contract p () -> Set (Set p, Set p)
+solveContract :: (Enumerable p, Strategy p m) => Contract p () -> Set (Set p, Set p)
 solveContract = Set.fromList . solveContractList
 
 labelContract :: Ord b => (a -> b) -> Contract a () -> Contract b ()

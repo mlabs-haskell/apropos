@@ -4,6 +4,7 @@ module Spec.TicTacToe.Location (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -21,16 +22,16 @@ instance HasLogicalModel LocationProperty Int where
   satisfiesProperty LocationIsOutOfBounds location =
     not (satisfiesProperty LocationIsWithinBounds location)
 
-instance HasPermutationGenerator LocationProperty Int where
+instance HasPermutationGenerator (Prop LocationProperty) Int where
   sources =
     [ Source
         { sourceName = "in bounds"
-        , covers = Var LocationIsWithinBounds
+        , covers = Var (Prop LocationIsWithinBounds)
         , gen = int (linear 0 8)
         }
     , Source
         { sourceName = "out of bounds"
-        , covers = Var LocationIsOutOfBounds
+        , covers = Var (Prop LocationIsOutOfBounds)
         , gen =
             choice
               [ int (linear minBound (-1))
@@ -39,7 +40,7 @@ instance HasPermutationGenerator LocationProperty Int where
         }
     ]
 
-instance HasParameterisedGenerator LocationProperty Int where
+instance HasParameterisedGenerator (Prop LocationProperty) Int where
   parameterisedGenerator = buildGen
 
 locationPermutationGenSelfTest :: TestTree
@@ -47,4 +48,4 @@ locationPermutationGenSelfTest =
   testGroup "locationPermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @LocationProperty
+        permutationGeneratorSelfTest @(Prop LocationProperty)

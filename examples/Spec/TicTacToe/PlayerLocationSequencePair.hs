@@ -3,7 +3,8 @@ module Spec.TicTacToe.PlayerLocationSequencePair (
   playerLocationSequencePairPermutationGenSelfTest,
 ) where
 
-import Apropos
+import Apropos as A
+import Apropos.LogicalModel as LM
 import Control.Lens.Tuple (_1, _2)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
@@ -11,36 +12,36 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data PlayerLocationSequencePairProperty
-  = PlayerLocationSequencePairLocation LocationSequenceProperty
-  | PlayerLocationSequencePairPlayer PlayerSequenceProperty
+  = PlayerLocationSequencePairLocation (Prop LocationSequenceProperty)
+  | PlayerLocationSequencePairPlayer (Prop PlayerSequenceProperty)
   | PlayerLocationSequencePairLengthsAreEqual
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =
-    (PlayerLocationSequencePairLocation <$> logic)
-      :&&: (PlayerLocationSequencePairPlayer <$> logic)
+    (PlayerLocationSequencePairLocation <$> A.logic)
+      :&&: (PlayerLocationSequencePairPlayer <$> A.logic)
       :&&: Var PlayerLocationSequencePairLengthsAreEqual
       :&&: ( Var PlayerLocationSequencePairLengthsAreEqual
               :<->: All
-                [ Var (PlayerLocationSequencePairLocation LocationSequenceIsNull)
-                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceNull)
-                , Var (PlayerLocationSequencePairLocation LocationSequenceIsSingleton)
-                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceSingleton)
-                , Var (PlayerLocationSequencePairLocation LocationSequenceIsLongerThanGame)
-                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceIsLongerThanGame)
+                [ Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsNull))
+                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceNull))
+                , Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsSingleton))
+                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceSingleton))
+                , Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsLongerThanGame))
+                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceIsLongerThanGame))
                 ]
            )
 
 instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
-  satisfiesProperty (PlayerLocationSequencePairLocation prop) mseq =
+  satisfiesProperty (PlayerLocationSequencePairLocation (Prop prop)) mseq =
     satisfiesProperty prop (snd mseq)
-  satisfiesProperty (PlayerLocationSequencePairPlayer prop) mseq =
+  satisfiesProperty (PlayerLocationSequencePairPlayer (Prop prop)) mseq =
     satisfiesProperty prop (fst mseq)
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
-instance HasAbstractions PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasAbstractions (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
   sourceAbstractions =
     [ SoAs $
         SourceAbstraction
@@ -49,23 +50,23 @@ instance HasAbstractions PlayerLocationSequencePairProperty ([Int], [Int]) where
           , productAbs =
               ProductAbstraction
                 { abstractionName = ""
-                , propertyAbstraction = abstractsProperties PlayerLocationSequencePairPlayer
+                , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairPlayer)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = ""
-                  , propertyAbstraction = abstractsProperties PlayerLocationSequencePairLocation
+                  , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairLocation)
                   , productModelAbstraction = _2
                   }
                 :& Nil
           }
     ]
 
-instance HasPermutationGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasPermutationGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
   sources = abstractionSources
   generators = abstractionMorphisms ++ parallelAbstractionMorphisms
 
-instance HasParameterisedGenerator PlayerLocationSequencePairProperty ([Int], [Int]) where
+instance HasParameterisedGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
   parameterisedGenerator = buildGen
 
 playerLocationSequencePairPermutationGenSelfTest :: TestTree
@@ -73,4 +74,4 @@ playerLocationSequencePairPermutationGenSelfTest =
   testGroup "playerLocationSequencePairPermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @PlayerLocationSequencePairProperty
+        permutationGeneratorSelfTest @(Prop PlayerLocationSequencePairProperty)

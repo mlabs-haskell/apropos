@@ -46,8 +46,8 @@ import Generics.SOP (
 
 import Data.Tagged (Tagged, unproxy, untag)
 
-import Apropos.Formula hiding (Var)
-import Apropos.Formula qualified as A
+import Apropos.Logic hiding (Var)
+import Apropos.Logic qualified as A
 
 {- | A type describing an object.
 
@@ -285,3 +285,10 @@ qualifiedConstructorInfo di = hmap adjust (constructorInfo di)
 
     qualify :: ConstructorName -> ConstructorName
     qualify cn = moduleName di ++ "." ++ cn
+
+instance (DeepHasDatatypeInfo a) => Strategy (VariableRep a) a where
+  logic = typeLogic
+
+  universe = Set.toList allVariables
+
+  variablesSet = variableSet

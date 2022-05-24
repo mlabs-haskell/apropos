@@ -1,6 +1,7 @@
 module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, intPureRunner) where
 
 import Apropos
+import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -32,21 +33,21 @@ instance HasLogicalModel IntProp Int where
   satisfiesProperty IsLarge i = i > 10 || i < -10
   satisfiesProperty IsSmall i = i <= 10 && i >= -10
 
-instance HasParameterisedGenerator IntProp Int where
+instance HasParameterisedGenerator (Prop IntProp) Int where
   parameterisedGenerator s = do
     i <-
-      if IsZero `elem` s
+      if Prop IsZero `elem` s
         then pure 0
         else
-          if IsSmall `elem` s
+          if Prop IsSmall `elem` s
             then int (linear 1 10)
             else
-              if IsMaxBound `elem` s
+              if Prop IsMaxBound `elem` s
                 then pure maxBound
                 else int (linear 11 (maxBound - 1))
-    if IsNegative `elem` s
+    if Prop IsNegative `elem` s
       then
-        if IsMinBound `elem` s
+        if Prop IsMinBound `elem` s
           then pure minBound
           else pure (-i)
       else pure i
@@ -55,13 +56,13 @@ intGenTests :: TestTree
 intGenTests =
   testGroup "intGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @IntProp)
+      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @(Prop IntProp))
           ]
 
-intPureRunner :: PureRunner IntProp Int
+intPureRunner :: PureRunner (Prop IntProp) Int
 intPureRunner =
   PureRunner
-    { expect = Var IsSmall :&&: Var IsNegative
+    { expect = Var (Prop IsSmall) :&&: Var (Prop IsNegative)
     , script = \i -> i < 0 && i >= -10
     }
 
@@ -69,5 +70,5 @@ intPureTests :: TestTree
 intPureTests =
   testGroup "intPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere intPureRunner "AcceptsSmallNegativeInts" (Yes @IntProp)
+      <$> [ runPureTestsWhere intPureRunner "AcceptsSmallNegativeInts" (Yes @(Prop IntProp))
           ]

@@ -4,6 +4,7 @@ module Spec.IntEither (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
 import Control.Lens (_Left, _Right)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
@@ -12,15 +13,15 @@ import Test.Tasty.Hedgehog (fromGroup)
 data IntEitherProp
   = IsLeft
   | IsRight
-  | L IntProp
-  | R IntProp
+  | L (Prop IntProp)
+  | R (Prop IntProp)
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntEitherProp where
   logic =
     ExactlyOne [Var IsLeft, Var IsRight]
-      :&&: abstractionLogic @(Either Int Int)
+      :&&: fmap unProp (abstractionLogic @(Either Int Int))
 
 instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsLeft (Left _) = True
@@ -28,33 +29,33 @@ instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsRight (Right _) = True
   satisfiesProperty IsRight (Left _) = False
   satisfiesProperty (L _) (Right _) = False
-  satisfiesProperty (L p) (Left m) = satisfiesProperty p m
+  satisfiesProperty (L (Prop p)) (Left m) = satisfiesProperty p m
   satisfiesProperty (R _) (Left _) = False
-  satisfiesProperty (R p) (Right m) = satisfiesProperty p m
+  satisfiesProperty (R (Prop p)) (Right m) = satisfiesProperty p m
 
-instance HasAbstractions IntEitherProp (Either Int Int) where
+instance HasAbstractions (Prop IntEitherProp) (Either Int Int) where
   sumAbstractions =
     [ SuAs $
         SumAbstraction
           { abstractionName = "L"
-          , propLabel = IsLeft
+          , propLabel = Prop IsLeft
           , sumModelAbstraction = _Left
-          , propertyAbstraction = abstractsProperties L
+          , propertyAbstraction = abstractsProperties (Prop . L) 
           }
     , SuAs $
         SumAbstraction
           { abstractionName = "R"
-          , propLabel = IsRight
+          , propLabel = Prop IsRight
           , sumModelAbstraction = _Right
-          , propertyAbstraction = abstractsProperties R
+          , propertyAbstraction = abstractsProperties (Prop . R)
           }
     ]
 
-instance HasPermutationGenerator IntEitherProp (Either Int Int) where
+instance HasPermutationGenerator (Prop IntEitherProp) (Either Int Int) where
   sources = abstractionSources
   generators = abstractionMorphisms
 
-instance HasParameterisedGenerator IntEitherProp (Either Int Int) where
+instance HasParameterisedGenerator (Prop IntEitherProp) (Either Int Int) where
   parameterisedGenerator = buildGen
 
 intEitherGenTests :: TestTree
@@ -63,5 +64,5 @@ intEitherGenTests =
     fromGroup
       <$> [ runGeneratorTestsWhere
               "Either Int Int Generator"
-              (Yes @IntEitherProp)
+              (Yes @(Prop IntEitherProp))
           ]

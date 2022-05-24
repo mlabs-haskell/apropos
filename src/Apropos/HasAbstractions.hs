@@ -40,7 +40,6 @@ import Apropos.HasPermutationGenerator (
   Source (Source, covers, sourceName),
   (&&&),
  )
-import Apropos.LogicalModel (Enumerable)
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 
@@ -69,9 +68,7 @@ data SourceAbstractionFor p m where
 data ProductAbstractionFor p m where
   PAs ::
     forall ap am bp bm.
-    ( Enumerable ap
-    , Enumerable bp
-    , HasParameterisedGenerator ap am
+    ( HasParameterisedGenerator ap am
     , HasPermutationGenerator ap am
     ) =>
     ProductAbstraction ap am bp bm ->
@@ -80,15 +77,13 @@ data ProductAbstractionFor p m where
 data SumAbstractionFor p m where
   SuAs ::
     forall ap am bp bm.
-    ( Enumerable ap
-    , Enumerable bp
-    , HasParameterisedGenerator ap am
+    ( HasParameterisedGenerator ap am
     , HasPermutationGenerator ap am
     ) =>
     SumAbstraction ap am bp bm ->
     SumAbstractionFor bp bm
 
-abstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
+abstractionMorphisms :: forall p m. (Ord p, HasAbstractions p m) => [Morphism p m]
 abstractionMorphisms =
   let productAbstractionMorphisms = join [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p @m]
       sumAbstractionMorphism = join [abstractSum abstraction <$> generators | SuAs abstraction <- sumAbstractions @p @m]
@@ -100,7 +95,7 @@ abstractionSources = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa 
 {- | Product types with additional logic sometimes need to include parallel morphisms
  which change both fields of the product to keep some invariant
 -}
-parallelAbstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
+parallelAbstractionMorphisms :: forall p m. (Ord p, HasAbstractions p m) => [Morphism p m]
 parallelAbstractionMorphisms =
   let abstractProductMorphisms = [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p @m]
    in join

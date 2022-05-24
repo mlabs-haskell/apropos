@@ -5,6 +5,7 @@ module Spec.IntEither (
 
 import Apropos
 import Apropos.LogicalModel
+
 import Control.Lens (_Left, _Right)
 import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
@@ -13,8 +14,8 @@ import Test.Tasty.Hedgehog (fromGroup)
 data IntEitherProp
   = IsLeft
   | IsRight
-  | L (Prop IntProp)
-  | R (Prop IntProp)
+  | L IntProp
+  | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -29,25 +30,25 @@ instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsRight (Right _) = True
   satisfiesProperty IsRight (Left _) = False
   satisfiesProperty (L _) (Right _) = False
-  satisfiesProperty (L (Prop p)) (Left m) = satisfiesProperty p m
+  satisfiesProperty (L p) (Left m) = satisfiesProperty p m
   satisfiesProperty (R _) (Left _) = False
-  satisfiesProperty (R (Prop p)) (Right m) = satisfiesProperty p m
+  satisfiesProperty (R p) (Right m) = satisfiesProperty p m
 
 instance HasAbstractions (Prop IntEitherProp) (Either Int Int) where
   sumAbstractions =
     [ SuAs $
-        SumAbstraction
+        id @(SumAbstraction (Prop IntProp) _ _ _) $ SumAbstraction
           { abstractionName = "L"
           , propLabel = Prop IsLeft
           , sumModelAbstraction = _Left
-          , propertyAbstraction = abstractsProperties (Prop . L) 
+          , propertyAbstraction = abstractsProperties (Prop . L . unProp) 
           }
     , SuAs $
         SumAbstraction
           { abstractionName = "R"
           , propLabel = Prop IsRight
           , sumModelAbstraction = _Right
-          , propertyAbstraction = abstractsProperties (Prop . R)
+          , propertyAbstraction = abstractsProperties (Prop . R . unProp) 
           }
     ]
 

@@ -16,8 +16,8 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data IntPairProp
-  = L (Prop IntProp)
-  | R (Prop IntProp)
+  = L IntProp 
+  | R IntProp 
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -25,8 +25,8 @@ instance LogicalModel IntPairProp where
   logic = unProp <$> abstractionLogic @(Int, Int) @(Prop IntPairProp)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
-  satisfiesProperty (L (Prop p)) (i, _) = satisfiesProperty p i
-  satisfiesProperty (R (Prop p)) (_, i) = satisfiesProperty p i
+  satisfiesProperty (L p) (i, _) = satisfiesProperty p i
+  satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
 instance HasAbstractions (Prop IntPairProp) (Int, Int) where
   sourceAbstractions =
@@ -37,12 +37,12 @@ instance HasAbstractions (Prop IntPairProp) (Int, Int) where
           , productAbs =
               ProductAbstraction 
                 { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties (Prop . L)
+                , propertyAbstraction = abstractsProperties (Prop . L . unProp)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties (Prop . R)
+                  , propertyAbstraction = abstractsProperties (Prop . R . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil
@@ -72,8 +72,8 @@ intPairGenPureRunner =
         fmap Prop . All $
           Var
             <$> join
-              [ L . Prop <$> [IsSmall, IsNegative]
-              , R . Prop <$> [IsSmall, IsPositive]
+              [ L <$> [IsSmall, IsNegative]
+              , R <$> [IsSmall, IsPositive]
               ]
     , script = \(l, r) -> l < 0 && l >= -10 && r > 0 && r <= 10
     }

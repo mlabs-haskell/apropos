@@ -3,7 +3,7 @@ module Spec.TicTacToe.PlayerLocationSequencePair (
   playerLocationSequencePairPermutationGenSelfTest,
 ) where
 
-import Apropos as A
+import Apropos
 import Apropos.LogicalModel as LM
 import Control.Lens.Tuple (_1, _2)
 import Spec.TicTacToe.LocationSequence
@@ -12,33 +12,33 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data PlayerLocationSequencePairProperty
-  = PlayerLocationSequencePairLocation (Prop LocationSequenceProperty)
-  | PlayerLocationSequencePairPlayer (Prop PlayerSequenceProperty)
+  = PlayerLocationSequencePairLocation LocationSequenceProperty
+  | PlayerLocationSequencePairPlayer PlayerSequenceProperty
   | PlayerLocationSequencePairLengthsAreEqual
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel PlayerLocationSequencePairProperty where
   logic =
-    (PlayerLocationSequencePairLocation <$> A.logic)
-      :&&: (PlayerLocationSequencePairPlayer <$> A.logic)
+    (PlayerLocationSequencePairLocation <$> LM.logic)
+      :&&: (PlayerLocationSequencePairPlayer <$> LM.logic)
       :&&: Var PlayerLocationSequencePairLengthsAreEqual
       :&&: ( Var PlayerLocationSequencePairLengthsAreEqual
               :<->: All
-                [ Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsNull))
-                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceNull))
-                , Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsSingleton))
-                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceSingleton))
-                , Var (PlayerLocationSequencePairLocation (Prop LocationSequenceIsLongerThanGame))
-                    :<->: Var (PlayerLocationSequencePairPlayer (Prop PlayerSequenceIsLongerThanGame))
+                [ Var (PlayerLocationSequencePairLocation LocationSequenceIsNull)
+                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceNull)
+                , Var (PlayerLocationSequencePairLocation LocationSequenceIsSingleton)
+                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceSingleton)
+                , Var (PlayerLocationSequencePairLocation LocationSequenceIsLongerThanGame)
+                    :<->: Var (PlayerLocationSequencePairPlayer PlayerSequenceIsLongerThanGame)
                 ]
            )
 
 instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
-  satisfiesProperty (PlayerLocationSequencePairLocation (Prop prop)) mseq =
-    satisfiesProperty prop (snd mseq)
-  satisfiesProperty (PlayerLocationSequencePairPlayer (Prop prop)) mseq =
-    satisfiesProperty prop (fst mseq)
+  satisfiesProperty (PlayerLocationSequencePairLocation p) mseq =
+    satisfiesProperty p (snd mseq)
+  satisfiesProperty (PlayerLocationSequencePairPlayer p) mseq =
+    satisfiesProperty p (fst mseq)
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
 instance HasAbstractions (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
@@ -50,12 +50,12 @@ instance HasAbstractions (Prop PlayerLocationSequencePairProperty) ([Int], [Int]
           , productAbs =
               ProductAbstraction
                 { abstractionName = ""
-                , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairPlayer)
+                , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairPlayer . unProp)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = ""
-                  , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairLocation)
+                  , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairLocation . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil

@@ -148,16 +148,16 @@ data EdgeFormula p = EdgeFormula
   }
   deriving stock (Show)
 
-translateInstruction :: Enumerable p => Instruction p -> EdgeFormula p
+translateInstruction :: (Ord p, Strategy p m) => Instruction p -> EdgeFormula p
 translateInstruction (Delta rs as) =
   EdgeFormula
-    ((All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` (rs `Set.union` as)]) :&&: All [Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [Var (S 1 p) | p <- Set.toList as])
+    ((All [Var (S 0 v) :<->: Var (S 1 v) | v <- universe, v `notElem` (rs `Set.union` as)]) :&&: All [Not $ Var (S 1 p) | p <- Set.toList rs] :&&: All [Var (S 1 p) | p <- Set.toList as])
     1
     0
     1
 translateInstruction (Forget fs) =
   EdgeFormula
-    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- enumerated, v `notElem` fs])
+    (All [Var (S 0 v) :<->: Var (S 1 v) | v <- universe, v `notElem` fs])
     1
     0
     1
@@ -167,13 +167,13 @@ translateInstruction (Branch bs) =
       scanRes = scanl (+) 2 ((+ 1) . space <$> pbs)
       starts = init scanRes
       ranges = zip scanRes (subtract 1 <$> tail scanRes)
-      blanks = [None [Var (S t e) | e <- enumerated, t <- [a .. b]] | (a, b) <- ranges]
+      blanks = [None [Var (S t e) | e <- universe, t <- [a .. b]] | (a, b) <- ranges]
       forms = zipWith (\start form' -> sFirst (+ start) <$> form') starts (form <$> pbs)
-      cons = zipWith (\start pb -> All [(Var (S 0 a) :<->: Var (S (start + i pb) a)) :&&: (Var (S 1 a) :<->: Var (S (start + o pb) a)) | a <- enumerated]) starts pbs
+      cons = zipWith (\start pb -> All [(Var (S 0 a) :<->: Var (S (start + i pb) a)) :&&: (Var (S 1 a) :<->: Var (S (start + o pb) a)) | a <- universe]) starts pbs
       brs = zipWith (:&&:) cons forms
    in EdgeFormula (Some brs :&&: All (zipWith (:||:) brs blanks)) (2 + last scanRes) 0 1
 
-translateInstructions :: Enumerable p => [Instruction p] -> EdgeFormula p
+translateInstructions :: (Ord p, Strategy p m) => [Instruction p] -> EdgeFormula p
 translateInstructions [] = idPartial
 translateInstructions [x] = translateInstruction x
 translateInstructions (x : xs) = foldl seqFormulas (translateInstruction x) $ map translateInstruction xs
@@ -183,7 +183,7 @@ idPartial = EdgeFormula Yes 0 0 0
 
 -- TODO this can be changed to add one less timestamp
 -- which may be a performance imrpovement
-seqFormulas :: Enumerable p => EdgeFormula p -> EdgeFormula p -> EdgeFormula p
+seqFormulas :: (Strategy p m) => EdgeFormula p -> EdgeFormula p -> EdgeFormula p
 seqFormulas l r =
   let lstart = 0
       lend = lstart + space l
@@ -193,37 +193,37 @@ seqFormulas l r =
       rend = rstart + space r
       ri = rstart + i r
       ro = rstart + o r
-      conectlr = All [Var (S lo a) :<->: Var (S ri a) | a <- enumerated]
+      conectlr = All [Var (S lo a) :<->: Var (S ri a) | a <- universe]
       lform = sFirst (+ lstart) <$> form l
       rform = sFirst (+ rstart) <$> form r
    in EdgeFormula (All [conectlr, lform, rform]) rend li ro
 
-solveEdgesList :: (Enumerable p) => EdgeFormula p -> [(Set p, Set p)]
+solveEdgesList :: (Ord p, Strategy p m) => EdgeFormula p -> [(Set p, Set p)]
 solveEdgesList c =
   [ (inprops, outprops)
   | s <- solveAll (form c)
-  , let inprops = Set.fromList [k | k <- enumerated, Map.lookup (S (i c) k) s == Just True]
-  , let outprops = Set.fromList [k | k <- enumerated, Map.lookup (S (o c) k) s == Just True]
+  , let inprops = Set.fromList [k | k <- universe, Map.lookup (S (i c) k) s == Just True]
+  , let outprops = Set.fromList [k | k <- universe, Map.lookup (S (o c) k) s == Just True]
   , inprops /= outprops
   ]
 
-withLogic :: (Enumerable p, Strategy p m) => EdgeFormula p -> EdgeFormula p
+withLogic :: (Strategy p m) => EdgeFormula p -> EdgeFormula p
 withLogic e@EdgeFormula {form = f} =
   e
     { form =
         f :&&: (S (i e) <$> logic) :&&: (S (o e) <$> logic)
           -- these last two lines just ensure input and output vars are all mentioned
-          :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- enumerated]
-          :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- enumerated]
+          :&&: All [Var (S (o e) p) :||: Not (Var (S (o e) p)) | p <- universe]
+          :&&: All [Var (S (i e) p) :||: Not (Var (S (i e) p)) | p <- universe]
     }
 
-solveEdgesMap :: (Enumerable p) => EdgeFormula p -> Map (Set p) (Set p)
+solveEdgesMap :: (Ord p, Strategy p m) => EdgeFormula p -> Map (Set p) (Set p)
 solveEdgesMap = Map.fromList . solveEdgesList
 
-solveContractList :: (Enumerable p, Strategy p m) => Contract p () -> [(Set p, Set p)]
+solveContractList :: (Ord p, Strategy p m) => Contract p () -> [(Set p, Set p)]
 solveContractList = solveEdgesList . withLogic . translateInstructions . toInstructions
 
-solveContract :: (Enumerable p, Strategy p m) => Contract p () -> Set (Set p, Set p)
+solveContract :: (Ord p, Strategy p m) => Contract p () -> Set (Set p, Set p)
 solveContract = Set.fromList . solveContractList
 
 labelContract :: Ord b => (a -> b) -> Contract a () -> Contract b ()

@@ -5,6 +5,7 @@ module Spec.TicTacToe.Move (
 
 import Apropos
 import Apropos.LogicalModel
+
 import Control.Lens.Tuple (_1, _2)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
@@ -12,8 +13,8 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data MoveProperty
-  = MoveLocation (Prop LocationProperty)
-  | MovePlayer (Prop PlayerProperty)
+  = MoveLocation LocationProperty
+  | MovePlayer PlayerProperty
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -21,8 +22,8 @@ instance LogicalModel MoveProperty where
   logic = unProp <$> abstractionLogic @(Int, Int)
 
 instance HasLogicalModel MoveProperty (Int, Int) where
-  satisfiesProperty (MoveLocation (Prop prop)) (_, location) = satisfiesProperty prop location
-  satisfiesProperty (MovePlayer (Prop prop)) (player, _) = satisfiesProperty prop player
+  satisfiesProperty (MoveLocation p) (_, location) = satisfiesProperty p location
+  satisfiesProperty (MovePlayer p) (player, _) = satisfiesProperty p player
 
 instance HasAbstractions (Prop MoveProperty) (Int, Int) where
   sourceAbstractions =
@@ -33,12 +34,12 @@ instance HasAbstractions (Prop MoveProperty) (Int, Int) where
           , productAbs =
               ProductAbstraction
                 { abstractionName = "MovePlayer"
-                , propertyAbstraction = abstractsProperties (Prop . MovePlayer)
+                , propertyAbstraction = abstractsProperties (Prop . MovePlayer . unProp)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = "MoveLocation"
-                  , propertyAbstraction = abstractsProperties (Prop . MoveLocation)
+                  , propertyAbstraction = abstractsProperties (Prop . MoveLocation . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil

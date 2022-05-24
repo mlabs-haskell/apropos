@@ -39,13 +39,10 @@ import Apropos.Logic (
   Formula (..),
   solveAll,
   scenarios,
-  Strategy(variablesSet, logic),
+  Strategy(variablesSet, logic, universe),
   satisfiesExpression,
   )
-import Apropos.LogicalModel (
-  Enumerable,
-  enumerated,
- )
+
 import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
   DiGraph,
@@ -88,7 +85,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
   allowRedundentMorphisms = False
 
   permutationValidity :: Maybe (String, PropertyT IO ())
-  default permutationValidity :: (Enumerable p, Show p) => Maybe (String, PropertyT IO ())
+  default permutationValidity :: (Ord p, Show p) => Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -113,7 +110,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
           (Nothing, Nothing) -> Nothing
 
   permutationGeneratorSelfTest :: Group
-  default permutationGeneratorSelfTest :: (Enumerable p, Show p) => Group
+  default permutationGeneratorSelfTest :: (Show p) => Group
   permutationGeneratorSelfTest =
     case permutationValidity @p of
       Just (label, prop) -> Group "permutationValidity test" [(fromString label, property prop)]
@@ -172,7 +169,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
           )
 
   buildGen :: Set p -> Gen m
-  default buildGen :: (Show p, Enumerable p) => Set p -> Gen m
+  default buildGen :: (Ord p, Show p) => Set p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -205,7 +202,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
     traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
 
   unconectedSource :: Maybe (Source p m, Set p, Set p)
-  default unconectedSource :: (Enumerable p) => Maybe (Source p m, Set p, Set p)
+  default unconectedSource :: (Ord p) => Maybe (Source p m, Set p, Set p)
   unconectedSource = listToMaybe $ do
     let es = Map.keysSet findMorphisms
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
@@ -214,7 +211,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
     let sols =
           Map.keysSet . Map.filter id
             <$> solveAll
-              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- universe])
     when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
     (p1, p2) <- zip sols (tail sols ++ [head sols])
     guard $ not $ reachable cache p1 p2
@@ -223,7 +220,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
   choseMorphism ::
     [(Set p, Set p)] ->
     Gen [Morphism p m]
-  default choseMorphism :: (Enumerable p, Show p) => [(Set p, Set p)] -> Gen [Morphism p m]
+  default choseMorphism :: (Ord p, Show p) => [(Set p, Set p)] -> Gen [Morphism p m]
   choseMorphism es = sequence $ go <$> es
     where
       go :: (Set p, Set p) -> Gen (Morphism p m)
@@ -243,7 +240,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
      in foldr insertVertex (fromEdges edges) scenarios
 
   findSources :: Map (Set p) (Gen m)
-  default findSources :: (Show p, Enumerable p) => Map (Set p) (Gen m)
+  default findSources :: (Ord p, Show p) => Map (Set p) (Gen m)
   findSources =
     -- chose randomly for overlapping sources
     Map.map choice $
@@ -252,12 +249,11 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
         [ (ps, [g])
         | s <- wrapSourceWithCheck <$> sources @p
         , let g :: Gen m = gen s
-        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- universe])
         ]
 
-  findMorphisms ::
-    (Enumerable p) =>
-    Map (Set p, Set p) [Morphism p m]
+  findMorphisms :: Map (Set p, Set p) [Morphism p m]
+  default findMorphisms :: (Ord p) => Map (Set p, Set p) [Morphism p m]
   findMorphisms =
     Map.fromListWith
       (<>)

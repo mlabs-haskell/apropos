@@ -1,6 +1,6 @@
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
-  Prop(Prop, unProp),
+  Prop(Prop, unProp)
 ) where
 
 import Apropos.Logic as L

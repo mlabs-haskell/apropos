@@ -30,8 +30,8 @@ data RatProp
   | RatNeg
   | RatLarge
   | RatSmall
-  | Num (Prop IntProp)
-  | Den (Prop IntProp)
+  | Num IntProp
+  | Den IntProp
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -40,13 +40,13 @@ instance LogicalModel RatProp where
     (unProp <$> abstractionLogic @Rat)
       :&&: (Var RatZero :->: Var RatSmall)
       :&&: ExactlyOne [Var RatSmall, Var RatLarge]
-      :&&: (Var (Num (Prop IsSmall)) :->: Var RatSmall)
-      :&&: Not (Var $ Den (Prop IsZero))
-      :&&: (Var (Num (Prop IsZero)) :<->: Var RatZero)
+      :&&: (Var (Num IsSmall) :->: Var RatSmall)
+      :&&: Not (Var $ Den IsZero)
+      :&&: (Var (Num IsZero) :<->: Var RatZero)
       :&&: ExactlyOne [Var RatPos, Var RatZero, Var RatNeg]
-      :&&: (Var RatZero :||: (ExactlyOne [Var (Num (Prop IsNegative)), Var (Den (Prop IsNegative))] :<->: Var RatNeg))
-      :&&: (((Var (Num (Prop IsMaxBound)) :||: Var (Num (Prop IsMinBound))) :&&: Var RatSmall) :->: Var (Den (Prop IsLarge)))
-      :&&: ((Var (Den (Prop IsMaxBound)) :||: Var (Den (Prop IsMinBound))) :->: Var RatSmall)
+      :&&: (Var RatZero :||: (ExactlyOne [Var (Num IsNegative), Var (Den IsNegative)] :<->: Var RatNeg))
+      :&&: (((Var (Num IsMaxBound) :||: Var (Num IsMinBound)) :&&: Var RatSmall) :->: Var (Den IsLarge))
+      :&&: ((Var (Den IsMaxBound) :||: Var (Den IsMinBound)) :->: Var RatSmall)
 
 instance HasLogicalModel RatProp Rat where
   satisfiesProperty RatPos r = asRational r > 0
@@ -54,8 +54,8 @@ instance HasLogicalModel RatProp Rat where
   satisfiesProperty RatNeg r = asRational r < 0
   satisfiesProperty RatLarge r = abs (asRational r) > 10
   satisfiesProperty RatSmall r = abs (asRational r) <= 10
-  satisfiesProperty (Num (Prop p)) r = satisfiesProperty p (num r)
-  satisfiesProperty (Den (Prop p)) r = satisfiesProperty p (den r)
+  satisfiesProperty (Num p) r = satisfiesProperty p (num r)
+  satisfiesProperty (Den p) r = satisfiesProperty p (den r)
 
 instance HasAbstractions (Prop RatProp) Rat where
   sourceAbstractions =
@@ -66,12 +66,12 @@ instance HasAbstractions (Prop RatProp) Rat where
           , productAbs =
               ProductAbstraction
                 { abstractionName = "numerator"
-                , propertyAbstraction = abstractsProperties (Prop . Num)
+                , propertyAbstraction = abstractsProperties (Prop . Num . unProp)
                 , productModelAbstraction = lens num (\r n -> r {num = n})
                 }
                 :& ProductAbstraction
                   { abstractionName = "denominator"
-                  , propertyAbstraction = abstractsProperties (Prop . Den)
+                  , propertyAbstraction = abstractsProperties (Prop . Den . unProp)
                   , productModelAbstraction = lens den (\r d -> r {den = d})
                   }
                 :& Nil
@@ -86,11 +86,11 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
       ++ [ Source
             { sourceName = "source large (large,large)"
             , covers =
-                Prop <$> Var (Num (Prop IsLarge))
-                  :&&: Not (Var (Num (Prop IsMaxBound)))
-                  :&&: Var (Num (Prop IsPositive))
-                  :&&: Var (Den (Prop IsLarge))
-                  :&&: Var (Den (Prop IsPositive))
+                Prop <$> Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
                   :&&: Var RatLarge
             , gen = do
                 n' <- int (linear 111 (maxBound - 1))
@@ -100,12 +100,12 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
          , Source
             { sourceName = "source small (large,large)"
             , covers =
-                Prop <$> Var (Num (Prop IsLarge))
-                  :&&: Not (Var (Num (Prop IsMaxBound)))
-                  :&&: Var (Num (Prop IsPositive))
-                  :&&: Var (Den (Prop IsLarge))
-                  :&&: Var (Den (Prop IsPositive))
-                  :&&: Not (Var (Den (Prop IsMaxBound)))
+                Prop <$> Var (Num IsLarge)
+                  :&&: Not (Var (Num IsMaxBound))
+                  :&&: Var (Num IsPositive)
+                  :&&: Var (Den IsLarge)
+                  :&&: Var (Den IsPositive)
+                  :&&: Not (Var (Den IsMaxBound))
                   :&&: Var RatSmall
             , gen = do
                 d' <- int (linear 11 (maxBound `div` 10))
@@ -131,13 +131,13 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
       -- rat large and rat small solutions
       ++ [ Morphism
             { name = "make large (large,small)"
-            , match = Prop <$> Var (Num (Prop IsLarge)) :&&: Var (Num (Prop IsPositive)) :&&: Var (Den (Prop IsSmall)) :&&: Var RatSmall
+            , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var RatSmall
             , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
             , morphism = \r -> pure $ r {num = 101}
             }
          , Morphism
             { name = "make small (large,small)"
-            , match = Prop <$> Var (Num (Prop IsLarge)) :&&: Var (Num (Prop IsPositive)) :&&: Var (Den (Prop IsSmall)) :&&: Var (Den (Prop IsPositive)) :&&: Var RatLarge
+            , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var (Den IsPositive) :&&: Var RatLarge
             , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
             , morphism = \r -> do
                 let d' = max 2 (den r)
@@ -146,7 +146,7 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
             }
          , Morphism
             { name = "make large (Max,large)"
-            , match = Prop <$> Var (Num (Prop IsMaxBound)) :&&: Var (Den (Prop IsLarge)) :&&: Var (Den (Prop IsPositive)) :&&: Var RatSmall
+            , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
             , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
             , morphism = \r -> do
                 d' <- int $ linear 11 (maxBound `div` 10 - 1)
@@ -154,7 +154,7 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
             }
          , Morphism
             { name = "make small (Max,large)"
-            , match = Prop <$> Var (Num (Prop IsMaxBound)) :&&: Var (Den (Prop IsLarge)) :&&: Var (Den (Prop IsPositive)) :&&: Var RatLarge
+            , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
             , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
             , morphism = \r -> do
                 d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
@@ -162,7 +162,7 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
             }
          , Morphism
             { name = "make large (Min,large)"
-            , match = Prop <$> Var (Num (Prop IsMinBound)) :&&: Var (Den (Prop IsLarge)) :&&: Var (Den (Prop IsPositive)) :&&: Var RatSmall
+            , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
             , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
             , morphism = \r -> do
                 d' <- int $ linear 11 (maxBound `div` 10 - 1)
@@ -170,7 +170,7 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
             }
          , Morphism
             { name = "make small (Min,large)"
-            , match = Prop <$> Var (Num (Prop IsMinBound)) :&&: Var (Den (Prop IsLarge)) :&&: Var (Den (Prop IsPositive)) :&&: Var RatLarge
+            , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
             , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
             , morphism = \r -> do
                 d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)

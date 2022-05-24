@@ -14,7 +14,7 @@ data PairSmpl = BothNonNeg
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
-data PairOfSmpl = L (Prop IntSmpl) | R (Prop IntSmpl)
+data PairOfSmpl = L IntSmpl | R IntSmpl
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -28,14 +28,14 @@ instance HasAbstractions (Prop PairOfSmpl) (Int, Int) where
           { sourceAbsName = "pair"
           , constructor = (,)
           , productAbs =
-              ProductAbstraction
+              (id @(ProductAbstraction (Prop IntSmpl) _ _ _) $ ProductAbstraction
                 { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties (Prop . L)
+                , propertyAbstraction = abstractsProperties (Prop . L . unProp)
                 , productModelAbstraction = _1
-                }
+                })
                 :& ProductAbstraction
                   { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties (Prop . R)
+                  , propertyAbstraction = abstractsProperties (Prop . R . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil
@@ -46,8 +46,8 @@ instance LogicalModel PairOfSmpl where
   logic = unProp <$> abstractionLogic @(Int, Int)
 
 instance HasLogicalModel PairOfSmpl (Int, Int) where
-  satisfiesProperty (L (Prop p)) (x, _) = satisfiesProperty p x
-  satisfiesProperty (R (Prop p)) (_, x) = satisfiesProperty p x
+  satisfiesProperty (L p) (x, _) = satisfiesProperty p x
+  satisfiesProperty (R p) (_, x) = satisfiesProperty p x
 
 instance HasPermutationGenerator (Prop PairOfSmpl) (Int, Int) where
   sources = abstractionSources
@@ -57,7 +57,7 @@ instance HasParameterisedGenerator (Prop PairOfSmpl) (Int, Int) where
   parameterisedGenerator = buildGen
 
 instance Overlay (Prop PairSmpl) (Prop PairOfSmpl) (Int, Int) (Int, Int) where
-  overlays (Prop BothNonNeg) = Prop <$> Var (L (Prop NonNegative)) :&&: Var (R (Prop NonNegative))
+  overlays (Prop BothNonNeg) = Prop <$> Var (L NonNegative) :&&: Var (R NonNegative)
 
 instance HasLogicalModel PairSmpl (Int, Int) where
   satisfiesProperty = deduceFromOverlay . Prop

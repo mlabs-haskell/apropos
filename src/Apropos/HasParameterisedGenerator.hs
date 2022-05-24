@@ -10,13 +10,13 @@ module Apropos.HasParameterisedGenerator (
 
 import Apropos.Gen
 import Apropos.Gen.Enumerate (enumerate)
-import Apropos.Logic(
+import Apropos.Logic (
   Formula,
-  Strategy(variablesSet),
-  scenarios,
+  Strategy (variablesSet),
+  enumerateScenariosWhere,
   scenarioMap,
-  enumerateScenariosWhere
-  )
+  scenarios,
+ )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set

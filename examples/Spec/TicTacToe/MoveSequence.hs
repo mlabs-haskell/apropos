@@ -48,9 +48,9 @@ instance LogicalModel MoveSequenceProperty where
 
 locationSequenceIsValid :: Formula (Prop LocationSequenceProperty)
 locationSequenceIsValid =
-  Prop <$>
-    Var AllLocationsAreInBounds
-      :&&: Not (Var SomeLocationIsOccupiedTwice)
+  Prop
+    <$> Var AllLocationsAreInBounds
+    :&&: Not (Var SomeLocationIsOccupiedTwice)
 
 instance HasLogicalModel MoveSequenceProperty [Int] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms

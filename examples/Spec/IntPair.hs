@@ -8,7 +8,6 @@ module Spec.IntPair (
 import Apropos
 import Apropos.LogicalModel
 
-
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
 import Spec.IntPermutationGen
@@ -16,8 +15,8 @@ import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
 data IntPairProp
-  = L IntProp 
-  | R IntProp 
+  = L IntProp
+  | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
   deriving anyclass (Enumerable, Hashable)
 
@@ -35,7 +34,7 @@ instance HasAbstractions (Prop IntPairProp) (Int, Int) where
           { sourceAbsName = "make pair"
           , constructor = (,)
           , productAbs =
-              ProductAbstraction 
+              ProductAbstraction
                 { abstractionName = "L"
                 , propertyAbstraction = abstractsProperties (Prop . L . unProp)
                 , productModelAbstraction = _1

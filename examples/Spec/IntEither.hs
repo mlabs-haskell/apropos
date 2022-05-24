@@ -37,18 +37,19 @@ instance HasLogicalModel IntEitherProp (Either Int Int) where
 instance HasAbstractions (Prop IntEitherProp) (Either Int Int) where
   sumAbstractions =
     [ SuAs $
-        id @(SumAbstraction (Prop IntProp) _ _ _) $ SumAbstraction
-          { abstractionName = "L"
-          , propLabel = Prop IsLeft
-          , sumModelAbstraction = _Left
-          , propertyAbstraction = abstractsProperties (Prop . L . unProp) 
-          }
+        id @(SumAbstraction (Prop IntProp) _ _ _) $
+          SumAbstraction
+            { abstractionName = "L"
+            , propLabel = Prop IsLeft
+            , sumModelAbstraction = _Left
+            , propertyAbstraction = abstractsProperties (Prop . L . unProp)
+            }
     , SuAs $
         SumAbstraction
           { abstractionName = "R"
           , propLabel = Prop IsRight
           , sumModelAbstraction = _Right
-          , propertyAbstraction = abstractsProperties (Prop . R . unProp) 
+          , propertyAbstraction = abstractsProperties (Prop . R . unProp)
           }
     ]
 

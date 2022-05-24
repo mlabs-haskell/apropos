@@ -1,13 +1,13 @@
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
-  Prop(Prop, unProp)
+  Prop (Prop, unProp),
 ) where
 
 import Apropos.Logic as L
 import Apropos.LogicalModel as LM
+import Data.Hashable (Hashable)
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Hashable(Hashable)
 
 class (LogicalModel p) => HasLogicalModel p m | p -> m where
   satisfiesProperty :: p -> m -> Bool
@@ -20,7 +20,7 @@ class (LogicalModel p) => HasLogicalModel p m | p -> m where
   default properties :: (Enumerable p) => m -> Set p
   properties x = Set.fromList $ filter (`satisfiesProperty` x) enumerated
 
-newtype Prop p = Prop { unProp :: p }
+newtype Prop p = Prop {unProp :: p}
   deriving stock (Eq, Ord, Show)
   deriving (Enumerable, Hashable) via p
 

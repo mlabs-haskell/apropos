@@ -8,7 +8,7 @@ module Apropos.Overlay (
 import Apropos.Error
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Source
-import Apropos.Logic (Formula(..), Strategy(logic, universe), solveAll, scenarios, satisfiesExpression)
+import Apropos.Logic (Formula (..), Strategy (logic, universe), satisfiesExpression, scenarios, solveAll)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)

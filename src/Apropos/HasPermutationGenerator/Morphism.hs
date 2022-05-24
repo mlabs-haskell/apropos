@@ -9,8 +9,8 @@ module Apropos.HasPermutationGenerator.Morphism (
 ) where
 
 import Apropos.Gen
-import Apropos.Logic
 import Apropos.HasPermutationGenerator.Contract
+import Apropos.Logic
 import Control.Monad (unless, (>=>))
 import Data.Set (Set)
 import Data.Set qualified as Set

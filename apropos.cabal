@@ -82,15 +82,15 @@ library
     Apropos.Gen.Range
     Apropos.HasAbstractions
     Apropos.HasAbstractions.Abstraction
-    Apropos.LogicalModel.HasLogicalModel
     Apropos.HasParameterisedGenerator
     Apropos.HasPermutationGenerator
     Apropos.HasPermutationGenerator.Contract
     Apropos.HasPermutationGenerator.Morphism
     Apropos.HasPermutationGenerator.Source
+    Apropos.Logic
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
-    Apropos.Logic
+    Apropos.LogicalModel.HasLogicalModel
     Apropos.Overlay
     Apropos.Pure
 

@@ -11,7 +11,7 @@ module Apropos.Logic (
   satisfiedBy,
   satisfiesFormula,
   satisfiable,
-  Strategy(..),
+  Strategy (..),
   satisfiesExpression,
 ) where
 

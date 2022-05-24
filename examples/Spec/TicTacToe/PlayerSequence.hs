@@ -77,12 +77,15 @@ instance HasPermutationGenerator (Prop PlayerSequenceProperty) [Int] where
         { name = "MakeTakeTurnsNotLongerThanGame"
         , match = Yes
         , contract =
-            removeAll (map Prop
-              [ Don'tTakeTurns
-              , PlayerSequenceSingleton
-              , PlayerSequenceNull
-              , PlayerSequenceIsLongerThanGame
-              ])
+            removeAll
+              ( map
+                  Prop
+                  [ Don'tTakeTurns
+                  , PlayerSequenceSingleton
+                  , PlayerSequenceNull
+                  , PlayerSequenceIsLongerThanGame
+                  ]
+              )
               >> add (Prop TakeTurns)
         , morphism = \s -> do
             let numMoves = min 9 (max 2 (length s))

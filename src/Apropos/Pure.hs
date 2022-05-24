@@ -9,7 +9,7 @@ module Apropos.Pure (
 import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasParameterisedGenerator
-import Apropos.Logic (Formula(..), satisfiesFormula, enumerateScenariosWhere)
+import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)

@@ -31,7 +31,7 @@ import Apropos.Logic (
   Formula (..),
   Strategy (..),
   solveAll,
-  )
+ )
 
 import Apropos.LogicalModel (
   Enumerable (..),

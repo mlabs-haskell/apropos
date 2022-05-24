@@ -8,7 +8,7 @@ module Apropos (
   -- Apropos.LogicalModel.Formula
   -- Apropos.HasLogicalModel
   HasLogicalModel (..),
-  Prop(Prop, unProp),
+  Prop (Prop, unProp),
   -- Apropos.Gen
   Gen,
   label,
@@ -98,12 +98,12 @@ module Apropos (
 import Apropos.Gen
 import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasAbstractions
-import Apropos.LogicalModel.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
 import Apropos.Logic
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel
 import Apropos.Overlay
 import Apropos.Pure
 import Data.Hashable (Hashable)

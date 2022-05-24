@@ -28,7 +28,7 @@ import Apropos.HasPermutationGenerator.Contract (
   Contract,
   labelContract,
  )
-import Apropos.Logic (Formula (..), Strategy(logic, universe))
+import Apropos.Logic (Formula (..), Strategy (logic, universe))
 import Control.Lens (Lens', Prism', prism', review, (#))
 import Data.Kind (Type)
 
@@ -115,7 +115,7 @@ sumSource
 abstractsProperties :: forall a b t. (Ord b, Strategy a t) => (a -> b) -> Prism' b a
 abstractsProperties injection = prism' injection (computeProjection injection)
   where
-    computeProjection ::  (a -> b) -> (b -> Maybe a)
+    computeProjection :: (a -> b) -> (b -> Maybe a)
     computeProjection f = g
       where
         g :: b -> Maybe a

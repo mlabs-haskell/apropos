@@ -4,8 +4,8 @@ module Spec.TicTacToe.LocationSequence (
 ) where
 
 import Apropos
-import Apropos.LogicalModel
 import Apropos.Logic
+import Apropos.LogicalModel
 import Data.Set qualified as Set
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
@@ -76,10 +76,11 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         }
     , Source
         { sourceName = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
-        , covers = fmap Prop $
-            Var SomeLocationIsOccupiedTwice
-              :&&: Var SomeLocationIsOutOfBounds
-              :&&: Var LocationSequenceIsLongerThanGame
+        , covers =
+            fmap Prop $
+              Var SomeLocationIsOccupiedTwice
+                :&&: Var SomeLocationIsOutOfBounds
+                :&&: Var LocationSequenceIsLongerThanGame
         , gen =
             genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
               let locationsLen = 10
@@ -94,11 +95,14 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
         , match = Not $ Var (Prop LocationSequenceIsNull)
         , contract =
-            removeAll (map Prop
-              [ SomeLocationIsOutOfBounds
-              , SomeLocationIsOccupiedTwice
-              , LocationSequenceIsLongerThanGame
-              ])
+            removeAll
+              ( map
+                  Prop
+                  [ SomeLocationIsOutOfBounds
+                  , SomeLocationIsOccupiedTwice
+                  , LocationSequenceIsLongerThanGame
+                  ]
+              )
               >> add (Prop AllLocationsAreInBounds)
         , morphism = \locations -> do
             let locationsLen = min 9 (length locations)
@@ -109,14 +113,20 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         { name = "MakeAllLocationsAreInBoundsSomeOccupiedTwice"
         , match = Yes
         , contract =
-            removeAll (map Prop
-              [ SomeLocationIsOutOfBounds
-              , LocationSequenceIsNull
-              ])
-              >> addAll (map Prop
-                [ AllLocationsAreInBounds
-                , SomeLocationIsOccupiedTwice
-                ])
+            removeAll
+              ( map
+                  Prop
+                  [ SomeLocationIsOutOfBounds
+                  , LocationSequenceIsNull
+                  ]
+              )
+              >> addAll
+                ( map
+                    Prop
+                    [ AllLocationsAreInBounds
+                    , SomeLocationIsOccupiedTwice
+                    ]
+                )
         , morphism = \locations -> do
             let locationsLen = max 2 (length locations)
             locations' <- shuffle [0 .. 8]
@@ -127,10 +137,13 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
         , match = Not $ Var (Prop LocationSequenceIsNull)
         , contract =
-            removeAll (map Prop
-              [ AllLocationsAreInBounds
-              , SomeLocationIsOccupiedTwice
-              ])
+            removeAll
+              ( map
+                  Prop
+                  [ AllLocationsAreInBounds
+                  , SomeLocationIsOccupiedTwice
+                  ]
+              )
               >> add (Prop SomeLocationIsOutOfBounds)
         , morphism = \locations ->
             let f =
@@ -150,15 +163,21 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         { name = "MakeSomeLocationIsOccupiedTwice"
         , match = Not (Var (Prop LocationSequenceIsNull) :||: Var (Prop LocationSequenceIsSingleton))
         , contract =
-            removeAll (map Prop
-              [ AllLocationsAreInBounds
-              , LocationSequenceIsNull
-              , LocationSequenceIsSingleton
-              ])
-              >> addAll (map Prop
-                [ SomeLocationIsOccupiedTwice
-                , SomeLocationIsOutOfBounds
-                ])
+            removeAll
+              ( map
+                  Prop
+                  [ AllLocationsAreInBounds
+                  , LocationSequenceIsNull
+                  , LocationSequenceIsSingleton
+                  ]
+              )
+              >> addAll
+                ( map
+                    Prop
+                    [ SomeLocationIsOccupiedTwice
+                    , SomeLocationIsOutOfBounds
+                    ]
+                )
         , morphism = \locations -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
             let locationsLen = length locations
             locations' <-

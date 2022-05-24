@@ -37,11 +37,11 @@ import Apropos.HasPermutationGenerator.Source (
  )
 import Apropos.Logic (
   Formula (..),
-  solveAll,
-  scenarios,
-  Strategy(variablesSet, logic, universe),
+  Strategy (logic, universe, variablesSet),
   satisfiesExpression,
-  )
+  scenarios,
+  solveAll,
+ )
 
 import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (

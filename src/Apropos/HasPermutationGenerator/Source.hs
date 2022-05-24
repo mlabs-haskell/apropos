@@ -4,7 +4,7 @@ module Apropos.HasPermutationGenerator.Source (
 ) where
 
 import Apropos.Gen
-import Apropos.Logic (Formula, Strategy(variablesSet), satisfiesExpression,)
+import Apropos.Logic (Formula, Strategy (variablesSet), satisfiesExpression)
 import Control.Monad (unless)
 import Data.Set (Set)
 

@@ -28,11 +28,13 @@ instance HasAbstractions (Prop PairOfSmpl) (Int, Int) where
           { sourceAbsName = "pair"
           , constructor = (,)
           , productAbs =
-              (id @(ProductAbstraction (Prop IntSmpl) _ _ _) $ ProductAbstraction
-                { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties (Prop . L . unProp)
-                , productModelAbstraction = _1
-                })
+              ( id @(ProductAbstraction (Prop IntSmpl) _ _ _) $
+                  ProductAbstraction
+                    { abstractionName = "L"
+                    , propertyAbstraction = abstractsProperties (Prop . L . unProp)
+                    , productModelAbstraction = _1
+                    }
+              )
                 :& ProductAbstraction
                   { abstractionName = "R"
                   , propertyAbstraction = abstractsProperties (Prop . R . unProp)

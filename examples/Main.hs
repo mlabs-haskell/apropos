@@ -7,6 +7,7 @@ import Spec.IntPair
 import Spec.IntPairOverlay
 import Spec.IntPermutationGen
 import Spec.Rational
+import Spec.RationalSimple
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.Move
@@ -56,6 +57,10 @@ tests =
         "Rational model"
         [ ratGenSelfTests
         , ratSampleTests
+        ]
+    , testGroup
+        "Rational model"
+        [ ratSmplGenTests
         ]
     , testGroup
         "TicTacToe"

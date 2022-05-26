@@ -14,6 +14,7 @@ module Apropos.Gen (
   failWithFootnote,
   bool,
   int,
+  rational,
   list,
   shuffle,
   element,
@@ -39,6 +40,7 @@ import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Trans.Writer (WriterT, runWriterT, tell)
+import Data.Ratio ((%))
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
@@ -128,10 +130,11 @@ data FreeGen next where
   Label :: String -> next -> FreeGen next
   FailWithFootnote :: forall a next. String -> (a -> next) -> FreeGen next
   GenBool :: (Bool -> next) -> FreeGen next
-  GenInt :: Range -> (Int -> next) -> FreeGen next
+  GenInt :: Range Int -> (Int -> next) -> FreeGen next
+  GenRat :: Range Rational -> (Rational -> next) -> FreeGen next
   GenList ::
     forall a next.
-    Range ->
+    Range Int ->
     Gen a ->
     ([a] -> next) ->
     FreeGen next
@@ -170,6 +173,7 @@ instance Functor FreeGen where
   fmap f (FailWithFootnote l next) = FailWithFootnote l (f . next)
   fmap f (GenBool next) = GenBool (f . next)
   fmap f (GenInt r next) = GenInt r (f . next)
+  fmap f (GenRat r next) = GenRat r (f . next)
   fmap f (GenList r g next) = GenList r g (f . next)
   fmap f (GenShuffle l next) = GenShuffle l (f . next)
   fmap f (GenElement ls next) = GenElement ls (f . next)
@@ -192,10 +196,13 @@ failWithFootnote s = liftF (FailWithFootnote s id)
 bool :: Gen Bool
 bool = liftF (GenBool id)
 
-int :: Range -> Gen Int
+rational :: Range Rational -> Gen Rational
+rational r = liftF (GenRat r id)
+
+int :: Range Int -> Gen Int
 int r = liftF (GenInt r id)
 
-list :: Range -> Gen a -> Gen [a]
+list :: Range Int -> Gen a -> Gen [a]
 list r g = liftF (GenList r g id)
 
 shuffle :: Show a => [a] -> Gen [a]
@@ -311,6 +318,9 @@ gen2Interleaved (Free (GenBool next)) = liftG (lift HGen.bool) >>= (gen2Interlea
 gen2Interleaved (Free (GenInt r next)) = do
   i <- liftG $ lift $ HGen.int (hRange r)
   gen2Interleaved $ next i
+gen2Interleaved (Free (GenRat r next)) = do
+  rat <- liftG $ genRatInternal r
+  gen2Interleaved $ next rat
 gen2Interleaved (Free (GenList r g next)) = do
   let gs = int r >>= \l -> replicateM l g
   gs >>>= next
@@ -356,7 +366,22 @@ gen2Interleaved (Pure a) = pure a
 (>>>=) :: Gen r -> (r -> Gen a) -> Interleaved a
 (>>>=) a b = gen2Interleaved a >>= gen2Interleaved . b
 
-hRange :: Range -> H.Range Int
+hRange :: Range Int -> H.Range Int
 hRange (Singleton s) = HRange.singleton s
 hRange (Linear lo hi) = HRange.linear lo hi
 hRange (LinearFrom mid lo hi) = HRange.linearFrom mid lo hi
+
+genRatInternal :: Range Rational -> Generator Rational
+genRatInternal (Singleton r) = pure r
+genRatInternal (LinearFrom c a b) = lift . lift $ do
+  -- if the denominator is lower than this the range could be empty
+  let minDen = ceiling @Rational @Int $ 1 / (b - a)
+  den <- HGen.int $ HRange.linear minDen (1_000_000 * minDen)
+  num <- HGen.int $ HRange.linearFrom (round $ c * fromIntegral den) (ceiling $ a * fromIntegral den) (floor $ b * fromIntegral den)
+  pure $ fromIntegral num % fromIntegral den
+-- this is a bit repeditive, you could probably make it just `genRatInternal (LinearFrom 0 a b)` or something
+genRatInternal (Linear a b) = lift . lift $ do
+  let minDen = ceiling @Rational @Int $ 1 / (b - a)
+  den <- HGen.int $ HRange.linear minDen (1_000_000 * minDen)
+  num <- HGen.int $ HRange.linear (ceiling $ a * fromIntegral den) (floor $ b * fromIntegral den)
+  pure $ fromIntegral num % fromIntegral den

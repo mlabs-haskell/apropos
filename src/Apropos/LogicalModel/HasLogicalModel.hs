@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
   Prop (Prop, unProp),
@@ -5,6 +6,7 @@ module Apropos.LogicalModel.HasLogicalModel (
 
 import Apropos.Logic as L
 import Apropos.LogicalModel as LM
+
 import Data.Hashable (Hashable)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -25,6 +27,8 @@ newtype Prop p = Prop {unProp :: p}
   deriving (Enumerable, Hashable) via p
 
 instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
+  type Properties (Prop p) = Set p
+
   logic = Prop <$> (LM.logic :&&: allPresentInFormula)
     where
       allPresentInFormula :: Formula p
@@ -34,4 +38,8 @@ instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
 
   universe = enumerated
 
-  variablesSet = Set.map Prop . properties
+  toProperties = properties
+
+  propertiesToVariables = Set.map Prop
+
+  variablesToProperties = Set.map unProp

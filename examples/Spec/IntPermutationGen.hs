@@ -10,6 +10,7 @@ import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
+
 data IntProp
   = IsNegative
   | IsPositive
@@ -76,7 +77,7 @@ instance HasPermutationGenerator (Prop IntProp) Int where
     ]
 
 instance HasParameterisedGenerator (Prop IntProp) Int where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop IntProp)
 
 intPermutationGenTests :: TestTree
 intPermutationGenTests =

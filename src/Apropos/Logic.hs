@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Apropos.Logic (
   Formula (..),
@@ -12,6 +13,7 @@ module Apropos.Logic (
   satisfiesFormula,
   satisfiable,
   Strategy (..),
+  variablesSet,
   satisfiesExpression,
 ) where
 
@@ -94,18 +96,24 @@ satisfiedBy = Set.toList $
     [] -> error "no solutions found for model logic"
     (sol : _) -> sol
 
-satisfiesFormula :: forall v a. (Ord v, Strategy v a) => Formula v -> Set v -> Bool
+satisfiesFormula :: forall v a. (Ord v, Strategy v a) => Formula v -> Properties v -> Bool
 satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
   where
     set :: [v]
-    set = Set.toList s
+    set = Set.toList (propertiesToVariables s)
     unset :: [v]
-    unset = filter (`notElem` s) universe
+    unset = filter (`notElem` propertiesToVariables s) universe
 
 class Strategy v a | v -> a where
+  type Properties v
   logic :: Formula v
   universe :: [v]
-  variablesSet :: a -> Set v
+  toProperties :: a -> Properties v
+  propertiesToVariables :: Properties v -> Set v
+  variablesToProperties :: Set v -> Properties v
 
-satisfiesExpression :: (Strategy v a, Ord v) => Formula v -> a -> Bool
-satisfiesExpression f m = satisfiesFormula f (variablesSet m)
+variablesSet :: forall v a. (Strategy v a) => a -> Set v
+variablesSet = propertiesToVariables . toProperties @v
+
+satisfiesExpression :: forall v a. (Strategy v a, Ord v) => Formula v -> a -> Bool
+satisfiesExpression f m = satisfiesFormula f (toProperties @v m)

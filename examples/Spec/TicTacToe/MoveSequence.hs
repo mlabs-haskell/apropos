@@ -109,7 +109,7 @@ errLabelWhenNull :: String -> [a] -> [a]
 errLabelWhenNull la li = if null li then error la else li
 
 instance HasParameterisedGenerator (Prop MoveSequenceProperty) [Int] where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop MoveSequenceProperty)
 
 moveSequencePermutationGenSelfTest :: TestTree
 moveSequencePermutationGenSelfTest =

@@ -26,7 +26,7 @@ instance HasPermutationGenerator (Prop IntSmpl) Int where
   sources = overlaySources
 
 instance HasParameterisedGenerator (Prop IntSmpl) Int where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop IntSmpl)
 
 intSmplPermutationGenTests :: TestTree
 intSmplPermutationGenTests =

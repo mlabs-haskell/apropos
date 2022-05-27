@@ -113,7 +113,7 @@ instance HasPermutationGenerator (Prop PlayerSequenceProperty) [Int] where
     ]
 
 instance HasParameterisedGenerator (Prop PlayerSequenceProperty) [Int] where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop PlayerSequenceProperty)
 
 playerSequencePermutationGenSelfTest :: TestTree
 playerSequencePermutationGenSelfTest =

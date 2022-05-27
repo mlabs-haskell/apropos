@@ -8,6 +8,7 @@ import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
+
 data LocationProperty
   = LocationIsWithinBounds
   | LocationIsOutOfBounds
@@ -41,7 +42,7 @@ instance HasPermutationGenerator (Prop LocationProperty) Int where
     ]
 
 instance HasParameterisedGenerator (Prop LocationProperty) Int where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop LocationProperty)
 
 locationPermutationGenSelfTest :: TestTree
 locationPermutationGenSelfTest =

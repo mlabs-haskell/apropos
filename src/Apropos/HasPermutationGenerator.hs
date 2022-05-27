@@ -37,7 +37,8 @@ import Apropos.HasPermutationGenerator.Source (
  )
 import Apropos.Logic (
   Formula (..),
-  Strategy (logic, universe, variablesSet),
+  Strategy (logic, universe, propertiesToVariables, variablesToProperties, Properties),
+  variablesSet,
   satisfiesExpression,
   scenarios,
   solveAll,
@@ -142,7 +143,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
       errorHandler
         =<< runGenModifiable
           ( forAllWithRetries (traversalRetryLimit @p) $
-              buildGen inprops >>= void . morphism (addPropCheck (inprops, outprops) m)
+              buildGen @p (variablesToProperties inprops) >>= void . morphism (addPropCheck (inprops, outprops) m)
           )
 
   testSource ::
@@ -168,8 +169,8 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
                     ++ show (variablesSet @p m)
           )
 
-  buildGen :: Set p -> Gen m
-  default buildGen :: (Ord p, Show p) => Set p -> Gen m
+  buildGen :: Properties p -> Gen m
+  default buildGen :: (Ord p, Show p) => Properties p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -177,7 +178,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
         sourceMap = findSources @p
         munreachable = unreachableNode (Map.keys sourceMap) cache
         cache = shortestPathCache graph
-        viableSources = filter (\source -> reachable cache source ps) (Map.keys sourceMap)
+        viableSources = filter (\source -> reachable cache source (propertiesToVariables ps)) (Map.keys sourceMap)
     case munreachable of
       Nothing -> pure ()
       Just unreachable -> failUnreachable unreachable
@@ -186,7 +187,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
           fromMaybe (internalError "lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
     let morphismGen model = do
           let sourceNode = variablesSet model
-              viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
+              viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n (propertiesToVariables ps)]
           unless (sourceNode `elem` viableSources) $
             case unconectedSource @p of
               Just s -> failUnconected s
@@ -194,7 +195,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
           when (null viableStops) $ internalError "no stops were possible"
           stop <- element viableStops
           pathp1 <- maybe (internalError "pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
-          pathp2 <- maybe (internalError "pathfinding failed post stop") pure $ shortestPath_ stop ps cache
+          pathp2 <- maybe (internalError "pathfinding failed post stop") pure $ shortestPath_ stop (propertiesToVariables ps) cache
           let path = pairPath $ sourceNode : pathp1 ++ pathp2
           morphisms <- choseMorphism path
           let withPropChecks = zipWith addPropCheck path morphisms

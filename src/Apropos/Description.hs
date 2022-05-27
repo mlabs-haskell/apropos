@@ -1,60 +1,48 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Apropos.Description (
   Description (..),
-  VariableRep,
-  variableSet,
+  VariableRep (V),
   allVariables,
   typeLogic,
   DeepHasDatatypeInfo,
+  Generic,
+  SOPGeneric,
+  HasDatatypeInfo,
 ) where
 
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Data.Tree (Tree (Node), foldTree)
+import Data.Tree hiding (flatten)
 
 import Data.List.Index (iconcatMap, imap)
 
-import Generics.SOP (
-  All,
-  All2,
-  ConstructorInfo (Constructor, Infix, Record),
-  ConstructorName,
-  DatatypeInfo,
-  Generic (Code, from),
-  HCollapse (hcollapse),
-  HPure (hcpure),
-  HasDatatypeInfo (datatypeInfo),
-  I,
-  K (..),
-  NP,
-  Proxy (Proxy),
-  SListI,
-  SOP,
-  constructorInfo,
-  constructorName,
-  hcliftA2,
-  hcmap,
-  hmap,
-  moduleName,
-  unI,
-  unSOP,
- )
+import Data.Semigroup (First(First), getFirst)
+
+import Generics.SOP hiding (Generic)
+
+import Generics.SOP qualified as SOP
+
+import GHC.Generics (Generic)
 
 import Data.Tagged (Tagged, unproxy, untag)
 
-import Apropos.Logic hiding (Var)
-import Apropos.Logic qualified as A
+import Apropos.Logic
+import qualified Data.Map as Map
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+
 
 {- | A type describing an object.
 
   You use description types by defining a type that captures the desired properties
   of the object.
 -}
-class Description a d | d -> a where
+class Description d a | d -> a where
   -- | Describe an object; generate a description object from an object.
   describe :: a -> d
 
@@ -75,6 +63,7 @@ instance (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDataty
  The type parameter is unused except to add a bit of type safety.
 -}
 newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
+  deriving newtype (Show)
 
 {- | Generically construct a 'FlatPack'.
 
@@ -86,22 +75,41 @@ newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
    deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
  @
 -}
-flatpack :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
-flatpack = flatpack' (datatypeInfo (Proxy @a)) . from
+flatten :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
+flatten = FlatPack . flatten' (datatypeInfo (Proxy @a)) . from
   where
-    flatpack' :: (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> SOP I xss -> FlatPack a
-    flatpack' ty =
+    flatten' :: (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> SOP I xss -> Tree ConstructorName
+    flatten' ty =
       hcollapse
         . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (qualifiedConstructorInfo ty)
         . unSOP
 
-    constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (FlatPack a) xs
+    constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
     constr con =
       K
-        . FlatPack
         . Node (constructorName con)
         . hcollapse
-        . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatpack . unI)
+        . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatten . unI)
+
+unflatten :: forall a. (DeepHasDatatypeInfo a) => FlatPack a -> Maybe a
+unflatten = fmap to . flatten' (datatypeInfo (Proxy @a)) . unFlatPack
+  where
+    flatten' :: forall xss. (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> Tree ConstructorName -> Maybe (SOP I xss)
+    flatten' ty tree =
+      let injs = injections @xss @(NP I)
+      in
+        fmap (SOP . getFirst) .
+        mconcat .
+        hcollapse $
+        hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (qualifiedConstructorInfo ty) injs
+
+    constr :: forall xss xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) xss xs -> K (Maybe (First (NS (NP I) xss))) xs
+    constr tree con (Fn inj)
+      | rootLabel tree == constructorName con = K $ do
+        flds <- fromList (subForest tree)
+        prod <- hsequence . hcmap (Proxy @DeepHasDatatypeInfo) (unflatten . FlatPack . unK) $ flds
+        return . First . unK . inj $ prod
+      | otherwise = K Nothing
 
 {- | Type of a variable representing the coice of a single constructor within a
  datatype. A datatype is described by a set of such variables, one for each of
@@ -111,14 +119,18 @@ flatpack = flatpack' (datatypeInfo (Proxy @a)) . from
  and a path of '(ConstructorName, Int)' pairs, each component representing a
  containing constructor and field number.
 -}
-data VariableRep a = Var [(ConstructorName, Int)] ConstructorName
+data VariableRep a =
+  V
+    { vPath :: [(ConstructorName, Int)]
+    , vCons :: ConstructorName
+    }
   deriving stock (Eq, Ord, Show)
 
 rootVarRep :: ConstructorName -> VariableRep a
-rootVarRep = Var []
+rootVarRep = V []
 
 pushVR :: ConstructorName -> Int -> VariableRep a -> VariableRep a
-pushVR cn i (Var vrs cn') = Var ((cn, i) : vrs) cn'
+pushVR cn i (V vrs cn') = V ((cn, i) : vrs) cn'
 
 {- | Calculate the set of variables for an object.
 
@@ -131,27 +143,81 @@ pushVR cn i (Var vrs cn') = Var ((cn, i) : vrs) cn'
  @
  = Examples
 
- >>> variableSet True
- fromList [Var [] "True"]
+ >>> descriptionToVariables True
+ fromList [V [] "True"]
 
- >>> variableSet False
- fromList [Var [] "False"]
+ >>> descriptionToVariables False
+ fromList [V [] "False"]
 
- >>> variableSet (True, False)
- fromList [Var [] "(,)", Var [("(,)",0)] "True", Var [("(,)",1)] "False"]
+ >>> descriptionToVariables (True, False)
+ fromList [V [] "(,)", V [("(,)",0)] "True", V [("(,)",1)] "False"]
 
- >>> variableSet (Just True)
- fromList [Var [] "Just", Var [("Just",0)] "True"]
+ >>> descriptionToVariables (Just True)
+ fromList [V [] "Just", V [("Just",0)] "True"]
 
- >>> variableSet (Nothing @(Maybe Bool))
- fromList [Var [] "Nothing"]
+ >>> descriptionToVariables (Nothing @(Maybe Bool))
+ fromList [V [] "Nothing"]
 -}
-variableSet :: (DeepHasDatatypeInfo a) => a -> Set (VariableRep a)
-variableSet = constructorsToVariables . unFlatPack . flatpack
+descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (VariableRep d)
+descriptionToVariables = 
+  foldTree
+    ( \cn flds ->
+        Set.singleton (rootVarRep cn)
+          <> Set.unions (imap (Set.map . pushVR cn) flds)
+    ) .
+  unFlatPack .
+  flatten
+
+data MapTree k a =
+  MapNode
+  { mapRootLabel :: a
+  , mapSubForest :: Map k (MapTree k a)
+  }
+  deriving stock (Show)
+
+variablesToDescription :: (DeepHasDatatypeInfo d) => Set (VariableRep d) -> d
+variablesToDescription s =
+  let
+    tree = collapseMapTree . buildMapTree $ s
+  in
+    case unflatten . FlatPack $ tree of
+      Nothing -> error ("Invalid FlatPack " ++ drawTree tree)
+      Just a  -> a
+  where
+    collapseMapTree :: MapTree i a -> Tree a
+    collapseMapTree mt =
+      Node
+        { rootLabel = mapRootLabel mt
+        , subForest =
+          map snd .
+          Map.toAscList .
+          Map.map collapseMapTree .
+          mapSubForest $
+          mt
+        }
+
+    buildMapTree :: Set (VariableRep d) -> MapTree Int ConstructorName
+    buildMapTree = Set.foldr insertVar emptyMt
+
+    emptyMt :: MapTree k String
+    emptyMt =
+      MapNode
+        { mapRootLabel = ""
+        , mapSubForest = Map.empty
+        }
+
+    insertVar :: VariableRep d -> MapTree Int ConstructorName -> MapTree Int ConstructorName
+    insertVar (V [] cons )          mt =
+      mt { mapRootLabel = cons }
+    insertVar (V ((_,i):path) cons) mt =
+      mt { mapSubForest = Map.alter (Just . insertVar (V path cons) . fromMaybe emptyMt) i (mapSubForest mt) }
+      
+
+
 
 data TwoTree a = TwoNode
-  { rootLabel :: a
-  , subForest :: [[TwoTree a]]
+  { twoRootLabel :: a
+  , twoSubForest :: [[TwoTree a]]
   }
   deriving stock (Functor, Show)
 
@@ -187,25 +253,25 @@ toConstructors = untag (toConstructors' @a)
 
  = Examples (simplified)
  >>> typeLogic @Bool
- ExactlyOne [Var Var [] "False", Var Var [] "True"]
+ ExactlyOne [V V [] "False", V V [] "True"]
 
  >>> typeLogic @(Bool, Bool)
  All [
-   ExactlyOne [Var Var [("(,)",0)] "False", Var Var [("(,)",0)] "True"],
-   ExactlyOne [Var Var [("(,)",1)] "False", Var Var [("(,)",1)] "True"]
+   ExactlyOne [V V [("(,)",0)] "False", V V [("(,)",0)] "True"],
+   ExactlyOne [V V [("(,)",1)] "False", V V [("(,)",1)] "True"]
  ]
 
  >>> typeLogic @(Either Bool Bool)
  All [
-   ExactlyOne [Var Var [] "Left",Var Var [] "Right"],
-   Var Var [] "Left" :->: All [
-     ExactlyOne [Var Var [("Left",0)] "False",Var Var [("Left",0)] "True"],
+   ExactlyOne [V V [] "Left",V V [] "Right"],
+   V V [] "Left" :->: All [
+     ExactlyOne [V V [("Left",0)] "False",V V [("Left",0)] "True"],
    ],
-   Not (Var (Var [] "Left")) :->: None [Var Var [("Left",0)] "False",Var Var [("Left",0)] "True"],
-   Var Var [] "Right" :->: All [
-     ExactlyOne [Var Var [("Right",0)] "False",Var Var [("Right",0)] "True"]
+   Not (V (V [] "Left")) :->: None [V V [("Left",0)] "False",V V [("Left",0)] "True"],
+   V V [] "Right" :->: All [
+     ExactlyOne [V V [("Right",0)] "False",V V [("Right",0)] "True"]
    ],
-   Not (Var (Var [] "Right")) :->: None [Var Var [("Right",0)] "False",Var Var [("Right",0)] "True"]
+   Not (V (V [] "Right")) :->: None [V V [("Right",0)] "False",V V [("Right",0)] "True"]
  ]
 -}
 typeLogic :: forall a. (DeepHasDatatypeInfo a) => Formula (VariableRep a)
@@ -214,7 +280,7 @@ typeLogic = All . sumLogic $ toConstructors @a
     sumLogic :: [Constructor] -> [Formula (VariableRep a)]
     -- Only one of the constructors can be selected
     sumLogic cs =
-      ExactlyOne (map (rootVar . rootLabel) cs) :
+      ExactlyOne (map (rootVar . twoRootLabel) cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
@@ -223,37 +289,37 @@ typeLogic = All . sumLogic $ toConstructors @a
       -- for each present constructor, apply 'sumLogic'
       [ rootVar cn :->: All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
       , -- for each absent constructor, none of the constructors of its fields can be selected
-        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . rootLabel)) cs)
+        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . twoRootLabel)) cs)
       ]
 
     pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
     pushdownFormula cn i = fmap (pushVR cn i)
 
     rootVar :: ConstructorName -> Formula (VariableRep a)
-    rootVar = A.Var . rootVarRep
+    rootVar = Var . rootVarRep
 
 {- | Enumerate all the variables of a type.
 
   = Examples
 
   >>> allVariables @Bool
-  fromList [Var [] "GHC.Types.False",Var [] "GHC.Types.True"]
+  fromList [V [] "GHC.Types.False",V [] "GHC.Types.True"]
 
   >>> allVariables @(Bool, Bool)
   fromList
-  [ Var [] "GHC.Tuple.(,)"
-  , Var [("GHC.Tuple.(,)",0)] "GHC.Types.False"
-  , Var [("GHC.Tuple.(,)",0)] "GHC.Types.True"
-  , Var [("GHC.Tuple.(,)",1)] "GHC.Types.False"
-  , Var [("GHC.Tuple.(,)",1)] "GHC.Types.True"
+  [ V [] "GHC.Tuple.(,)"
+  , V [("GHC.Tuple.(,)",0)] "GHC.Types.False"
+  , V [("GHC.Tuple.(,)",0)] "GHC.Types.True"
+  , V [("GHC.Tuple.(,)",1)] "GHC.Types.False"
+  , V [("GHC.Tuple.(,)",1)] "GHC.Types.True"
  ]
 
  >>> allVariables @(Maybe Bool)
  fromList
-  [ Var [] "GHC.Maybe.Just"
-  , Var [] "GHC.Maybe.Nothing"
-  , Var [("GHC.Maybe.Just",0)] "GHC.Types.False"
-  , Var [("GHC.Maybe.Just",0)] "GHC.Types.True"
+  [ V [] "GHC.Maybe.Just"
+  , V [] "GHC.Maybe.Nothing"
+  , V [("GHC.Maybe.Just",0)] "GHC.Types.False"
+  , V [("GHC.Maybe.Just",0)] "GHC.Types.True"
   ]
 -}
 allVariables :: forall a. (DeepHasDatatypeInfo a) => Set (VariableRep a)
@@ -267,14 +333,6 @@ allVariables = Set.unions . map allVariables' $ toConstructors @a
               <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
-constructorsToVariables :: Tree ConstructorName -> Set (VariableRep a)
-constructorsToVariables =
-  foldTree
-    ( \cn flds ->
-        Set.singleton (rootVarRep cn)
-          <> Set.unions (imap (Set.map . pushVR cn) flds)
-    )
-
 qualifiedConstructorInfo :: (SListI xss) => DatatypeInfo xss -> NP ConstructorInfo xss
 qualifiedConstructorInfo di = hmap adjust (constructorInfo di)
   where
@@ -286,9 +344,17 @@ qualifiedConstructorInfo di = hmap adjust (constructorInfo di)
     qualify :: ConstructorName -> ConstructorName
     qualify cn = moduleName di ++ "." ++ cn
 
-instance (DeepHasDatatypeInfo a) => Strategy (VariableRep a) a where
+instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
+  type Properties (VariableRep d) = d
+
   logic = typeLogic
 
   universe = Set.toList allVariables
 
-  variablesSet = variableSet
+  toProperties = describe
+
+  propertiesToVariables = descriptionToVariables
+
+  variablesToProperties = variablesToDescription
+
+type SOPGeneric = SOP.Generic

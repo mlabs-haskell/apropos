@@ -32,7 +32,7 @@ soundOverlay = property $
     [] -> case emptyOverlays @sp @op of
       (empty : _) -> do
         footnote $
-          "found solution to overlay with no coresponding sub model solutions\n"
+          "found solution to Overlay with no coresponding sub\n"
             ++ show (Set.toList empty)
         failure
       [] -> pure ()
@@ -47,7 +47,7 @@ antiValidity =
       subModelLogic = Right <$> logic
    in Not ((conectingLogic :&&: subModelLogic) :->: overlayLogic)
 
--- list of solutions to the overlay logic which have no coresponding solutions in the sub-model
+-- list of solutions to the Overlay logic which have no in the sub-model
 -- if this is not empty that is considered unsound
 emptyOverlays :: forall sp op o s. (Ord sp, Ord op, Overlay op sp o s) => [Set op]
 emptyOverlays =

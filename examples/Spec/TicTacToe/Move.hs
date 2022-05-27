@@ -51,7 +51,7 @@ instance HasPermutationGenerator (Prop MoveProperty) (Int, Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator (Prop MoveProperty) (Int, Int) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop MoveProperty)
 
 movePermutationGenSelfTest :: TestTree
 movePermutationGenSelfTest =

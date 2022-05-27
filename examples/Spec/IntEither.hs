@@ -22,7 +22,7 @@ data IntEitherProp
 instance LogicalModel IntEitherProp where
   logic =
     ExactlyOne [Var IsLeft, Var IsRight]
-      :&&: fmap unProp (abstractionLogic @(Either Int Int))
+      :&&: fmap unProp abstractionLogic
 
 instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsLeft (Left _) = True
@@ -58,7 +58,7 @@ instance HasPermutationGenerator (Prop IntEitherProp) (Either Int Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator (Prop IntEitherProp) (Either Int Int) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop IntEitherProp)
 
 intEitherGenTests :: TestTree
 intEitherGenTests =

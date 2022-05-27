@@ -45,7 +45,7 @@ instance HasAbstractions (Prop PairOfSmpl) (Int, Int) where
     ]
 
 instance LogicalModel PairOfSmpl where
-  logic = unProp <$> abstractionLogic @(Int, Int)
+  logic = unProp <$> abstractionLogic
 
 instance HasLogicalModel PairOfSmpl (Int, Int) where
   satisfiesProperty (L p) (x, _) = satisfiesProperty p x
@@ -56,7 +56,7 @@ instance HasPermutationGenerator (Prop PairOfSmpl) (Int, Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator (Prop PairOfSmpl) (Int, Int) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop PairOfSmpl)
 
 instance Overlay (Prop PairSmpl) (Prop PairOfSmpl) (Int, Int) (Int, Int) where
   overlays (Prop BothNonNeg) = Prop <$> Var (L NonNegative) :&&: Var (R NonNegative)
@@ -68,7 +68,7 @@ instance HasPermutationGenerator (Prop PairSmpl) (Int, Int) where
   sources = overlaySources
 
 instance HasParameterisedGenerator (Prop PairSmpl) (Int, Int) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop PairSmpl)
 
 smplPairTests :: TestTree
 smplPairTests =

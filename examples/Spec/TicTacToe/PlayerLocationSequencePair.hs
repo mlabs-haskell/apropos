@@ -67,7 +67,7 @@ instance HasPermutationGenerator (Prop PlayerLocationSequencePairProperty) ([Int
   generators = abstractionMorphisms ++ parallelAbstractionMorphisms
 
 instance HasParameterisedGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop PlayerLocationSequencePairProperty)
 
 playerLocationSequencePairPermutationGenSelfTest :: TestTree
 playerLocationSequencePairPermutationGenSelfTest =

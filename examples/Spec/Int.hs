@@ -36,18 +36,18 @@ instance HasLogicalModel IntProp Int where
 instance HasParameterisedGenerator (Prop IntProp) Int where
   parameterisedGenerator s = do
     i <-
-      if Prop IsZero `elem` s
+      if IsZero `elem` s
         then pure 0
         else
-          if Prop IsSmall `elem` s
+          if IsSmall `elem` s
             then int (linear 1 10)
             else
-              if Prop IsMaxBound `elem` s
+              if IsMaxBound `elem` s
                 then pure maxBound
                 else int (linear 11 (maxBound - 1))
-    if Prop IsNegative `elem` s
+    if IsNegative `elem` s
       then
-        if Prop IsMinBound `elem` s
+        if IsMinBound `elem` s
           then pure minBound
           else pure (-i)
       else pure i

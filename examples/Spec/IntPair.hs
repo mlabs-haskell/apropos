@@ -21,7 +21,7 @@ data IntPairProp
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntPairProp where
-  logic = unProp <$> abstractionLogic @(Int, Int) @(Prop IntPairProp)
+  logic = unProp <$> abstractionLogic
 
 instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i
@@ -53,7 +53,7 @@ instance HasPermutationGenerator (Prop IntPairProp) (Int, Int) where
   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator (Prop IntPairProp) (Int, Int) where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop IntPairProp)
 
 intPairGenTests :: TestTree
 intPairGenTests =

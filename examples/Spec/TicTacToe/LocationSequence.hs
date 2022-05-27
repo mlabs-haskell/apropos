@@ -151,7 +151,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
                       ( Var (Prop SomeLocationIsOutOfBounds)
                           :&&: Not (Var (Prop SomeLocationIsOccupiedTwice))
                       )
-                      . variablesSet
+                      . toProperties @(Prop LocationSequenceProperty)
                   )
              in do
                   let locationsLen = length locations
@@ -188,7 +188,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
     ]
 
 instance HasParameterisedGenerator (Prop LocationSequenceProperty) [Int] where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop LocationSequenceProperty)
 
 locationSequencePermutationGenSelfTest :: TestTree
 locationSequencePermutationGenSelfTest =

@@ -37,7 +37,7 @@ data RatProp
 
 instance LogicalModel RatProp where
   logic =
-    (unProp <$> abstractionLogic @Rat)
+    (unProp <$> abstractionLogic)
       :&&: (Var RatZero :->: Var RatSmall)
       :&&: ExactlyOne [Var RatSmall, Var RatLarge]
       :&&: (Var (Num IsSmall) :->: Var RatSmall)
@@ -179,7 +179,7 @@ instance HasPermutationGenerator (Prop RatProp) Rat where
          ]
 
 instance HasParameterisedGenerator (Prop RatProp) Rat where
-  parameterisedGenerator = buildGen
+  parameterisedGenerator = buildGen @(Prop RatProp)
 
 ratGenSelfTests :: TestTree
 ratGenSelfTests =

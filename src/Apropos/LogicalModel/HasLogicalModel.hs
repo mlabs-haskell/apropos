@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
   Prop (Prop, unProp),

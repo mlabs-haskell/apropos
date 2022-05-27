@@ -9,7 +9,7 @@ module Apropos.Pure (
 import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasParameterisedGenerator
-import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula, Strategy (variablesToProperties, Properties))
+import Apropos.Logic (Formula (..), Strategy (Properties, variablesToProperties), enumerateScenariosWhere, satisfiesFormula)
 import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)

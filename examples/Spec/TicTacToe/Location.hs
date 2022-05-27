@@ -8,7 +8,6 @@ import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
-
 data LocationProperty
   = LocationIsWithinBounds
   | LocationIsOutOfBounds

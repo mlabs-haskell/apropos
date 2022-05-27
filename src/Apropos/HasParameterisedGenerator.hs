@@ -13,17 +13,16 @@ import Apropos.Gen.Enumerate (enumerate)
 import Apropos.Logic (
   Formula,
   Strategy (..),
-  variablesSet,
   enumerateScenariosWhere,
   scenarioMap,
   scenarios,
+  variablesSet,
  )
 import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)
-
 
 class (Strategy p m, Show m) => HasParameterisedGenerator p m where
   parameterisedGenerator :: Properties p -> Gen m
@@ -32,7 +31,8 @@ class (Strategy p m, Show m) => HasParameterisedGenerator p m where
 runGeneratorTest ::
   forall p m.
   (Eq (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
-  Properties p -> Property
+  Properties p ->
+  Property
 runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do

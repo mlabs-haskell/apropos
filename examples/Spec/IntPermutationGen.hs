@@ -10,7 +10,6 @@ import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
-
 data IntProp
   = IsNegative
   | IsPositive

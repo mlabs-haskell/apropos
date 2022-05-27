@@ -1,7 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
 module Apropos.Description (
   Description (..),
@@ -21,7 +21,7 @@ import Data.Tree hiding (flatten)
 
 import Data.List.Index (iconcatMap, imap)
 
-import Data.Semigroup (First(First), getFirst)
+import Data.Semigroup (First (First), getFirst)
 
 import Generics.SOP hiding (Generic)
 
@@ -32,10 +32,9 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Logic
-import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-
 
 {- | A type describing an object.
 
@@ -97,18 +96,17 @@ unflatten = fmap to . flatten' (datatypeInfo (Proxy @a)) . unFlatPack
     flatten' :: forall xss. (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> Tree ConstructorName -> Maybe (SOP I xss)
     flatten' ty tree =
       let injs = injections @xss @(NP I)
-      in
-        fmap (SOP . getFirst) .
-        mconcat .
-        hcollapse $
-        hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (qualifiedConstructorInfo ty) injs
+       in fmap (SOP . getFirst)
+            . mconcat
+            . hcollapse
+            $ hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (qualifiedConstructorInfo ty) injs
 
     constr :: forall xss xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) xss xs -> K (Maybe (First (NS (NP I) xss))) xs
     constr tree con (Fn inj)
       | rootLabel tree == constructorName con = K $ do
-        flds <- fromList (subForest tree)
-        prod <- hsequence . hcmap (Proxy @DeepHasDatatypeInfo) (unflatten . FlatPack . unK) $ flds
-        return . First . unK . inj $ prod
+          flds <- fromList (subForest tree)
+          prod <- hsequence . hcmap (Proxy @DeepHasDatatypeInfo) (unflatten . FlatPack . unK) $ flds
+          return . First . unK . inj $ prod
       | otherwise = K Nothing
 
 {- | Type of a variable representing the coice of a single constructor within a
@@ -119,11 +117,10 @@ unflatten = fmap to . flatten' (datatypeInfo (Proxy @a)) . unFlatPack
  and a path of '(ConstructorName, Int)' pairs, each component representing a
  containing constructor and field number.
 -}
-data VariableRep a =
-  V
-    { vPath :: [(ConstructorName, Int)]
-    , vCons :: ConstructorName
-    }
+data VariableRep a = V
+  { vPath :: [(ConstructorName, Int)]
+  , vCons :: ConstructorName
+  }
   deriving stock (Eq, Ord, Show)
 
 rootVarRep :: ConstructorName -> VariableRep a
@@ -159,17 +156,16 @@ pushVR cn i (V vrs cn') = V ((cn, i) : vrs) cn'
  fromList [V [] "Nothing"]
 -}
 descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (VariableRep d)
-descriptionToVariables = 
+descriptionToVariables =
   foldTree
     ( \cn flds ->
         Set.singleton (rootVarRep cn)
           <> Set.unions (imap (Set.map . pushVR cn) flds)
-    ) .
-  unFlatPack .
-  flatten
+    )
+    . unFlatPack
+    . flatten
 
-data MapTree k a =
-  MapNode
+data MapTree k a = MapNode
   { mapRootLabel :: a
   , mapSubForest :: Map k (MapTree k a)
   }
@@ -177,23 +173,21 @@ data MapTree k a =
 
 variablesToDescription :: (DeepHasDatatypeInfo d) => Set (VariableRep d) -> d
 variablesToDescription s =
-  let
-    tree = collapseMapTree . buildMapTree $ s
-  in
-    case unflatten . FlatPack $ tree of
-      Nothing -> error ("Invalid FlatPack " ++ drawTree tree)
-      Just a  -> a
+  let tree = collapseMapTree . buildMapTree $ s
+   in case unflatten . FlatPack $ tree of
+        Nothing -> error ("Invalid FlatPack " ++ drawTree tree)
+        Just a -> a
   where
     collapseMapTree :: MapTree i a -> Tree a
     collapseMapTree mt =
       Node
         { rootLabel = mapRootLabel mt
         , subForest =
-          map snd .
-          Map.toAscList .
-          Map.map collapseMapTree .
-          mapSubForest $
-          mt
+            map snd
+              . Map.toAscList
+              . Map.map collapseMapTree
+              . mapSubForest
+              $ mt
         }
 
     buildMapTree :: Set (VariableRep d) -> MapTree Int ConstructorName
@@ -207,13 +201,10 @@ variablesToDescription s =
         }
 
     insertVar :: VariableRep d -> MapTree Int ConstructorName -> MapTree Int ConstructorName
-    insertVar (V [] cons )          mt =
-      mt { mapRootLabel = cons }
-    insertVar (V ((_,i):path) cons) mt =
-      mt { mapSubForest = Map.alter (Just . insertVar (V path cons) . fromMaybe emptyMt) i (mapSubForest mt) }
-      
-
-
+    insertVar (V [] cons) mt =
+      mt {mapRootLabel = cons}
+    insertVar (V ((_, i) : path) cons) mt =
+      mt {mapSubForest = Map.alter (Just . insertVar (V path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
 
 data TwoTree a = TwoNode
   { twoRootLabel :: a

@@ -342,4 +342,3 @@ instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a 
   variablesToProperties = variablesToDescription
 
 type SOPGeneric = SOP.Generic
-

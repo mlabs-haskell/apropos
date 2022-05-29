@@ -1,5 +1,5 @@
 module Spec.Description.IntSimple (
-  intSimpleGenTests
+  intSimpleGenTests,
 ) where
 
 import Apropos
@@ -69,4 +69,3 @@ intSimpleGenTests =
     fromGroup
       <$> [ runGeneratorTestsWhere "Int Generator" (Yes @(VariableRep IntDescr))
           ]
-      

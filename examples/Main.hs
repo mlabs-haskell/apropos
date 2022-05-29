@@ -19,8 +19,6 @@ import Spec.Description.IntSimple
 
 import Test.Tasty
 
-
-
 main :: IO ()
 main = defaultMain tests
 
@@ -74,10 +72,9 @@ tests =
             , playerLocationSequencePairPermutationGenSelfTest
             , moveSequencePermutationGenSelfTest
             ]
-        ],
-    testGroup 
+        ]
+    , testGroup
         "Description"
         [ intSimpleGenTests
         ]
-
     ]

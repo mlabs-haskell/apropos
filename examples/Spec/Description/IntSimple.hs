@@ -42,8 +42,8 @@ instance Description IntDescr Int where
 
   additionalLogic =
     All
-      [ Var (V [("Spec.Description.IntSimple.IntDescr", 0)] "Spec.Description.IntSimple.Zero") :->: Var (V [("Spec.Description.IntSimple.IntDescr", 1)] "Spec.Description.IntSimple.Small")
-      , Var (V [("Spec.Description.IntSimple.IntDescr", 2)] "GHC.Types.True") :->: Var (V [("Spec.Description.IntSimple.IntDescr", 1)] "Spec.Description.IntSimple.Large")
+      [ v [("IntDescr", 0)] "Zero" :->: v [("IntDescr", 1)] "Small"
+      , v [("IntDescr", 2)] "True" :->: v [("IntDescr", 1)] "Large"
       ]
 
 instance HasParameterisedGenerator (VariableRep IntDescr) Int where

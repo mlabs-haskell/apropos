@@ -39,13 +39,13 @@ runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
 
 runGeneratorTestsWhere ::
   forall p m.
-  (Show p, Ord p, Eq (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
+  (Ord p, Eq (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
   String ->
   Formula p ->
   Group
 runGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, runGeneratorTest @p (variablesToProperties scenario))
+    [ (fromString $ show $ variablesToProperties scenario, runGeneratorTest @p (variablesToProperties scenario))
     | scenario <- enumerateScenariosWhere condition
     ]
 

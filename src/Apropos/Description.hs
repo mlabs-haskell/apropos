@@ -12,6 +12,7 @@ module Apropos.Description (
   Generic,
   SOPGeneric,
   HasDatatypeInfo,
+  v,
 ) where
 
 import Data.Set (Set)
@@ -75,12 +76,12 @@ newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
  @
 -}
 flatten :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
-flatten = FlatPack . flatten' (datatypeInfo (Proxy @a)) . from
+flatten = FlatPack . flatten' (datatypeInfo @a Proxy) . from
   where
     flatten' :: (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> SOP I xss -> Tree ConstructorName
     flatten' ty =
       hcollapse
-        . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (qualifiedConstructorInfo ty)
+        . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (constructorInfo ty)
         . unSOP
 
     constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
@@ -91,7 +92,7 @@ flatten = FlatPack . flatten' (datatypeInfo (Proxy @a)) . from
         . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatten . unI)
 
 unflatten :: forall a. (DeepHasDatatypeInfo a) => FlatPack a -> Maybe a
-unflatten = fmap to . flatten' (datatypeInfo (Proxy @a)) . unFlatPack
+unflatten = fmap to . flatten' (datatypeInfo @a Proxy) . unFlatPack
   where
     flatten' :: forall xss. (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> Tree ConstructorName -> Maybe (SOP I xss)
     flatten' ty tree =
@@ -99,7 +100,7 @@ unflatten = fmap to . flatten' (datatypeInfo (Proxy @a)) . unFlatPack
        in fmap (SOP . getFirst)
             . mconcat
             . hcollapse
-            $ hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (qualifiedConstructorInfo ty) injs
+            $ hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (constructorInfo ty) injs
 
     constr :: forall xss xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) xss xs -> K (Maybe (First (NS (NP I) xss))) xs
     constr tree con (Fn inj)
@@ -227,7 +228,7 @@ toConstructors = untag (toConstructors' @a)
       unproxy $
         hcollapse
           . hcmap (Proxy @(All DeepHasDatatypeInfo)) constr
-          . qualifiedConstructorInfo
+          . constructorInfo
           . datatypeInfo
 
     constr :: forall xs. (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> K Constructor xs
@@ -286,8 +287,8 @@ typeLogic = All . sumLogic $ toConstructors @a
     pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
     pushdownFormula cn i = fmap (pushVR cn i)
 
-    rootVar :: ConstructorName -> Formula (VariableRep a)
-    rootVar = Var . rootVarRep
+rootVar :: ConstructorName -> Formula (VariableRep a)
+rootVar = Var . rootVarRep
 
 {- | Enumerate all the variables of a type.
 
@@ -324,16 +325,8 @@ allVariables = Set.unions . map allVariables' $ toConstructors @a
               <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
-qualifiedConstructorInfo :: (SListI xss) => DatatypeInfo xss -> NP ConstructorInfo xss
-qualifiedConstructorInfo di = hmap adjust (constructorInfo di)
-  where
-    adjust :: ConstructorInfo xs -> ConstructorInfo xs
-    adjust (Constructor cn) = Constructor (qualify cn)
-    adjust (Infix cn ass fix) = Infix (qualify cn) ass fix
-    adjust (Record cn fis) = Record (qualify cn) fis
-
-    qualify :: ConstructorName -> ConstructorName
-    qualify cn = moduleName di ++ "." ++ cn
+v :: [(ConstructorName, Int)] -> ConstructorName -> Formula (VariableRep a)
+v path = Var . V path
 
 instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
   type Properties (VariableRep d) = d
@@ -349,3 +342,4 @@ instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a 
   variablesToProperties = variablesToDescription
 
 type SOPGeneric = SOP.Generic
+

@@ -46,7 +46,7 @@ class Description d a | d -> a where
   describe :: a -> d
 
   -- | optionally add additional logic constraining valid description types
-  additionalLogic :: Formula (VariableRep a)
+  additionalLogic :: Formula (VariableRep d)
   additionalLogic = Yes
 
 {- | A constraint asserting that a type and the types of all its fields recursively
@@ -338,7 +338,7 @@ qualifiedConstructorInfo di = hmap adjust (constructorInfo di)
 instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
   type Properties (VariableRep d) = d
 
-  logic = typeLogic
+  logic = typeLogic :&&: additionalLogic
 
   universe = Set.toList allVariables
 

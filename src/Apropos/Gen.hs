@@ -52,11 +52,9 @@ runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
 runGenModifiable g = runExceptT $ runReaderT g (GenModifier id False)
 
 errorHandler :: Either GenException a -> PropertyT IO a
-errorHandler ee =
-  case ee of
-    Left Retry -> H.footnote "retry limit reached" >> H.discard
-    Left (GenException err) -> H.footnote err >> H.failure
-    Right a -> pure a
+errorHandler (Left Retry) = H.footnote "retry limit reached" >> H.discard
+errorHandler (Left (GenException err)) = H.footnote err >> H.failure
+errorHandler (Right a) = pure a
 
 forAllWithRetries :: forall a. Show a => Int -> Gen a -> GenModifiable a
 forAllWithRetries retries g = go 0

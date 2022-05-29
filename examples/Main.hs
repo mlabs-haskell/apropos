@@ -14,7 +14,12 @@ import Spec.TicTacToe.MoveSequence
 import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
+
+import Spec.Description.IntSimple
+
 import Test.Tasty
+
+
 
 main :: IO ()
 main = defaultMain tests
@@ -24,47 +29,55 @@ tests =
   testGroup
     "all tests"
     [ testGroup
-        "Int model Hand Written Parameterised Generator"
-        [ intGenTests
-        , intPureTests
+        "LogicalModel"
+        [ testGroup
+            "Int model Hand Written Parameterised Generator"
+            [ intGenTests
+            , intPureTests
+            ]
+        , testGroup
+            "Int Overlay tests"
+            [ intSmplPermutationGenTests
+            ]
+        , testGroup
+            "IntPair Overlay tests"
+            [ smplPairTests
+            ]
+        , testGroup
+            "Int model using Permutation Generator"
+            [ intPermutationGenTests
+            , intPermutationGenPureTests
+            , intPermutationGenSelfTests
+            ]
+        , testGroup
+            "IntPair composite model"
+            [ intPairGenTests
+            , intPairGenSelfTests
+            , intPairGenPureTests
+            ]
+        , testGroup
+            "IntEither composite model"
+            [ intEitherGenTests
+            ]
+        , testGroup
+            "Rational model"
+            [ ratGenSelfTests
+            , ratSampleTests
+            ]
+        , testGroup
+            "TicTacToe"
+            [ playerPermutationGenSelfTest
+            , locationPermutationGenSelfTest
+            , movePermutationGenSelfTest
+            , playerSequencePermutationGenSelfTest
+            , locationSequencePermutationGenSelfTest
+            , playerLocationSequencePairPermutationGenSelfTest
+            , moveSequencePermutationGenSelfTest
+            ]
+        ],
+    testGroup 
+        "Description"
+        [ intSimpleGenTests
         ]
-    , testGroup
-        "Int Overlay tests"
-        [ intSmplPermutationGenTests
-        ]
-    , testGroup
-        "IntPair Overlay tests"
-        [ smplPairTests
-        ]
-    , testGroup
-        "Int model using Permutation Generator"
-        [ intPermutationGenTests
-        , intPermutationGenPureTests
-        , intPermutationGenSelfTests
-        ]
-    , testGroup
-        "IntPair composite model"
-        [ intPairGenTests
-        , intPairGenSelfTests
-        , intPairGenPureTests
-        ]
-    , testGroup
-        "IntEither composite model"
-        [ intEitherGenTests
-        ]
-    , testGroup
-        "Rational model"
-        [ ratGenSelfTests
-        , ratSampleTests
-        ]
-    , testGroup
-        "TicTacToe"
-        [ playerPermutationGenSelfTest
-        , locationPermutationGenSelfTest
-        , movePermutationGenSelfTest
-        , playerSequencePermutationGenSelfTest
-        , locationSequencePermutationGenSelfTest
-        , playerLocationSequencePairPermutationGenSelfTest
-        , moveSequencePermutationGenSelfTest
-        ]
+
     ]

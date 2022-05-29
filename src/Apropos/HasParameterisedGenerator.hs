@@ -16,10 +16,8 @@ import Apropos.Logic (
   enumerateScenariosWhere,
   scenarioMap,
   scenarios,
-  variablesSet,
  )
 import Data.Map qualified as Map
-import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)
@@ -51,24 +49,24 @@ runGeneratorTestsWhere name condition =
     | scenario <- enumerateScenariosWhere condition
     ]
 
-genPropSet :: forall p a. (Ord p, Strategy p a) => Gen (Set p)
+genPropSet :: forall p a. (Ord p, Strategy p a) => Gen (Properties p)
 genPropSet = do
   let x = length (scenarios @p)
   i <- int (linear 0 (x - 1))
-  case Map.lookup i scenarioMap of
+  case Map.lookup i (scenarioMap @p) of
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
-    Just set -> pure set
+    Just set -> pure (variablesToProperties set)
 
 sampleGenTest ::
   forall p m.
-  (Ord p, Show p, HasParameterisedGenerator p m) =>
+  (Ord p, Ord (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
   Property
 sampleGenTest = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
-      (ps :: Set p) <- genPropSet @p
-      (m :: m) <- parameterisedGenerator @p (variablesToProperties ps)
-      variablesSet m === ps
+      (ps :: Properties p) <- genPropSet @p
+      (m :: m) <- parameterisedGenerator @p ps
+      toProperties @p m === ps
 
 enumerateGeneratorTest ::
   forall p m.

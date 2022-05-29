@@ -10,7 +10,6 @@ import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
 import Apropos.HasParameterisedGenerator
 import Apropos.Logic (Formula (..), Strategy (Properties, variablesToProperties), enumerateScenariosWhere, satisfiesFormula)
-import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)
 
@@ -26,10 +25,10 @@ runPureTest runner s = property $ runGenModifiable test >>= errorHandler
       (m :: m) <- parameterisedGenerator @p s
       satisfiesFormula (expect runner) s === script runner m
 
-runPureTestsWhere :: forall p m. (Show p, Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
+runPureTestsWhere :: forall p m. (Show (Properties p), Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
 runPureTestsWhere runner name condition =
   Group (fromString name) $
-    [ ( fromString $ show $ Set.toList scenario
+    [ ( fromString $ show $ variablesToProperties scenario
       , runPureTest runner (variablesToProperties scenario)
       )
     | scenario <- enumerateScenariosWhere condition
@@ -43,10 +42,10 @@ enumeratePureTest runner s = withTests (1 :: TestLimit) $ property $ runGenModif
           run m = satisfiesFormula (expect runner) s === script runner m
       sequence_ (run <$> ms)
 
-enumeratePureTestsWhere :: forall p m. (Show p, Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
+enumeratePureTestsWhere :: forall p m. (Show (Properties p), Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
 enumeratePureTestsWhere runner name condition =
   Group (fromString name) $
-    [ ( fromString $ show $ Set.toList scenario
+    [ ( fromString $ show $ variablesToProperties scenario
       , enumeratePureTest runner (variablesToProperties scenario)
       )
     | scenario <- enumerateScenariosWhere condition

@@ -18,7 +18,6 @@ import Apropos.Logic (
   scenarios,
  )
 import Data.Map qualified as Map
-import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)
 
@@ -84,13 +83,13 @@ enumerateGeneratorTest s =
 
 enumerateGeneratorTestsWhere ::
   forall p m.
-  (Ord p, Show p, Eq (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
+  (Ord p, Eq (Properties p), Show (Properties p), HasParameterisedGenerator p m) =>
   String ->
   Formula p ->
   Group
 enumerateGeneratorTestsWhere name condition =
   Group (fromString name) $
-    [ (fromString $ show $ Set.toList scenario, enumerateGeneratorTest @p (variablesToProperties scenario))
+    [ (fromString $ show $ variablesToProperties scenario, enumerateGeneratorTest @p (variablesToProperties scenario))
     | scenario <- enumerateScenariosWhere condition
     ]
 

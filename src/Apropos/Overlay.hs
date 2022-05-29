@@ -8,17 +8,16 @@ module Apropos.Overlay (
 import Apropos.Error
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator.Source
-import Apropos.Logic (Formula (..), Strategy (logic, universe), satisfiesExpression, scenarios, solveAll)
+import Apropos.Logic (Formula (..), Strategy (..), satisfiesExpression, scenarios, solveAll)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
-import Data.Set qualified as Set
 import Hedgehog (Property, failure, footnote, property)
 
 class (Strategy op o, Strategy sp s) => Overlay op sp o s | op -> sp where
   overlays :: op -> Formula sp
 
-soundOverlay :: forall op sp o s. (Ord sp, Ord op, Show sp, Show op, Overlay op sp o s) => Property
+soundOverlay :: forall op sp o s. (Ord sp, Ord op, Show sp, Show (Properties sp), Show op, Show (Properties op), Overlay op sp o s) => Property
 soundOverlay = property $
   case solveAll (antiValidity @op @sp) of
     (violation : _) -> do
@@ -26,14 +25,14 @@ soundOverlay = property $
         (uncovered : _) ->
           footnote $
             "found solution to sub model which is excluded by overlay logic\n"
-              ++ show (Set.toList uncovered)
+              ++ show (variablesToProperties uncovered)
         [] -> internalError $ "overlay violation" ++ show violation
       failure
     [] -> case emptyOverlays @sp @op of
       (empty : _) -> do
         footnote $
           "found solution to Overlay with no coresponding sub\n"
-            ++ show (Set.toList empty)
+            ++ show (variablesToProperties empty)
         failure
       [] -> pure ()
 

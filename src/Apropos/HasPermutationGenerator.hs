@@ -86,7 +86,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
   allowRedundentMorphisms = False
 
   permutationValidity :: Maybe (String, PropertyT IO ())
-  default permutationValidity :: (Ord p, Show p) => Maybe (String, PropertyT IO ())
+  default permutationValidity :: (Ord p, Show (Properties p)) => Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -134,7 +134,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
     Morphism p m ->
     Property
   default testEdge ::
-    (Eq p, Show p) =>
+    (Eq p, Show (Properties p)) =>
     (Set p, Set p) ->
     Morphism p m ->
     Property
@@ -170,7 +170,7 @@ class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
           )
 
   buildGen :: Properties p -> Gen m
-  default buildGen :: (Ord p, Show p) => Properties p -> Gen m
+  default buildGen :: (Ord p, Show p, Show (Properties p)) => Properties p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -279,14 +279,14 @@ ourStyle = style {lineLength = 80}
 reachable :: (Eq a, Hashable a) => ShortestPathCache a -> a -> a -> Bool
 reachable cache s e = isJust $ distance_ s e cache
 
-failUnreachable :: Show p => Set p -> Gen ()
+failUnreachable :: (Strategy p m, Show (Properties p)) => Set p -> Gen ()
 failUnreachable unreachable =
   failWithFootnote $
     renderStyle ourStyle $
       "Some nodes not reachable"
-        $+$ hang "Could not reach node:" 4 (ppDoc unreachable)
+        $+$ hang "Could not reach node:" 4 (ppDoc $ variablesToProperties unreachable)
 
-failUnconected :: Show p => (Source p m, Set p, Set p) -> Gen ()
+failUnconected :: (Strategy p m, Show (Properties p)) => (Source p m, Set p, Set p) -> Gen ()
 failUnconected (s, n1, n2) =
   failWithFootnote $
     "source is not connected"
@@ -294,6 +294,6 @@ failUnconected (s, n1, n2) =
       ++ sourceName s
       ++ "\nhad no path"
       ++ "\nfrom: "
-      ++ show n1
+      ++ show (variablesToProperties n1)
       ++ "\nto: "
-      ++ show n2
+      ++ show (variablesToProperties n2)

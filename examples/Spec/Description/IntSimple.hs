@@ -1,5 +1,6 @@
 module Spec.Description.IntSimple (
-  intSimpleGenTests,
+  module Spec.Description.IntSimple,
+  -- intSimpleGenTests,
 ) where
 
 import Apropos
@@ -42,8 +43,8 @@ instance Description IntDescr Int where
 
   additionalLogic =
     All
-      [ v [("IntDescr", 0)] "Zero" :->: v [("IntDescr", 1)] "Small"
-      , v [("IntDescr", 2)] "True" :->: v [("IntDescr", 1)] "Large"
+      [ v [("IntDescr", "sign")] "Zero" :->: v [("IntDescr", "size")] "Small"
+      , v [("IntDescr", "isBound")] "True" :->: v [("IntDescr", "size")] "Large"
       ]
 
 instance HasParameterisedGenerator (VariableRep IntDescr) Int where

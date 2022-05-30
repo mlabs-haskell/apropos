@@ -6,7 +6,6 @@
 module Apropos.Description (
   Description (..),
   VariableRep (V),
-  allVariables,
   typeLogic,
   DeepHasDatatypeInfo,
   Generic,
@@ -14,6 +13,8 @@ module Apropos.Description (
   HasDatatypeInfo,
   v,
 ) where
+
+import Data.String (IsString (fromString))
 
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -33,9 +34,10 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Logic
+import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromJust, fromMaybe)
 
 {- | A type describing an object.
 
@@ -76,14 +78,13 @@ newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
  @
 -}
 flatten :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
-flatten = FlatPack . flatten' (datatypeInfo @a Proxy) . from
+flatten =
+  FlatPack
+    . hcollapse
+    . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (constructorInfo (datatypeInfo @a Proxy))
+    . unSOP
+    . from
   where
-    flatten' :: (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> SOP I xss -> Tree ConstructorName
-    flatten' ty =
-      hcollapse
-        . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (constructorInfo ty)
-        . unSOP
-
     constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
     constr con =
       K
@@ -92,17 +93,17 @@ flatten = FlatPack . flatten' (datatypeInfo @a Proxy) . from
         . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatten . unI)
 
 unflatten :: forall a. (DeepHasDatatypeInfo a) => FlatPack a -> Maybe a
-unflatten = fmap to . flatten' (datatypeInfo @a Proxy) . unFlatPack
+unflatten fp =
+  fmap (to . SOP . getFirst)
+    . mconcat
+    . hcollapse
+    $ hcliftA2
+      (Proxy @(All DeepHasDatatypeInfo))
+      (constr (unFlatPack fp))
+      (constructorInfo (datatypeInfo @a Proxy))
+      (injections @(Code a) @(NP I))
   where
-    flatten' :: forall xss. (All2 DeepHasDatatypeInfo xss) => DatatypeInfo xss -> Tree ConstructorName -> Maybe (SOP I xss)
-    flatten' ty tree =
-      let injs = injections @xss @(NP I)
-       in fmap (SOP . getFirst)
-            . mconcat
-            . hcollapse
-            $ hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) (constr tree) (constructorInfo ty) injs
-
-    constr :: forall xss xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) xss xs -> K (Maybe (First (NS (NP I) xss))) xs
+    constr :: forall xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) (Code a) xs -> K (Maybe (First (NS (NP I) (Code a)))) xs
     constr tree con (Fn inj)
       | rootLabel tree == constructorName con = K $ do
           flds <- fromList (subForest tree)
@@ -123,6 +124,26 @@ data VariableRep a = V
   , vCons :: ConstructorName
   }
   deriving stock (Eq, Ord, Show)
+
+data FieldSelector
+  = Index Int
+  | RecordField FieldName
+  deriving stock (Eq, Ord)
+
+instance Show FieldSelector where
+  show (Index i) = show i
+  show (RecordField l) = show l
+
+instance Num FieldSelector where
+  fromInteger = Index . fromInteger
+  (+) = undefined
+  (*) = undefined
+  abs = undefined
+  signum = undefined
+  negate = undefined
+
+instance IsString FieldSelector where
+  fromString = RecordField
 
 rootVarRep :: ConstructorName -> VariableRep a
 rootVarRep = V []
@@ -218,7 +239,13 @@ foldTwoTree f = go
   where
     go (TwoNode x tss) = f x (map (map go) tss)
 
-type Constructor = TwoTree ConstructorName
+type Constructor = TwoTree ConsInfo
+
+data ConsInfo = ConsInfo
+  { consName :: ConstructorName
+  , consFields :: [FieldName]
+  }
+  deriving stock (Show)
 
 toConstructors :: forall a. (DeepHasDatatypeInfo a) => [Constructor]
 toConstructors = untag (toConstructors' @a)
@@ -232,7 +259,11 @@ toConstructors = untag (toConstructors' @a)
           . datatypeInfo
 
     constr :: forall xs. (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> K Constructor xs
-    constr ci = K $ TwoNode (constructorName ci) (hcollapse $ aux @xs)
+    constr ci = K $ TwoNode (ConsInfo {consName = constructorName ci, consFields = fields ci}) (hcollapse $ aux @xs)
+
+    fields :: ConstructorInfo xs -> [FieldName]
+    fields (Record _ flds) = hcollapse . hmap (K . fieldName) $ flds
+    fields _ = []
 
     aux :: forall xs. (All DeepHasDatatypeInfo xs) => NP (K [Constructor]) xs
     aux = hcpure (Proxy @DeepHasDatatypeInfo) constructorK
@@ -272,16 +303,16 @@ typeLogic = All . sumLogic $ toConstructors @a
     sumLogic :: [Constructor] -> [Formula (VariableRep a)]
     -- Only one of the constructors can be selected
     sumLogic cs =
-      ExactlyOne (map (rootVar . twoRootLabel) cs) :
+      ExactlyOne (map (rootVar . consName . twoRootLabel) cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
     prodLogic :: Constructor -> [Formula (VariableRep a)]
-    prodLogic (TwoNode cn cs) =
+    prodLogic (TwoNode (ConsInfo cn _) cs) =
       -- for each present constructor, apply 'sumLogic'
       [ rootVar cn :->: All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
       , -- for each absent constructor, none of the constructors of its fields can be selected
-        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . twoRootLabel)) cs)
+        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . consName . twoRootLabel)) cs)
       ]
 
     pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
@@ -320,13 +351,27 @@ allVariables = Set.unions . map allVariables' $ toConstructors @a
     allVariables' :: Constructor -> Set (VariableRep a)
     allVariables' =
       foldTwoTree
-        ( \cn flds ->
+        ( \(ConsInfo cn _) flds ->
             Set.singleton (rootVarRep cn)
               <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
-v :: [(ConstructorName, Int)] -> ConstructorName -> Formula (VariableRep a)
-v path = Var . V path
+v :: forall a. (DeepHasDatatypeInfo a) => [(ConstructorName, FieldSelector)] -> ConstructorName -> Formula (VariableRep a)
+v path = Var . resolveFS path
+  where
+    resolveFS :: [(ConstructorName, FieldSelector)] -> ConstructorName -> VariableRep a
+    resolveFS p = V (resPath cs p)
+      where
+        resPath :: [Constructor] -> [(ConstructorName, FieldSelector)] -> [(ConstructorName, Int)]
+        resPath _ [] = []
+        resPath cs' ((con', Index i) : path') = (con', i) : resPath ((!! i) . twoSubForest . findConstructor con' $ cs') path'
+        resPath cs' ((con', RecordField fld) : path') = resPath cs' ((con', Index (fromJust . elemIndex fld . consFields . twoRootLabel $ findConstructor con' cs')) : path')
+
+        findConstructor :: ConstructorName -> [Constructor] -> Constructor
+        findConstructor con' = head . filter ((== con') . consName . twoRootLabel)
+
+        cs :: [Constructor]
+        cs = toConstructors @a
 
 instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
   type Properties (VariableRep d) = d

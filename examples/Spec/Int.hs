@@ -70,5 +70,5 @@ intPureTests :: TestTree
 intPureTests =
   testGroup "intPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere intPureRunner "AcceptsSmallNegativeInts" (Yes @(Prop IntProp))
+      <$> [ runPureTestsWhere intPureRunner "AcceptsSmallNegativeInts" Yes
           ]

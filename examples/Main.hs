@@ -76,5 +76,6 @@ tests =
     , testGroup
         "Description"
         [ intSimpleGenTests
+        , intSimplePureTests 
         ]
     ]

@@ -68,5 +68,19 @@ intSimpleGenTests :: TestTree
 intSimpleGenTests =
   testGroup "intGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @(VariableRep IntDescr))
+      <$> [ runGeneratorTestsWhere @(VariableRep IntDescr) "Int Generator" Yes
+          ]
+
+intSimplePureRunner :: PureRunner (VariableRep IntDescr) Int
+intSimplePureRunner =
+  PureRunner
+    { expect = v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative"
+    , script = \i -> i < 0 && i >= -10
+    }
+
+intSimplePureTests :: TestTree 
+intSimplePureTests =
+  testGroup "intSimplePureTests" $
+    fromGroup
+      <$> [ runPureTestsWhere intSimplePureRunner "AcceptsSmallNegativeInts" Yes
           ]

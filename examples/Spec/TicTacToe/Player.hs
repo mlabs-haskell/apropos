@@ -7,6 +7,7 @@ import Apropos
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data PlayerProperty
   = PlayerIsX
@@ -31,17 +32,17 @@ instance HasPermutationGenerator (Prop PlayerProperty) Int where
   sources =
     [ Source
         { sourceName = "X"
-        , covers = Var (Prop PlayerIsX)
+        , covers = var PlayerIsX
         , gen = pure 1
         }
     , Source
         { sourceName = "O"
-        , covers = Var (Prop PlayerIsO)
+        , covers = var PlayerIsO
         , gen = pure 0
         }
     , Source
         { sourceName = "invalid"
-        , covers = Var (Prop PlayerIsInvalid)
+        , covers = var PlayerIsInvalid
         , gen =
             genFilter (\i -> i `notElem` [0, 1]) $
               int (linear minBound maxBound)

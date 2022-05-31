@@ -11,6 +11,7 @@ import Data.Set qualified as Set
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data MoveSequenceProperty
   = MoveSequenceValid
@@ -93,7 +94,7 @@ instance HasPermutationGenerator (Prop MoveSequenceProperty) [Int] where
         }
     , Morphism
         { name = "ValidWin"
-        , match = Var (Prop MoveSequenceValid)
+        , match = var MoveSequenceValid
         , contract = add (Prop MoveSequenceContainsWin)
         , morphism = \moves -> do
             winlocs <- Set.toList <$> element (errLabelWhenNull "1" winTileSets)

@@ -7,6 +7,7 @@ import Apropos
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data LocationProperty
   = LocationIsWithinBounds
@@ -26,12 +27,12 @@ instance HasPermutationGenerator (Prop LocationProperty) Int where
   sources =
     [ Source
         { sourceName = "in bounds"
-        , covers = Var (Prop LocationIsWithinBounds)
+        , covers = var LocationIsWithinBounds
         , gen = int (linear 0 8)
         }
     , Source
         { sourceName = "out of bounds"
-        , covers = Var (Prop LocationIsOutOfBounds)
+        , covers = var LocationIsOutOfBounds
         , gen =
             choice
               [ int (linear minBound (-1))

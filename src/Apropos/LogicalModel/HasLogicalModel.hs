@@ -3,6 +3,7 @@
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
   Prop (Prop, unProp),
+  var
 ) where
 
 import Apropos.Logic as L
@@ -44,3 +45,6 @@ instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
   propertiesToVariables = Set.map Prop
 
   variablesToProperties = Set.map unProp
+
+var :: v -> Formula (Prop v)
+var = Var . Prop

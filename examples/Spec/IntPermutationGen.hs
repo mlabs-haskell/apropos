@@ -9,6 +9,7 @@ import Apropos
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data IntProp
   = IsNegative
@@ -42,34 +43,34 @@ instance HasPermutationGenerator (Prop IntProp) Int where
   sources =
     [ Source
         { sourceName = "Zero"
-        , covers = Var (Prop IsZero)
+        , covers = var IsZero
         , gen = pure 0
         }
     , Source
         { sourceName = "MaxBound"
-        , covers = Var (Prop IsMaxBound)
+        , covers = var IsMaxBound
         , gen = pure maxBound
         }
     , Source
         { sourceName = "MinBbound"
-        , covers = Var (Prop IsMinBound)
+        , covers = var IsMinBound
         , gen = pure minBound
         }
     , Source
         { sourceName = "Large"
-        , covers = Var (Prop IsLarge) :&&: Var (Prop IsPositive) :&&: Not (Var (Prop IsMaxBound))
+        , covers = var IsLarge :&&: var IsPositive :&&: Not (var IsMaxBound)
         , gen = int (linear 11 (maxBound - 1))
         }
     , Source
         { sourceName = "Small"
-        , covers = Var (Prop IsSmall) :&&: Var (Prop IsPositive)
+        , covers = var IsSmall :&&: var IsPositive
         , gen = int (linear 1 10)
         }
     ]
   generators =
     [ Morphism
         { name = "Negate"
-        , match = Not $ Var (Prop IsZero)
+        , match = Not $ var IsZero
         , contract = swap (Prop IsNegative) (Prop IsPositive)
         , morphism = pure . negate
         }
@@ -88,7 +89,7 @@ intPermutationGenTests =
 intPermutationGenPureRunner :: PureRunner (Prop IntProp) Int
 intPermutationGenPureRunner =
   PureRunner
-    { expect = Var (Prop IsSmall) :&&: Var (Prop IsNegative)
+    { expect = var IsSmall :&&: var IsNegative
     , script = \i -> i < 0 && i >= -10
     }
 

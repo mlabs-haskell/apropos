@@ -7,6 +7,7 @@ import Apropos
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data PlayerSequenceProperty
   = TakeTurns
@@ -45,12 +46,12 @@ instance HasPermutationGenerator (Prop PlayerSequenceProperty) [Int] where
   sources =
     [ Source
         { sourceName = "player singleton take turns"
-        , covers = Var (Prop TakeTurns) :&&: Var (Prop PlayerSequenceSingleton)
+        , covers = var TakeTurns :&&: var PlayerSequenceSingleton
         , gen = list (singleton 1) $ int (linear 0 1)
         }
     , Source
         { sourceName = "player singleton don't take turns"
-        , covers = Var (Prop Don'tTakeTurns) :&&: Var (Prop PlayerSequenceSingleton)
+        , covers = Var (Prop Don'tTakeTurns) :&&: var PlayerSequenceSingleton
         , gen =
             list (singleton 1) $
               choice
@@ -60,12 +61,12 @@ instance HasPermutationGenerator (Prop PlayerSequenceProperty) [Int] where
         }
     , Source
         { sourceName = "null"
-        , covers = Var (Prop PlayerSequenceNull)
+        , covers = var PlayerSequenceNull
         , gen = pure []
         }
     , Source
         { sourceName = "turns longer than name"
-        , covers = Var (Prop PlayerSequenceIsLongerThanGame) :&&: Var (Prop TakeTurns)
+        , covers = var PlayerSequenceIsLongerThanGame :&&: var TakeTurns
         , gen = do
             let numMoves = 10
             pat <- element [[0, 1], [1, 0]]

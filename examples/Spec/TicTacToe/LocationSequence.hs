@@ -10,6 +10,7 @@ import Data.Set qualified as Set
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data LocationSequenceProperty
   = AllLocationsAreInBounds
@@ -56,12 +57,12 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
   sources =
     [ Source
         { sourceName = "null"
-        , covers = Var (Prop LocationSequenceIsNull)
+        , covers = var LocationSequenceIsNull
         , gen = pure []
         }
     , Source
         { sourceName = "singleton out of bounds"
-        , covers = Var (Prop LocationSequenceIsSingleton) :&&: Var (Prop SomeLocationIsOutOfBounds)
+        , covers = var LocationSequenceIsSingleton :&&: var SomeLocationIsOutOfBounds
         , gen =
             list (singleton 1) $
               choice
@@ -71,7 +72,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         }
     , Source
         { sourceName = "MakeInBoundsSingleton"
-        , covers = Var (Prop AllLocationsAreInBounds) :&&: Var (Prop LocationSequenceIsSingleton)
+        , covers = var AllLocationsAreInBounds :&&: var LocationSequenceIsSingleton
         , gen = list (singleton 1) $ int (linear 0 8)
         }
     , Source
@@ -93,7 +94,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
   generators =
     [ Morphism
         { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
-        , match = Not $ Var (Prop LocationSequenceIsNull)
+        , match = Not $ var LocationSequenceIsNull
         , contract =
             removeAll
               ( map
@@ -135,7 +136,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         }
     , Morphism
         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
-        , match = Not $ Var (Prop LocationSequenceIsNull)
+        , match = Not $ var LocationSequenceIsNull
         , contract =
             removeAll
               ( map
@@ -148,8 +149,8 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         , morphism = \locations ->
             let f =
                   ( satisfiesFormula
-                      ( Var (Prop SomeLocationIsOutOfBounds)
-                          :&&: Not (Var (Prop SomeLocationIsOccupiedTwice))
+                      ( var SomeLocationIsOutOfBounds
+                          :&&: Not (var SomeLocationIsOccupiedTwice)
                       )
                       . toProperties @(Prop LocationSequenceProperty)
                   )
@@ -161,7 +162,7 @@ instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
         }
     , Morphism
         { name = "MakeSomeLocationIsOccupiedTwice"
-        , match = Not (Var (Prop LocationSequenceIsNull) :||: Var (Prop LocationSequenceIsSingleton))
+        , match = Not (var LocationSequenceIsNull :||: var LocationSequenceIsSingleton)
         , contract =
             removeAll
               ( map

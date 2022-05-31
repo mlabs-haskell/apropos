@@ -8,6 +8,7 @@ import Apropos.LogicalModel
 import Spec.IntPermutationGen (IntProp (IsNegative))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup, testProperty)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data IntSmpl = NonNegative
   deriving stock (Eq, Ord, Show, Generic)
@@ -17,7 +18,7 @@ instance LogicalModel IntSmpl where
   logic = Yes
 
 instance Overlay (Prop IntSmpl) (Prop IntProp) Int Int where
-  overlays (Prop NonNegative) = Not $ Var (Prop IsNegative)
+  overlays (Prop NonNegative) = Not $ var IsNegative
 
 instance HasLogicalModel IntSmpl Int where
   satisfiesProperty = deduceFromOverlay . Prop

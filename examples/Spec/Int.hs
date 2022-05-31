@@ -4,6 +4,7 @@ import Apropos
 import Apropos.LogicalModel
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
+import Apropos.LogicalModel.HasLogicalModel (var)
 
 data IntProp
   = IsNegative
@@ -62,7 +63,7 @@ intGenTests =
 intPureRunner :: PureRunner (Prop IntProp) Int
 intPureRunner =
   PureRunner
-    { expect = Var (Prop IsSmall) :&&: Var (Prop IsNegative)
+    { expect = var IsSmall :&&: var IsNegative
     , script = \i -> i < 0 && i >= -10
     }
 

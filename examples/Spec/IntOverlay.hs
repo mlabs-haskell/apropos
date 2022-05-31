@@ -5,10 +5,10 @@ module Spec.IntOverlay (
 
 import Apropos
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel (var)
 import Spec.IntPermutationGen (IntProp (IsNegative))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup, testProperty)
-import Apropos.LogicalModel.HasLogicalModel (var)
 
 data IntSmpl = NonNegative
   deriving stock (Eq, Ord, Show, Generic)

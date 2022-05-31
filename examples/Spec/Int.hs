@@ -2,9 +2,9 @@ module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, 
 
 import Apropos
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel (var)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Apropos.LogicalModel.HasLogicalModel (var)
 
 data IntProp
   = IsNegative

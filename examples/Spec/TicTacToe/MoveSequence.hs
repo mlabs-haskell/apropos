@@ -4,6 +4,7 @@ module Spec.TicTacToe.MoveSequence (
 
 import Apropos
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel (var)
 import Control.Monad (join)
 import Data.List (transpose)
 import Data.Set (Set)
@@ -11,7 +12,6 @@ import Data.Set qualified as Set
 import Spec.TicTacToe.LocationSequence
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Apropos.LogicalModel.HasLogicalModel (var)
 
 data MoveSequenceProperty
   = MoveSequenceValid

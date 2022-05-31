@@ -6,11 +6,11 @@ module Spec.TicTacToe.LocationSequence (
 import Apropos
 import Apropos.Logic
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel (var)
 import Data.Set qualified as Set
 import Spec.TicTacToe.Location
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
-import Apropos.LogicalModel.HasLogicalModel (var)
 
 data LocationSequenceProperty
   = AllLocationsAreInBounds

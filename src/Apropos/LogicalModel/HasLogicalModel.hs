@@ -3,7 +3,7 @@
 module Apropos.LogicalModel.HasLogicalModel (
   HasLogicalModel (..),
   Prop (Prop, unProp),
-  var
+  var,
 ) where
 
 import Apropos.Logic as L

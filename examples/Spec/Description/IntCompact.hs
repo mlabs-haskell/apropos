@@ -15,10 +15,9 @@ data IntDescr
   deriving stock (Show, Eq, Generic)
   deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
-data Size = Small | Large { isBound :: Bool }
+data Size = Small | Large {isBound :: Bool}
   deriving stock (Show, Eq, Generic)
   deriving anyclass (SOPGeneric, HasDatatypeInfo)
-
 
 instance Description IntDescr Int where
   describe 0 = Zero
@@ -29,11 +28,11 @@ instance Description IntDescr Int where
       size :: Size
       size
         | i < 11 && i > -111 = Small
-        | otherwise = Large { isBound = i == minBound || i == maxBound }
+        | otherwise = Large {isBound = i == minBound || i == maxBound}
 
 instance HasParameterisedGenerator (VariableRep IntDescr) Int where
   parameterisedGenerator Zero = pure 0
-  parameterisedGenerator (Positive (Large True)) = pure maxBound 
+  parameterisedGenerator (Positive (Large True)) = pure maxBound
   parameterisedGenerator (Positive (Large False)) = int (linear 11 (maxBound - 1))
   parameterisedGenerator (Positive Small) = int (linear 1 10)
   parameterisedGenerator (Negative (Large True)) = pure minBound
@@ -54,7 +53,7 @@ intCompactPureRunner =
     , script = \i -> i < 0 && i >= -10
     }
 
-intCompactPureTests :: TestTree 
+intCompactPureTests :: TestTree
 intCompactPureTests =
   testGroup "intCompactPureTests" $
     fromGroup

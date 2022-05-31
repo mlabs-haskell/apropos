@@ -15,8 +15,8 @@ import Spec.TicTacToe.Player
 import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
 
-import Spec.Description.IntSimple
 import Spec.Description.IntCompact
+import Spec.Description.IntSimple
 
 import Test.Tasty
 
@@ -78,13 +78,13 @@ tests =
         "Description"
         [ testGroup
             "Simple Int types with logic"
-            [ intSimpleGenTests  
-            , intSimplePureTests  
+            [ intSimpleGenTests
+            , intSimplePureTests
             ]
         , testGroup
             "Compact Int types"
             [ intCompactGenTests
-            , intCompactPureTests 
+            , intCompactPureTests
             ]
         ]
     ]

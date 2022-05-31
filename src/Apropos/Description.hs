@@ -301,22 +301,27 @@ typeLogic :: forall a. (DeepHasDatatypeInfo a) => Formula (VariableRep a)
 typeLogic = All . sumLogic $ toConstructors @a
   where
     sumLogic :: [Constructor] -> [Formula (VariableRep a)]
-    -- Only one of the constructors can be selected
     sumLogic cs =
-      ExactlyOne (map (rootVar . consName . twoRootLabel) cs) :
+      -- Only one of the top-level constructors can be selected
+      ExactlyOne (subVars cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
     prodLogic :: Constructor -> [Formula (VariableRep a)]
     prodLogic (TwoNode (ConsInfo cn _) cs) =
-      -- for each present constructor, apply 'sumLogic'
-      [ rootVar cn :->: All (iconcatMap (\i -> map (pushdownFormula cn i) . sumLogic) cs)
-      , -- for each absent constructor, none of the constructors of its fields can be selected
-        Not (rootVar cn) :->: None (iconcatMap (\i -> map (pushdownFormula cn i . rootVar . consName . twoRootLabel)) cs)
+      -- for each present constructor, one of the constructors of each of its fields can be selected
+      [ rootVar cn :->: (All . imap (\i -> ExactlyOne . pushedSubvars cn i) $ cs)
+      , -- for each absent constructor, none of the constructors of any of its fields can be selected
+        Not (rootVar cn) :->: (None . iconcatMap (pushedSubvars cn) $ cs)
+        -- recurse
       ]
+        ++ iconcatMap (\i -> map (fmap $ pushVR cn i) . concatMap prodLogic) cs
 
-    pushdownFormula :: ConstructorName -> Int -> Formula (VariableRep a) -> Formula (VariableRep a)
-    pushdownFormula cn i = fmap (pushVR cn i)
+    pushedSubvars :: ConstructorName -> Int -> [Constructor] -> [Formula (VariableRep a)]
+    pushedSubvars cn i = map (fmap (pushVR cn i)) . subVars
+
+    subVars :: [Constructor] -> [Formula (VariableRep a)]
+    subVars = map (rootVar . consName . twoRootLabel)
 
 rootVar :: ConstructorName -> Formula (VariableRep a)
 rootVar = Var . rootVarRep

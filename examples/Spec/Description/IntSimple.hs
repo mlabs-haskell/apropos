@@ -78,7 +78,7 @@ intSimplePureRunner =
     , script = \i -> i < 0 && i >= -10
     }
 
-intSimplePureTests :: TestTree 
+intSimplePureTests :: TestTree
 intSimplePureTests =
   testGroup "intSimplePureTests" $
     fromGroup

@@ -17,6 +17,7 @@ import Spec.TicTacToe.PlayerSequence
 
 import Spec.Description.IntCompact
 import Spec.Description.IntSimple
+import Spec.Description.IntPermutationGen qualified as D
 
 import Test.Tasty
 
@@ -85,6 +86,12 @@ tests =
             "Compact Int types"
             [ intCompactGenTests
             , intCompactPureTests
+            ]
+        , testGroup
+            "Int model using Permutation Generator"
+            [ D.intPermutationGenTests
+            , D.intPermutationGenPureTests
+            , D.intPermutationGenSelfTests
             ]
         ]
     ]

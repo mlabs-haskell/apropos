@@ -64,7 +64,7 @@ intEitherGenTests :: TestTree
 intEitherGenTests =
   testGroup "intPairGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere
+      <$> [ runGeneratorTestsWhere @(Prop IntEitherProp)
               "Either Int Int Generator"
-              (Yes @(Prop IntEitherProp))
+              Yes
           ]

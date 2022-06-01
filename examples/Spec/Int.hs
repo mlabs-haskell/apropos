@@ -57,7 +57,7 @@ intGenTests :: TestTree
 intGenTests =
   testGroup "intGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @(Prop IntProp))
+      <$> [ runGeneratorTestsWhere @(Prop IntProp) "Int Generator" Yes
           ]
 
 intPureRunner :: PureRunner (Prop IntProp) Int

@@ -38,6 +38,7 @@ import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
+import Data.Hashable (Hashable)
 
 {- | A type describing an object.
 
@@ -123,7 +124,8 @@ data VariableRep a = V
   { vPath :: [(ConstructorName, Int)]
   , vCons :: ConstructorName
   }
-  deriving stock (Eq, Ord, Show)
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (Hashable)
 
 data FieldSelector
   = Index Int

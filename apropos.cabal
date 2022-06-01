@@ -105,6 +105,7 @@ test-suite examples
   other-modules:
     Spec.Description.IntCompact
     Spec.Description.IntSimple
+    Spec.Description.IntPermutationGen
     Spec.Int
     Spec.IntEither
     Spec.IntOverlay

@@ -52,7 +52,7 @@ instance HasPermutationGenerator (Prop IntProp) Int where
         , gen = pure maxBound
         }
     , Source
-        { sourceName = "MinBbound"
+        { sourceName = "MinBound"
         , covers = var IsMinBound
         , gen = pure minBound
         }
@@ -83,7 +83,7 @@ intPermutationGenTests :: TestTree
 intPermutationGenTests =
   testGroup "intPermutationGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere "Int Generator" (Yes @(Prop IntProp))
+      <$> [ runGeneratorTestsWhere @(Prop IntProp) "Int Generator" Yes
           ]
 
 intPermutationGenPureRunner :: PureRunner (Prop IntProp) Int
@@ -97,7 +97,7 @@ intPermutationGenPureTests :: TestTree
 intPermutationGenPureTests =
   testGroup "intPermutationGenPureTests" $
     fromGroup
-      <$> [ runPureTestsWhere intPermutationGenPureRunner "AcceptsSmallNegativeInts" (Yes @(Prop IntProp))
+      <$> [ runPureTestsWhere @(Prop IntProp) intPermutationGenPureRunner "AcceptsSmallNegativeInts" Yes
           ]
 
 intPermutationGenSelfTests :: TestTree

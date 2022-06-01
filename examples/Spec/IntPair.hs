@@ -59,9 +59,9 @@ intPairGenTests :: TestTree
 intPairGenTests =
   testGroup "intPairGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere
+      <$> [ runGeneratorTestsWhere @(Prop IntPairProp)
               "(Int,Int) Generator"
-              (Yes @(Prop IntPairProp))
+              Yes
           ]
 
 intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
@@ -84,7 +84,7 @@ intPairGenPureTests =
       <$> [ runPureTestsWhere
               intPairGenPureRunner
               "AcceptsLeftSmallNegativeRightSmallPositive"
-              (Yes @(Prop IntPairProp))
+              Yes
           ]
 
 intPairGenSelfTests :: TestTree

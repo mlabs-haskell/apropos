@@ -108,6 +108,7 @@ class Strategy v a | v -> a where
   type Properties v
   logic :: Formula v
   universe :: [v]
+
   toProperties :: a -> Properties v
   propertiesToVariables :: Properties v -> Set v
   variablesToProperties :: Set v -> Properties v

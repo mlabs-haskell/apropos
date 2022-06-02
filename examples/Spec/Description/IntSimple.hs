@@ -29,12 +29,10 @@ instance Description IntDescr Int where
   describe i =
     IntDescr
       { sign =
-          if i < 0
-            then Negative
-            else
-              if i == 0
-                then Zero
-                else Positive
+          case compare i 0 of
+            GT -> Positive
+            EQ -> Zero
+            LT -> Negative
       , size =
           if i > 10 || i < -10
             then Large

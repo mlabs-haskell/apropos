@@ -107,7 +107,7 @@ parallelAbstractionMorphisms =
     seqs [] = [[]]
     seqs (x : xs) = let xs' = seqs xs in xs' ++ ((x :) <$> xs')
 
-abstractionLogic :: forall m p. HasAbstractions p m => Formula p
+abstractionLogic :: forall p m. HasAbstractions p m => Formula (NativeVariable p)
 abstractionLogic =
   All [abstractLogicProduct @p abstraction | PAs abstraction <- productAbstractions @p]
     :&&: All [abstractLogicSum @p abstraction | SuAs abstraction <- sumAbstractions @p]

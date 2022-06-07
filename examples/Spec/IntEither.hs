@@ -22,7 +22,7 @@ data IntEitherProp
 instance LogicalModel IntEitherProp where
   logic =
     ExactlyOne [Var IsLeft, Var IsRight]
-      :&&: fmap unProp abstractionLogic
+      :&&: abstractionLogic @(Prop IntEitherProp)
 
 instance HasLogicalModel IntEitherProp (Either Int Int) where
   satisfiesProperty IsLeft (Left _) = True

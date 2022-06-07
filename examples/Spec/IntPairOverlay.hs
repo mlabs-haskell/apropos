@@ -45,7 +45,7 @@ instance HasAbstractions (Prop PairOfSmpl) (Int, Int) where
     ]
 
 instance LogicalModel PairOfSmpl where
-  logic = unProp <$> abstractionLogic
+  logic = abstractionLogic @(Prop PairOfSmpl)
 
 instance HasLogicalModel PairOfSmpl (Int, Int) where
   satisfiesProperty (L p) (x, _) = satisfiesProperty p x

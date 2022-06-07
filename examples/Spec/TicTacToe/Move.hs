@@ -19,7 +19,7 @@ data MoveProperty
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel MoveProperty where
-  logic = unProp <$> abstractionLogic @(Int, Int)
+  logic = abstractionLogic @(Prop MoveProperty)
 
 instance HasLogicalModel MoveProperty (Int, Int) where
   satisfiesProperty (MoveLocation p) (_, location) = satisfiesProperty p location

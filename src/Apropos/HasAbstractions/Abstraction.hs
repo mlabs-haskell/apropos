@@ -28,7 +28,7 @@ import Apropos.HasPermutationGenerator.Contract (
   Contract,
   labelContract,
  )
-import Apropos.Logic (Formula (..), Strategy (logic, universe))
+import Apropos.Logic (Formula (..), Strategy (..))
 import Control.Lens (Lens', Prism', prism', review, (#))
 import Data.Kind (Type)
 
@@ -124,10 +124,11 @@ abstractsProperties injection = prism' injection (computeProjection injection)
 abstractContract :: Ord b => Prism' b a -> Contract a () -> Contract b ()
 abstractContract a = labelContract (review a)
 
-abstractLogicProduct :: forall bp bm ap am. (Strategy ap am) => ProductAbstraction ap am bp bm -> Formula bp
-abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = (propAbs #) <$> logic
+abstractLogicProduct :: forall bp bm ap am. (Strategy ap am, Strategy bp bm) => ProductAbstraction ap am bp bm -> Formula (NativeVariable bp)
+abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = toNativeVariable . (propAbs #) <$> logic
 
-abstractLogicSum :: forall bp bm ap am. (Strategy ap am) => SumAbstraction ap am bp bm -> Formula bp
+abstractLogicSum :: forall bp bm ap am. (Strategy ap am, Strategy bp bm) => SumAbstraction ap am bp bm -> Formula (NativeVariable bp)
 abstractLogicSum SumAbstraction {propertyAbstraction = propAbs, propLabel = sumLabel} =
-  (Var sumLabel :->: (propAbs #) <$> logic)
-    :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> universe))
+  toNativeVariable <$>
+    (Var sumLabel :->: (propAbs #) <$> logic)
+      :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> universe))

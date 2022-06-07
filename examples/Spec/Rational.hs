@@ -37,7 +37,7 @@ data RatProp
 
 instance LogicalModel RatProp where
   logic =
-    (unProp <$> abstractionLogic)
+    abstractionLogic @(Prop RatProp)
       :&&: (Var RatZero :->: Var RatSmall)
       :&&: ExactlyOne [Var RatSmall, Var RatLarge]
       :&&: (Var (Num IsSmall) :->: Var RatSmall)

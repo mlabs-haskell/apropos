@@ -104,8 +104,8 @@ test-suite examples
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules:
     Spec.Description.IntCompact
-    Spec.Description.IntSimple
     Spec.Description.IntPermutationGen
+    Spec.Description.IntSimple
     Spec.Int
     Spec.IntEither
     Spec.IntOverlay

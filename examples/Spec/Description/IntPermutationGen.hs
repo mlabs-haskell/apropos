@@ -79,7 +79,7 @@ instance HasPermutationGenerator (VariableRep IntDescr) Int where
   generators =
     [ Morphism
         { name = "Negate"
-        , match = Not $ v [("IntDescr", "sign")] "Zero"
+        , match = None [v [("IntDescr", "sign")] "Zero", v [("IntDescr", "isBound")] "True"]
         , contract = swap (V [("IntDescr", 0)] "Negative") (V [("IntDescr", 0)] "Positive")
         , morphism = pure . negate
         }

@@ -129,6 +129,6 @@ abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = toNati
 
 abstractLogicSum :: forall bp bm ap am. (Strategy ap am, Strategy bp bm) => SumAbstraction ap am bp bm -> Formula (NativeVariable bp)
 abstractLogicSum SumAbstraction {propertyAbstraction = propAbs, propLabel = sumLabel} =
-  toNativeVariable <$>
-    (Var sumLabel :->: (propAbs #) <$> logic)
-      :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> universe))
+  toNativeVariable
+    <$> (Var sumLabel :->: (propAbs #) <$> logic)
+    :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> universe))

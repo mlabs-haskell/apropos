@@ -106,12 +106,17 @@ satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$>
 
 class Strategy v a | v -> a where
   type Properties v
+  type NativeVariable v
+
   logic :: Formula v
   universe :: [v]
 
   toProperties :: a -> Properties v
   propertiesToVariables :: Properties v -> Set v
   variablesToProperties :: Set v -> Properties v
+
+  toNativeVariable :: v -> NativeVariable v
+  fromNativeVariable :: NativeVariable v -> v
 
 variablesSet :: forall v a. (Strategy v a) => a -> Set v
 variablesSet = propertiesToVariables . toProperties @v

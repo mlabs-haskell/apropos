@@ -2,7 +2,6 @@ module Spec.Int (HasLogicalModel (..), IntProp (..), intGenTests, intPureTests, 
 
 import Apropos
 import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel (var)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -63,7 +62,7 @@ intGenTests =
 intPureRunner :: PureRunner (Prop IntProp) Int
 intPureRunner =
   PureRunner
-    { expect = var IsSmall :&&: var IsNegative
+    { expect = Var IsSmall :&&: Var IsNegative
     , script = \i -> i < 0 && i >= -10
     }
 

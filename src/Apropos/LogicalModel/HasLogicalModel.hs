@@ -30,6 +30,7 @@ newtype Prop p = Prop {unProp :: p}
 
 instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
   type Properties (Prop p) = Set p
+  type NativeVariable (Prop p) = p
 
   logic = Prop <$> (LM.logic :&&: allPresentInFormula)
     where
@@ -43,8 +44,10 @@ instance (Enumerable p, HasLogicalModel p m) => Strategy (Prop p) m where
   toProperties = properties
 
   propertiesToVariables = Set.map Prop
-
   variablesToProperties = Set.map unProp
+
+  toNativeVariable = unProp
+  fromNativeVariable = Prop
 
 var :: v -> Formula (Prop v)
 var = Var . Prop

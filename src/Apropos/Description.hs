@@ -382,6 +382,7 @@ v path = Var . resolveFS path
 
 instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
   type Properties (VariableRep d) = d
+  type NativeVariable (VariableRep d) = VariableRep d
 
   logic = typeLogic :&&: additionalLogic
 
@@ -390,7 +391,9 @@ instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a 
   toProperties = describe
 
   propertiesToVariables = descriptionToVariables
-
   variablesToProperties = variablesToDescription
+
+  toNativeVariable = id
+  fromNativeVariable = id
 
 type SOPGeneric = SOP.Generic

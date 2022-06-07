@@ -68,7 +68,7 @@ intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
 intPairGenPureRunner =
   PureRunner
     { expect =
-        fmap Prop . All $
+        All $
           Var
             <$> join
               [ L <$> [IsSmall, IsNegative]

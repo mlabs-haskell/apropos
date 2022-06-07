@@ -34,11 +34,11 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Logic
+import Data.Hashable (Hashable)
 import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
-import Data.Hashable (Hashable)
 
 {- | A type describing an object.
 

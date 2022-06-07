@@ -16,8 +16,8 @@ import Spec.TicTacToe.PlayerLocationSequencePair
 import Spec.TicTacToe.PlayerSequence
 
 import Spec.Description.IntCompact
-import Spec.Description.IntSimple
 import Spec.Description.IntPermutationGen qualified as D
+import Spec.Description.IntSimple
 
 import Test.Tasty
 

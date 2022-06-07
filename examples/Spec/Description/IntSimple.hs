@@ -1,7 +1,7 @@
 module Spec.Description.IntSimple (
   intSimpleGenTests,
   intSimplePureTests,
-  IntDescr
+  IntDescr,
 ) where
 
 import Apropos

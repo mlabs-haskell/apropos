@@ -6,6 +6,7 @@ module Spec.IntPair (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
 
 import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
@@ -20,13 +21,13 @@ data IntPairProp
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel IntPairProp where
-  logic = abstractionLogic @(Int, Int)
+  logic = abstractionLogic @(Prop IntPairProp)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i
   satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
-instance HasAbstractions IntPairProp (Int, Int) where
+instance HasAbstractions (Prop IntPairProp) (Int, Int) where
   sourceAbstractions =
     [ SoAs $
         SourceAbstraction
@@ -35,35 +36,35 @@ instance HasAbstractions IntPairProp (Int, Int) where
           , productAbs =
               ProductAbstraction
                 { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties L
+                , propertyAbstraction = abstractsProperties (Prop . L . unProp)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties R
+                  , propertyAbstraction = abstractsProperties (Prop . R . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil
           }
     ]
 
-instance HasPermutationGenerator IntPairProp (Int, Int) where
+instance HasPermutationGenerator (Prop IntPairProp) (Int, Int) where
   sources = abstractionSources
   generators = abstractionMorphisms
 
-instance HasParameterisedGenerator IntPairProp (Int, Int) where
-  parameterisedGenerator = buildGen
+instance HasParameterisedGenerator (Prop IntPairProp) (Int, Int) where
+  parameterisedGenerator = buildGen @(Prop IntPairProp)
 
 intPairGenTests :: TestTree
 intPairGenTests =
   testGroup "intPairGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere
+      <$> [ runGeneratorTestsWhere @(Prop IntPairProp)
               "(Int,Int) Generator"
-              (Yes @IntPairProp)
+              Yes
           ]
 
-intPairGenPureRunner :: PureRunner IntPairProp (Int, Int)
+intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
 intPairGenPureRunner =
   PureRunner
     { expect =
@@ -83,7 +84,7 @@ intPairGenPureTests =
       <$> [ runPureTestsWhere
               intPairGenPureRunner
               "AcceptsLeftSmallNegativeRightSmallPositive"
-              (Yes @IntPairProp)
+              Yes
           ]
 
 intPairGenSelfTests :: TestTree
@@ -91,4 +92,4 @@ intPairGenSelfTests =
   testGroup "intPairGenSelfTests" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @IntPairProp
+        permutationGeneratorSelfTest @(Prop IntPairProp)

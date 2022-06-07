@@ -1,12 +1,14 @@
 module Apropos (
-  -- Apropos.LogicalModel
-  LogicalModel (..),
+  -- Apropos.Logic
+  Formula (..),
+  Strategy (..),
+  satisfiesExpression,
   -- Apropos.LogicalModel.Enumerable
   Enumerable (..),
   -- Apropos.LogicalModel.Formula
-  Formula (..),
   -- Apropos.HasLogicalModel
   HasLogicalModel (..),
+  Prop (Prop, unProp),
   -- Apropos.Gen
   Gen,
   label,
@@ -96,11 +98,12 @@ module Apropos (
 import Apropos.Gen
 import Apropos.Gen.BacktrackingTraversal
 import Apropos.HasAbstractions
-import Apropos.HasLogicalModel
 import Apropos.HasParameterisedGenerator
 import Apropos.HasPermutationGenerator
 import Apropos.HasPermutationGenerator.Contract
+import Apropos.Logic
 import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel
 import Apropos.Overlay
 import Apropos.Pure
 import Data.Hashable (Hashable)

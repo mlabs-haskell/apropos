@@ -4,6 +4,8 @@ module Spec.TicTacToe.PlayerSequence (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
+import Apropos.LogicalModel.HasLogicalModel (var)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -40,16 +42,16 @@ instance HasLogicalModel PlayerSequenceProperty [Int] where
   satisfiesProperty PlayerSequenceSingleton m = length m == 1
   satisfiesProperty PlayerSequenceIsLongerThanGame m = length m > 9
 
-instance HasPermutationGenerator PlayerSequenceProperty [Int] where
+instance HasPermutationGenerator (Prop PlayerSequenceProperty) [Int] where
   sources =
     [ Source
         { sourceName = "player singleton take turns"
-        , covers = Var TakeTurns :&&: Var PlayerSequenceSingleton
+        , covers = var TakeTurns :&&: var PlayerSequenceSingleton
         , gen = list (singleton 1) $ int (linear 0 1)
         }
     , Source
         { sourceName = "player singleton don't take turns"
-        , covers = Var Don'tTakeTurns :&&: Var PlayerSequenceSingleton
+        , covers = Var (Prop Don'tTakeTurns) :&&: var PlayerSequenceSingleton
         , gen =
             list (singleton 1) $
               choice
@@ -59,12 +61,12 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         }
     , Source
         { sourceName = "null"
-        , covers = Var PlayerSequenceNull
+        , covers = var PlayerSequenceNull
         , gen = pure []
         }
     , Source
         { sourceName = "turns longer than name"
-        , covers = Var PlayerSequenceIsLongerThanGame :&&: Var TakeTurns
+        , covers = var PlayerSequenceIsLongerThanGame :&&: var TakeTurns
         , gen = do
             let numMoves = 10
             pat <- element [[0, 1], [1, 0]]
@@ -77,12 +79,15 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         , match = Yes
         , contract =
             removeAll
-              [ Don'tTakeTurns
-              , PlayerSequenceSingleton
-              , PlayerSequenceNull
-              , PlayerSequenceIsLongerThanGame
-              ]
-              >> add TakeTurns
+              ( map
+                  Prop
+                  [ Don'tTakeTurns
+                  , PlayerSequenceSingleton
+                  , PlayerSequenceNull
+                  , PlayerSequenceIsLongerThanGame
+                  ]
+              )
+              >> add (Prop TakeTurns)
         , morphism = \s -> do
             let numMoves = min 9 (max 2 (length s))
             pat <- element [[0, 1], [1, 0]]
@@ -92,8 +97,8 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         { name = "MakeDon'tTakeTurns"
         , match = Yes
         , contract =
-            add Don'tTakeTurns
-              >> removeAll [TakeTurns, PlayerSequenceSingleton, PlayerSequenceNull]
+            add (Prop Don'tTakeTurns)
+              >> removeAll (map Prop [TakeTurns, PlayerSequenceSingleton, PlayerSequenceNull])
         , morphism = \s -> do
             let numMoves = max 2 (length s)
             let genFoulPlay = do
@@ -108,12 +113,12 @@ instance HasPermutationGenerator PlayerSequenceProperty [Int] where
         }
     ]
 
-instance HasParameterisedGenerator PlayerSequenceProperty [Int] where
-  parameterisedGenerator = buildGen
+instance HasParameterisedGenerator (Prop PlayerSequenceProperty) [Int] where
+  parameterisedGenerator = buildGen @(Prop PlayerSequenceProperty)
 
 playerSequencePermutationGenSelfTest :: TestTree
 playerSequencePermutationGenSelfTest =
   testGroup "playerSequencePermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @PlayerSequenceProperty
+        permutationGeneratorSelfTest @(Prop PlayerSequenceProperty)

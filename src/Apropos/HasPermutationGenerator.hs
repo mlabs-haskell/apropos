@@ -21,7 +21,6 @@ import Apropos.Gen.BacktrackingTraversal (
   Traversal (FromSource, Traversal),
   traversalInGen,
  )
-import Apropos.HasLogicalModel (HasLogicalModel (properties, satisfiesExpression))
 import Apropos.HasPermutationGenerator.Contract (
   matches,
   solveContract,
@@ -36,13 +35,15 @@ import Apropos.HasPermutationGenerator.Source (
   Source (..),
   wrapSourceWithCheck,
  )
-import Apropos.LogicalModel (
-  Enumerable,
+import Apropos.Logic (
   Formula (..),
-  LogicalModel (logic, scenarios),
-  enumerated,
+  Strategy (Properties, logic, propertiesToVariables, universe, variablesToProperties),
+  satisfiesExpression,
+  scenarios,
   solveAll,
+  variablesSet,
  )
+
 import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
   DiGraph,
@@ -72,7 +73,7 @@ import Text.PrettyPrint (
  )
 import Text.Show.Pretty (ppDoc)
 
-class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m where
+class (Hashable p, Show m, Strategy p m) => HasPermutationGenerator p m where
   generators :: [Morphism p m]
   generators = []
 
@@ -85,7 +86,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   allowRedundentMorphisms = False
 
   permutationValidity :: Maybe (String, PropertyT IO ())
-  default permutationValidity :: (Enumerable p) => Maybe (String, PropertyT IO ())
+  default permutationValidity :: (Ord p, Show (Properties p)) => Maybe (String, PropertyT IO ())
   permutationValidity =
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -110,7 +111,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           (Nothing, Nothing) -> Nothing
 
   permutationGeneratorSelfTest :: Group
-  default permutationGeneratorSelfTest :: (Enumerable p) => Group
+  default permutationGeneratorSelfTest :: (Show p) => Group
   permutationGeneratorSelfTest =
     case permutationValidity @p of
       Just (label, prop) -> Group "permutationValidity test" [(fromString label, property prop)]
@@ -132,15 +133,24 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     (Set p, Set p) ->
     Morphism p m ->
     Property
+  default testEdge ::
+    (Eq p, Show (Properties p)) =>
+    (Set p, Set p) ->
+    Morphism p m ->
+    Property
   testEdge (inprops, outprops) m =
     property $
       errorHandler
         =<< runGenModifiable
           ( forAllWithRetries (traversalRetryLimit @p) $
-              buildGen inprops >>= void . morphism (addPropCheck (inprops, outprops) m)
+              buildGen @p (variablesToProperties inprops) >>= void . morphism (addPropCheck (inprops, outprops) m)
           )
 
   testSource ::
+    Source p m ->
+    Property
+  default testSource ::
+    (Show p, Ord p) =>
     Source p m ->
     Property
   testSource source =
@@ -156,11 +166,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
                     ++ "\nmodel was: "
                     ++ show m
                     ++ "\nprops were: "
-                    ++ show (properties @p m)
+                    ++ show (variablesSet @p m)
           )
 
-  buildGen :: Set p -> Gen m
-  default buildGen :: (Enumerable p) => Set p -> Gen m
+  buildGen :: Properties p -> Gen m
+  default buildGen :: (Ord p, Show p, Show (Properties p)) => Properties p -> Gen m
   buildGen ps = do
     let pedges = findMorphisms @p
         edges = Map.keys pedges
@@ -168,7 +178,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         sourceMap = findSources @p
         munreachable = unreachableNode (Map.keys sourceMap) cache
         cache = shortestPathCache graph
-        viableSources = filter (\source -> reachable cache source ps) (Map.keys sourceMap)
+        viableSources = filter (\source -> reachable cache source (propertiesToVariables ps)) (Map.keys sourceMap)
     case munreachable of
       Nothing -> pure ()
       Just unreachable -> failUnreachable unreachable
@@ -176,8 +186,8 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           sourceNode <- element viableSources
           fromMaybe (internalError "lookup failed in sourceMap") (Map.lookup sourceNode sourceMap)
     let morphismGen model = do
-          let sourceNode = properties model
-              viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n ps]
+          let sourceNode = variablesSet model
+              viableStops = [n | n <- scenarios, reachable cache sourceNode n, reachable cache n (propertiesToVariables ps)]
           unless (sourceNode `elem` viableSources) $
             case unconectedSource @p of
               Just s -> failUnconected s
@@ -185,7 +195,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           when (null viableStops) $ internalError "no stops were possible"
           stop <- element viableStops
           pathp1 <- maybe (internalError "pathfinding failed pre stop") pure $ shortestPath_ sourceNode stop cache
-          pathp2 <- maybe (internalError "pathfinding failed post stop") pure $ shortestPath_ stop ps cache
+          pathp2 <- maybe (internalError "pathfinding failed post stop") pure $ shortestPath_ stop (propertiesToVariables ps) cache
           let path = pairPath $ sourceNode : pathp1 ++ pathp2
           morphisms <- choseMorphism path
           let withPropChecks = zipWith addPropCheck path morphisms
@@ -193,7 +203,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     traversalInGen (traversalRetryLimit @p) $ Traversal (FromSource sourceGen) morphismGen
 
   unconectedSource :: Maybe (Source p m, Set p, Set p)
-  default unconectedSource :: (Enumerable p) => Maybe (Source p m, Set p, Set p)
+  default unconectedSource :: (Ord p) => Maybe (Source p m, Set p, Set p)
   unconectedSource = listToMaybe $ do
     let es = Map.keysSet findMorphisms
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
@@ -202,7 +212,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
     let sols =
           Map.keysSet . Map.filter id
             <$> solveAll
-              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- universe])
     when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
     (p1, p2) <- zip sols (tail sols ++ [head sols])
     guard $ not $ reachable cache p1 p2
@@ -211,7 +221,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
   choseMorphism ::
     [(Set p, Set p)] ->
     Gen [Morphism p m]
-  default choseMorphism :: (Enumerable p) => [(Set p, Set p)] -> Gen [Morphism p m]
+  default choseMorphism :: (Ord p, Show p) => [(Set p, Set p)] -> Gen [Morphism p m]
   choseMorphism es = sequence $ go <$> es
     where
       go :: (Set p, Set p) -> Gen (Morphism p m)
@@ -225,13 +235,13 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
           Just so -> pure so
         element pe
 
-  buildGraph :: Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
+  buildGraph :: (Ord p, Strategy p m) => Map (Set p, Set p) [Morphism p m] -> DiGraph (Set p)
   buildGraph pedges =
     let edges = Map.keys pedges
      in foldr insertVertex (fromEdges edges) scenarios
 
   findSources :: Map (Set p) (Gen m)
-  default findSources :: (Enumerable p) => Map (Set p) (Gen m)
+  default findSources :: (Ord p, Show p) => Map (Set p) (Gen m)
   findSources =
     -- chose randomly for overlapping sources
     Map.map choice $
@@ -240,12 +250,11 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         [ (ps, [g])
         | s <- wrapSourceWithCheck <$> sources @p
         , let g :: Gen m = gen s
-        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- universe])
         ]
 
-  findMorphisms ::
-    (Enumerable p) =>
-    Map (Set p, Set p) [Morphism p m]
+  findMorphisms :: Map (Set p, Set p) [Morphism p m]
+  default findMorphisms :: (Ord p) => Map (Set p, Set p) [Morphism p m]
   findMorphisms =
     Map.fromListWith
       (<>)
@@ -259,7 +268,7 @@ pairPath [] = []
 pairPath [_] = []
 pairPath (a : b : r) = (a, b) : pairPath (b : r)
 
-unreachableNode :: (Hashable p, LogicalModel p) => [Set p] -> ShortestPathCache (Set p) -> Maybe (Set p)
+unreachableNode :: (Ord p, Hashable p, Strategy p m) => [Set p] -> ShortestPathCache (Set p) -> Maybe (Set p)
 unreachableNode sourceNodes cache =
   listToMaybe $
     [ps | ps <- scenarios, not $ any (\s -> reachable cache s ps) sourceNodes]
@@ -270,14 +279,14 @@ ourStyle = style {lineLength = 80}
 reachable :: (Eq a, Hashable a) => ShortestPathCache a -> a -> a -> Bool
 reachable cache s e = isJust $ distance_ s e cache
 
-failUnreachable :: Show p => Set p -> Gen ()
+failUnreachable :: (Strategy p m, Show (Properties p)) => Set p -> Gen ()
 failUnreachable unreachable =
   failWithFootnote $
     renderStyle ourStyle $
       "Some nodes not reachable"
-        $+$ hang "Could not reach node:" 4 (ppDoc unreachable)
+        $+$ hang "Could not reach node:" 4 (ppDoc $ variablesToProperties unreachable)
 
-failUnconected :: Show p => (Source p m, Set p, Set p) -> Gen ()
+failUnconected :: (Strategy p m, Show (Properties p)) => (Source p m, Set p, Set p) -> Gen ()
 failUnconected (s, n1, n2) =
   failWithFootnote $
     "source is not connected"
@@ -285,6 +294,6 @@ failUnconected (s, n1, n2) =
       ++ sourceName s
       ++ "\nhad no path"
       ++ "\nfrom: "
-      ++ show n1
+      ++ show (variablesToProperties n1)
       ++ "\nto: "
-      ++ show n2
+      ++ show (variablesToProperties n2)

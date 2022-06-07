@@ -9,12 +9,10 @@ module Apropos.HasPermutationGenerator.Morphism (
 ) where
 
 import Apropos.Gen
-import Apropos.HasLogicalModel
 import Apropos.HasPermutationGenerator.Contract
-import Apropos.LogicalModel
+import Apropos.Logic
 import Control.Monad (unless, (>=>))
 import Data.Set (Set)
-import Data.Set qualified as Set
 import Text.PrettyPrint (
   Style (lineLength),
   hang,
@@ -63,22 +61,22 @@ seqMorphism a b =
     , morphism = morphism a >=> morphism b
     }
 
-addPropCheck :: forall p m. (HasLogicalModel p m, Show m) => (Set p, Set p) -> Morphism p m -> Morphism p m
+addPropCheck :: forall p m. (Show m, Show (Properties p), Eq p, Strategy p m) => (Set p, Set p) -> Morphism p m -> Morphism p m
 addPropCheck (inps, outps) mo = mo {morphism = wrap}
   where
     wrap :: m -> Gen m
     wrap m = do
       label $ name mo
-      unless (properties m == inps) $
+      unless (variablesSet m == inps) $
         error $
           "internal apropos error morphism given bad input"
             ++ "\nexpected: "
-            ++ show inps
+            ++ show (variablesToProperties inps)
             ++ "\n got: "
-            ++ show (properties m :: Set p)
+            ++ show (toProperties @p m)
       m' <- morphism mo m
-      unless (properties m' == outps) $
-        edgeFailsContract mo m m' outps (properties m')
+      unless (variablesSet m' == outps) $
+        edgeFailsContract mo m m' outps (variablesSet m')
       pure m'
 
     edgeFailsContract ::
@@ -94,10 +92,10 @@ addPropCheck (inps, outps) mo = mo {morphism = wrap}
           "Morphism fails its contract."
             $+$ hang "Edge:" 4 (ppDoc $ name tr)
             $+$ hang "InputModel:" 4 (ppDoc (ppDoc m))
-            $+$ hang "InputProperties" 4 (ppDoc $ Set.toList (properties m :: Set p))
+            $+$ hang "InputProperties" 4 (ppDoc $ toProperties @p m)
             $+$ hang "OutputModel:" 4 (ppDoc (ppDoc nm))
-            $+$ hang "ExpectedProperties:" 4 (ppDoc (Set.toList expected))
-            $+$ hang "ObservedProperties:" 4 (ppDoc (Set.toList observed))
+            $+$ hang "ExpectedProperties:" 4 (ppDoc (variablesToProperties expected))
+            $+$ hang "ObservedProperties:" 4 (ppDoc (variablesToProperties observed))
 
     ourStyle :: Style
     ourStyle = style {lineLength = 80}

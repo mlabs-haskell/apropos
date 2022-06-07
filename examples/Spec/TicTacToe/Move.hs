@@ -4,6 +4,8 @@ module Spec.TicTacToe.Move (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
+
 import Control.Lens.Tuple (_1, _2)
 import Spec.TicTacToe.Location
 import Spec.TicTacToe.Player
@@ -17,13 +19,13 @@ data MoveProperty
   deriving anyclass (Enumerable, Hashable)
 
 instance LogicalModel MoveProperty where
-  logic = abstractionLogic @(Int, Int)
+  logic = abstractionLogic @(Prop MoveProperty)
 
 instance HasLogicalModel MoveProperty (Int, Int) where
-  satisfiesProperty (MoveLocation prop) (_, location) = satisfiesProperty prop location
-  satisfiesProperty (MovePlayer prop) (player, _) = satisfiesProperty prop player
+  satisfiesProperty (MoveLocation p) (_, location) = satisfiesProperty p location
+  satisfiesProperty (MovePlayer p) (player, _) = satisfiesProperty p player
 
-instance HasAbstractions MoveProperty (Int, Int) where
+instance HasAbstractions (Prop MoveProperty) (Int, Int) where
   sourceAbstractions =
     [ SoAs $
         SourceAbstraction
@@ -32,28 +34,28 @@ instance HasAbstractions MoveProperty (Int, Int) where
           , productAbs =
               ProductAbstraction
                 { abstractionName = "MovePlayer"
-                , propertyAbstraction = abstractsProperties MovePlayer
+                , propertyAbstraction = abstractsProperties (Prop . MovePlayer . unProp)
                 , productModelAbstraction = _1
                 }
                 :& ProductAbstraction
                   { abstractionName = "MoveLocation"
-                  , propertyAbstraction = abstractsProperties MoveLocation
+                  , propertyAbstraction = abstractsProperties (Prop . MoveLocation . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil
           }
     ]
 
-instance HasPermutationGenerator MoveProperty (Int, Int) where
+instance HasPermutationGenerator (Prop MoveProperty) (Int, Int) where
   sources = abstractionSources
   generators = abstractionMorphisms
 
-instance HasParameterisedGenerator MoveProperty (Int, Int) where
-  parameterisedGenerator = buildGen
+instance HasParameterisedGenerator (Prop MoveProperty) (Int, Int) where
+  parameterisedGenerator = buildGen @(Prop MoveProperty)
 
 movePermutationGenSelfTest :: TestTree
 movePermutationGenSelfTest =
   testGroup "movePermutationGenSelfTest" $
     pure $
       fromGroup $
-        permutationGeneratorSelfTest @MoveProperty
+        permutationGeneratorSelfTest @(Prop MoveProperty)

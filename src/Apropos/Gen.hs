@@ -45,11 +45,11 @@ import Data.Set qualified as Set
 import Data.String (fromString)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
-import Hedgehog.Internal.Gen (generalize, evalGenT)
+import Hedgehog.Internal.Gen (evalGenT, generalize)
 import Hedgehog.Internal.Property (PropertyT (PropertyT, unPropertyT), runTestT)
+import Hedgehog.Internal.Seed qualified as Seed
+import Hedgehog.Internal.Tree (NodeT (nodeValue), TreeT (runTreeT))
 import Hedgehog.Range qualified as HRange
-import Hedgehog.Internal.Tree (TreeT(runTreeT), NodeT (nodeValue))
-import qualified Hedgehog.Internal.Seed as Seed
 
 runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
 runGenModifiable g = runExceptT $ runReaderT g (GenModifier id False)
@@ -366,23 +366,22 @@ hRange (LinearFrom mid lo hi) = HRange.linearFrom mid lo hi
 
 sample :: forall a. (Show a) => Gen a -> IO a
 sample gen =
-  let
-    loop :: Int -> IO a
-    loop n =
-      if n <= 0 then
-        error "Apropos.Gen.sample: too many discards, could not generate a sample"
-      else do
-        seed <- Seed.random
-        x <-
-            runTreeT .
-            evalGenT 30 seed .
-            fmap fst .
-            runTestT .
-            unPropertyT .
-            runGenModifiable .
-            forAll $ gen
-        case nodeValue x of
-          Just (Right (Right a)) -> return a
-          _ -> loop (n - 1)
-  in
-    loop (100 :: Int)
+  let loop :: Int -> IO a
+      loop n =
+        if n <= 0
+          then error "Apropos.Gen.sample: too many discards, could not generate a sample"
+          else do
+            seed <- Seed.random
+            x <-
+              runTreeT
+                . evalGenT 30 seed
+                . fmap fst
+                . runTestT
+                . unPropertyT
+                . runGenModifiable
+                . forAll
+                $ gen
+            case nodeValue x of
+              Just (Right (Right a)) -> return a
+              _ -> loop (n - 1)
+   in loop (100 :: Int)

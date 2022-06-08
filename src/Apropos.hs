@@ -13,6 +13,7 @@ module Apropos (
   failWithFootnote,
   bool,
   int,
+  rational,
   list,
   shuffle,
   element,

@@ -8,28 +8,31 @@ module Apropos.Gen.Range (
   rangeLo,
 ) where
 
-data Range = LinearFrom Int Int Int | Linear Int Int | Singleton Int
+data Range a
+  = LinearFrom a a a
+  | Linear a a
+  | Singleton a
 
-linearFrom :: Int -> Int -> Int -> Range
+linearFrom :: a -> a -> a -> Range a
 linearFrom = LinearFrom
 
-linear :: Int -> Int -> Range
+linear :: a -> a -> Range a
 linear = Linear
 
-singleton :: Int -> Range
+singleton :: a -> Range a
 singleton = Singleton
 
-rangeSize :: Range -> Int
+rangeSize :: (Ord a, Num a) => Range a -> a
 rangeSize (Singleton _) = 1
-rangeSize (Linear lo hi) = 1 + fromIntegral (max 0 (hi - lo))
-rangeSize (LinearFrom _ lo hi) = 1 + fromIntegral (max 0 (hi - lo))
+rangeSize (Linear lo hi) = 1 + max 0 (hi - lo)
+rangeSize (LinearFrom _ lo hi) = 1 + max 0 (hi - lo)
 
-rangeHi :: Range -> Int
-rangeHi (Singleton s) = fromIntegral s
-rangeHi (Linear _ hi) = fromIntegral hi
-rangeHi (LinearFrom _ _ hi) = fromIntegral hi
+rangeHi :: Range a -> a
+rangeHi (Singleton s) = s
+rangeHi (Linear _ hi) = hi
+rangeHi (LinearFrom _ _ hi) = hi
 
-rangeLo :: Range -> Int
-rangeLo (Singleton s) = fromIntegral s
-rangeLo (Linear lo _) = fromIntegral lo
-rangeLo (LinearFrom _ lo _) = fromIntegral lo
+rangeLo :: Range a -> a
+rangeLo (Singleton s) = s
+rangeLo (Linear lo _) = lo
+rangeLo (LinearFrom _ lo _) = lo

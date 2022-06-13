@@ -39,6 +39,7 @@ import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
+import Apropos.Gen
 
 {- | A type describing an object.
 
@@ -52,6 +53,8 @@ class Description d a | d -> a where
   -- | optionally add additional logic constraining valid description types
   additionalLogic :: Formula (VariableRep d)
   additionalLogic = Yes
+
+  objectForDescription :: d -> Gen a
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.

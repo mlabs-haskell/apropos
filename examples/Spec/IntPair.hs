@@ -1,18 +1,15 @@
 module Spec.IntPair (
-  intPairGenTests,
-  intPairGenPureTests,
+  -- intPairGenTests,
+  -- intPairGenPureTests,
   -- intPairGenSelfTests,
-  intPairGenPureRunner,
+  -- intPairGenPureRunner,
 ) where
 
 import Apropos
 import Apropos.LogicalModel
 
-import Control.Monad (join)
 import Spec.Int
 -- import Spec.IntPermutationGen
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 
 data IntPairProp
   = L IntProp
@@ -57,37 +54,37 @@ instance HasParameterisedGenerator (Prop IntPairProp) (Int, Int) where
   parameterisedGenerator = undefined
 --   parameterisedGenerator = buildGen @(Prop IntPairProp)
 
-intPairGenTests :: TestTree
-intPairGenTests =
-  testGroup "intPairGenTests" $
-    fromGroup
-      <$> [ runGeneratorTestsWhere @(Prop IntPairProp)
-              "(Int,Int) Generator"
-              Yes
-          ]
+-- intPairGenTests :: TestTree
+-- intPairGenTests =
+--   testGroup "intPairGenTests" $
+--     fromGroup
+--       <$> [ runGeneratorTestsWhere @(Prop IntPairProp)
+--               "(Int,Int) Generator"
+--               Yes
+--           ]
 
-intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
-intPairGenPureRunner =
-  PureRunner
-    { expect =
-        All $
-          Var
-            <$> join
-              [ L <$> [IsSmall, IsNegative]
-              , R <$> [IsSmall, IsPositive]
-              ]
-    , script = \(l, r) -> l < 0 && l >= -10 && r > 0 && r <= 10
-    }
+-- intPairGenPureRunner :: PureRunner (Prop IntPairProp) (Int, Int)
+-- intPairGenPureRunner =
+--   PureRunner
+--     { expect =
+--         All $
+--           Var
+--             <$> join
+--               [ L <$> [IsSmall, IsNegative]
+--               , R <$> [IsSmall, IsPositive]
+--               ]
+--     , script = \(l, r) -> l < 0 && l >= -10 && r > 0 && r <= 10
+--     }
 
-intPairGenPureTests :: TestTree
-intPairGenPureTests =
-  testGroup "intPairGenPureTests" $
-    fromGroup
-      <$> [ runPureTestsWhere
-              intPairGenPureRunner
-              "AcceptsLeftSmallNegativeRightSmallPositive"
-              Yes
-          ]
+-- intPairGenPureTests :: TestTree
+-- intPairGenPureTests =
+--   testGroup "intPairGenPureTests" $
+--     fromGroup
+--       <$> [ runPureTestsWhere
+--               intPairGenPureRunner
+--               "AcceptsLeftSmallNegativeRightSmallPositive"
+--               Yes
+--           ]
 
 -- intPairGenSelfTests :: TestTree
 -- intPairGenSelfTests =

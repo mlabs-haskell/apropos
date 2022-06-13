@@ -69,6 +69,7 @@ common lang
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
     -Wmissing-deriving-strategies -ddump-splices
+    -fwrite-ide-info
 
 library
   import:          lang

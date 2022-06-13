@@ -77,21 +77,13 @@ library
     Apropos.Description
     Apropos.Error
     Apropos.Gen
-    Apropos.Gen.BacktrackingTraversal
     Apropos.Gen.Enumerate
     Apropos.Gen.Range
-    Apropos.HasAbstractions
-    Apropos.HasAbstractions.Abstraction
     Apropos.HasParameterisedGenerator
-    Apropos.HasPermutationGenerator
-    Apropos.HasPermutationGenerator.Contract
-    Apropos.HasPermutationGenerator.Morphism
-    Apropos.HasPermutationGenerator.Source
     Apropos.Logic
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
     Apropos.LogicalModel.HasLogicalModel
-    Apropos.Overlay
     Apropos.Pure
 
   hs-source-dirs:  src
@@ -104,14 +96,9 @@ test-suite examples
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules:
     Spec.Description.IntCompact
-    Spec.Description.IntPermutationGen
     Spec.Description.IntSimple
     Spec.Int
-    Spec.IntEither
-    Spec.IntOverlay
     Spec.IntPair
-    Spec.IntPairOverlay
-    Spec.IntPermutationGen
     Spec.Rational
     Spec.TicTacToe.Location
     Spec.TicTacToe.LocationSequence

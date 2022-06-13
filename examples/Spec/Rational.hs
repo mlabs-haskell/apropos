@@ -1,5 +1,5 @@
 module Spec.Rational (
-  ratGenSelfTests,
+  -- ratGenSelfTests,
   ratSampleTests,
   RatProp (..),
   Rat (..),
@@ -7,12 +7,12 @@ module Spec.Rational (
 
 import Apropos
 import Apropos.LogicalModel
-import Spec.IntPermutationGen
+import Spec.Int
+-- import Spec.IntPermutationGen
 
-import Control.Lens (lens)
 import Data.Ratio
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup, testProperty)
+import Test.Tasty.Hedgehog (testProperty)
 
 -- Note: this is probably not an ideal way to model rational numbers
 -- this example is used to ilustrate both trivial and non-trivial relations between
@@ -33,12 +33,12 @@ data RatProp
   | Num IntProp
   | Den IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable, Hashable)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel RatProp where
   logic =
-    abstractionLogic @(Prop RatProp)
-      :&&: (Var RatZero :->: Var RatSmall)
+    -- abstractionLogic @(Prop RatProp)
+      (Var RatZero :->: Var RatSmall)
       :&&: ExactlyOne [Var RatSmall, Var RatLarge]
       :&&: (Var (Num IsSmall) :->: Var RatSmall)
       :&&: Not (Var $ Den IsZero)
@@ -57,136 +57,137 @@ instance HasLogicalModel RatProp Rat where
   satisfiesProperty (Num p) r = satisfiesProperty p (num r)
   satisfiesProperty (Den p) r = satisfiesProperty p (den r)
 
-instance HasAbstractions (Prop RatProp) Rat where
-  sourceAbstractions =
-    [ SoAs $
-        SourceAbstraction
-          { sourceAbsName = "make rat"
-          , constructor = Rational
-          , productAbs =
-              ProductAbstraction
-                { abstractionName = "numerator"
-                , propertyAbstraction = abstractsProperties (Prop . Num . unProp)
-                , productModelAbstraction = lens num (\r n -> r {num = n})
-                }
-                :& ProductAbstraction
-                  { abstractionName = "denominator"
-                  , propertyAbstraction = abstractsProperties (Prop . Den . unProp)
-                  , productModelAbstraction = lens den (\r d -> r {den = d})
-                  }
-                :& Nil
-          }
-    ]
+-- instance HasAbstractions (Prop RatProp) Rat where
+--   sourceAbstractions =
+--     [ SoAs $
+--         SourceAbstraction
+--           { sourceAbsName = "make rat"
+--           , constructor = Rational
+--           , productAbs =
+--               ProductAbstraction
+--                 { abstractionName = "numerator"
+--                 , propertyAbstraction = abstractsProperties (Prop . Num . unProp)
+--                 , productModelAbstraction = lens num (\r n -> r {num = n})
+--                 }
+--                 :& ProductAbstraction
+--                   { abstractionName = "denominator"
+--                   , propertyAbstraction = abstractsProperties (Prop . Den . unProp)
+--                   , productModelAbstraction = lens den (\r d -> r {den = d})
+--                   }
+--                 :& Nil
+--           }
+--     ]
 
-instance HasPermutationGenerator (Prop RatProp) Rat where
-  sources =
-    -- the morphisms that would make this source strongly conected end up looking more like sources
-    -- so I filter it out and add the sub sources
-    filter (("make rat over [numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
-      ++ [ Source
-            { sourceName = "source large (large,large)"
-            , covers =
-                Prop <$> Var (Num IsLarge)
-                  :&&: Not (Var (Num IsMaxBound))
-                  :&&: Var (Num IsPositive)
-                  :&&: Var (Den IsLarge)
-                  :&&: Var (Den IsPositive)
-                  :&&: Var RatLarge
-            , gen = do
-                n' <- int (linear 111 (maxBound - 1))
-                d' <- int (linear 11 (n' `div` 10))
-                pure $ Rational n' d'
-            }
-         , Source
-            { sourceName = "source small (large,large)"
-            , covers =
-                Prop <$> Var (Num IsLarge)
-                  :&&: Not (Var (Num IsMaxBound))
-                  :&&: Var (Num IsPositive)
-                  :&&: Var (Den IsLarge)
-                  :&&: Var (Den IsPositive)
-                  :&&: Not (Var (Den IsMaxBound))
-                  :&&: Var RatSmall
-            , gen = do
-                d' <- int (linear 11 (maxBound `div` 10))
-                n' <- int (linear 11 (10 * d' - 1))
-                pure $ Rational n' d'
-            }
-         ]
+-- instance HasPermutationGenerator (Prop RatProp) Rat where
+--   sources =
+--     -- the morphisms that would make this source strongly conected end up looking more like sources
+--     -- so I filter it out and add the sub sources
+--     filter (("make rat over [numerator of Large,denominator of Large]" /=) . sourceName) abstractionSources
+--       ++ [ Source
+--             { sourceName = "source large (large,large)"
+--             , covers =
+--                 Prop <$> Var (Num IsLarge)
+--                   :&&: Not (Var (Num IsMaxBound))
+--                   :&&: Var (Num IsPositive)
+--                   :&&: Var (Den IsLarge)
+--                   :&&: Var (Den IsPositive)
+--                   :&&: Var RatLarge
+--             , gen = do
+--                 n' <- int (linear 111 (maxBound - 1))
+--                 d' <- int (linear 11 (n' `div` 10))
+--                 pure $ Rational n' d'
+--             }
+--          , Source
+--             { sourceName = "source small (large,large)"
+--             , covers =
+--                 Prop <$> Var (Num IsLarge)
+--                   :&&: Not (Var (Num IsMaxBound))
+--                   :&&: Var (Num IsPositive)
+--                   :&&: Var (Den IsLarge)
+--                   :&&: Var (Den IsPositive)
+--                   :&&: Not (Var (Den IsMaxBound))
+--                   :&&: Var RatSmall
+--             , gen = do
+--                 d' <- int (linear 11 (maxBound `div` 10))
+--                 n' <- int (linear 11 (10 * d' - 1))
+--                 pure $ Rational n' d'
+--             }
+--          ]
 
-  generators =
-    ( abstractionMorphisms
-        -- the negate morphisms will violate the model logic on their own becasue they don't
-        -- know about the rat sign properties, apending a morphism that deduces them
-        -- from the model logic fixes this
-        >>> [ Morphism
-                { name = "fix sign"
-                , match = Yes
-                , contract = deduce (map Prop [RatZero, RatPos, RatNeg])
-                , morphism = pure
-                }
-            ]
-    )
-      -- thse morphisms are needed to strongly connect the sources which contain both the
-      -- rat large and rat small solutions
-      ++ [ Morphism
-            { name = "make large (large,small)"
-            , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var RatSmall
-            , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
-            , morphism = \r -> pure $ r {num = 101}
-            }
-         , Morphism
-            { name = "make small (large,small)"
-            , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var (Den IsPositive) :&&: Var RatLarge
-            , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
-            , morphism = \r -> do
-                let d' = max 2 (den r)
-                n' <- int $ linear 11 (10 * d')
-                pure $ Rational n' d'
-            }
-         , Morphism
-            { name = "make large (Max,large)"
-            , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
-            , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
-            , morphism = \r -> do
-                d' <- int $ linear 11 (maxBound `div` 10 - 1)
-                pure $ r {den = d'}
-            }
-         , Morphism
-            { name = "make small (Max,large)"
-            , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
-            , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
-            , morphism = \r -> do
-                d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
-                pure $ r {den = d'}
-            }
-         , Morphism
-            { name = "make large (Min,large)"
-            , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
-            , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
-            , morphism = \r -> do
-                d' <- int $ linear 11 (maxBound `div` 10 - 1)
-                pure $ r {den = d'}
-            }
-         , Morphism
-            { name = "make small (Min,large)"
-            , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
-            , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
-            , morphism = \r -> do
-                d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
-                pure $ r {den = d'}
-            }
-         ]
+  -- generators =
+  --   ( abstractionMorphisms
+  --       -- the negate morphisms will violate the model logic on their own becasue they don't
+  --       -- know about the rat sign properties, apending a morphism that deduces them
+  --       -- from the model logic fixes this
+  --       >>> [ Morphism
+  --               { name = "fix sign"
+  --               , match = Yes
+  --               , contract = deduce (map Prop [RatZero, RatPos, RatNeg])
+  --               , morphism = pure
+  --               }
+  --           ]
+  --   )
+  --     -- thse morphisms are needed to strongly connect the sources which contain both the
+  --     -- rat large and rat small solutions
+  --     ++ [ Morphism
+  --           { name = "make large (large,small)"
+  --           , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var RatSmall
+  --           , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
+  --           , morphism = \r -> pure $ r {num = 101}
+  --           }
+  --        , Morphism
+  --           { name = "make small (large,small)"
+  --           , match = Prop <$> Var (Num IsLarge) :&&: Var (Num IsPositive) :&&: Var (Den IsSmall) :&&: Var (Den IsPositive) :&&: Var RatLarge
+  --           , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
+  --           , morphism = \r -> do
+  --               let d' = max 2 (den r)
+  --               n' <- int $ linear 11 (10 * d')
+  --               pure $ Rational n' d'
+  --           }
+  --        , Morphism
+  --           { name = "make large (Max,large)"
+  --           , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
+  --           , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
+  --           , morphism = \r -> do
+  --               d' <- int $ linear 11 (maxBound `div` 10 - 1)
+  --               pure $ r {den = d'}
+  --           }
+  --        , Morphism
+  --           { name = "make small (Max,large)"
+  --           , match = Prop <$> Var (Num IsMaxBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
+  --           , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
+  --           , morphism = \r -> do
+  --               d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
+  --               pure $ r {den = d'}
+  --           }
+  --        , Morphism
+  --           { name = "make large (Min,large)"
+  --           , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatSmall
+  --           , contract = remove (Prop RatSmall) >> add (Prop RatLarge)
+  --           , morphism = \r -> do
+  --               d' <- int $ linear 11 (maxBound `div` 10 - 1)
+  --               pure $ r {den = d'}
+  --           }
+  --        , Morphism
+  --           { name = "make small (Min,large)"
+  --           , match = Prop <$> Var (Num IsMinBound) :&&: Var (Den IsLarge) :&&: Var (Den IsPositive) :&&: Var RatLarge
+  --           , contract = remove (Prop RatLarge) >> add (Prop RatSmall)
+  --           , morphism = \r -> do
+  --               d' <- int $ linear (maxBound `div` 10 + 1) (maxBound - 1)
+  --               pure $ r {den = d'}
+  --           }
+  --        ]
 
 instance HasParameterisedGenerator (Prop RatProp) Rat where
-  parameterisedGenerator = buildGen @(Prop RatProp)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop RatProp)
 
-ratGenSelfTests :: TestTree
-ratGenSelfTests =
-  testGroup "ratPermGenSelfTests" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop RatProp)
+-- ratGenSelfTests :: TestTree
+-- ratGenSelfTests =
+--   testGroup "ratPermGenSelfTests" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop RatProp)
 
 ratSampleTests :: TestTree
 ratSampleTests =

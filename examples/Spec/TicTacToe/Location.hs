@@ -1,13 +1,10 @@
 module Spec.TicTacToe.Location (
   LocationProperty (..),
-  locationPermutationGenSelfTest,
+  -- locationPermutationGenSelfTest,
 ) where
 
 import Apropos
 import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel (var)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 
 data LocationProperty
   = LocationIsWithinBounds
@@ -23,30 +20,31 @@ instance HasLogicalModel LocationProperty Int where
   satisfiesProperty LocationIsOutOfBounds location =
     not (satisfiesProperty LocationIsWithinBounds location)
 
-instance HasPermutationGenerator (Prop LocationProperty) Int where
-  sources =
-    [ Source
-        { sourceName = "in bounds"
-        , covers = var LocationIsWithinBounds
-        , gen = int (linear 0 8)
-        }
-    , Source
-        { sourceName = "out of bounds"
-        , covers = var LocationIsOutOfBounds
-        , gen =
-            choice
-              [ int (linear minBound (-1))
-              , int (linear 9 maxBound)
-              ]
-        }
-    ]
+-- instance HasPermutationGenerator (Prop LocationProperty) Int where
+--   sources =
+--     [ Source
+--         { sourceName = "in bounds"
+--         , covers = var LocationIsWithinBounds
+--         , gen = int (linear 0 8)
+--         }
+--     , Source
+--         { sourceName = "out of bounds"
+--         , covers = var LocationIsOutOfBounds
+--         , gen =
+--             choice
+--               [ int (linear minBound (-1))
+--               , int (linear 9 maxBound)
+--               ]
+--         }
+--     ]
 
 instance HasParameterisedGenerator (Prop LocationProperty) Int where
-  parameterisedGenerator = buildGen @(Prop LocationProperty)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop LocationProperty)
 
-locationPermutationGenSelfTest :: TestTree
-locationPermutationGenSelfTest =
-  testGroup "locationPermutationGenSelfTest" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop LocationProperty)
+-- locationPermutationGenSelfTest :: TestTree
+-- locationPermutationGenSelfTest =
+--   testGroup "locationPermutationGenSelfTest" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop LocationProperty)

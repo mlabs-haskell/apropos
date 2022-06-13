@@ -1,13 +1,10 @@
 module Spec.TicTacToe.Player (
   PlayerProperty (..),
-  playerPermutationGenSelfTest,
+  -- playerPermutationGenSelfTest,
 ) where
 
 import Apropos
 import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel (var)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 
 data PlayerProperty
   = PlayerIsX
@@ -28,33 +25,34 @@ instance HasLogicalModel PlayerProperty Int where
   satisfiesProperty PlayerIsInvalid player =
     not (satisfiesAny [PlayerIsX, PlayerIsO] player)
 
-instance HasPermutationGenerator (Prop PlayerProperty) Int where
-  sources =
-    [ Source
-        { sourceName = "X"
-        , covers = var PlayerIsX
-        , gen = pure 1
-        }
-    , Source
-        { sourceName = "O"
-        , covers = var PlayerIsO
-        , gen = pure 0
-        }
-    , Source
-        { sourceName = "invalid"
-        , covers = var PlayerIsInvalid
-        , gen =
-            genFilter (\i -> i `notElem` [0, 1]) $
-              int (linear minBound maxBound)
-        }
-    ]
+-- instance HasPermutationGenerator (Prop PlayerProperty) Int where
+--   sources =
+--     [ Source
+--         { sourceName = "X"
+--         , covers = var PlayerIsX
+--         , gen = pure 1
+--         }
+--     , Source
+--         { sourceName = "O"
+--         , covers = var PlayerIsO
+--         , gen = pure 0
+--         }
+--     , Source
+--         { sourceName = "invalid"
+--         , covers = var PlayerIsInvalid
+--         , gen =
+--             genFilter (\i -> i `notElem` [0, 1]) $
+--               int (linear minBound maxBound)
+--         }
+--     ]
 
 instance HasParameterisedGenerator (Prop PlayerProperty) Int where
-  parameterisedGenerator = buildGen @(Prop PlayerProperty)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop PlayerProperty)
 
-playerPermutationGenSelfTest :: TestTree
-playerPermutationGenSelfTest =
-  testGroup "playerPermutationGenSelfTest" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop PlayerProperty)
+-- playerPermutationGenSelfTest :: TestTree
+-- playerPermutationGenSelfTest =
+--   testGroup "playerPermutationGenSelfTest" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop PlayerProperty)

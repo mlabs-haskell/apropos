@@ -1,17 +1,12 @@
 module Spec.TicTacToe.MoveSequence (
-  moveSequencePermutationGenSelfTest,
+  -- moveSequencePermutationGenSelfTest,
 ) where
 
 import Apropos
 import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel (var)
-import Control.Monad (join)
-import Data.List (transpose)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Spec.TicTacToe.LocationSequence
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 
 data MoveSequenceProperty
   = MoveSequenceValid
@@ -57,64 +52,65 @@ instance HasLogicalModel MoveSequenceProperty [Int] where
   satisfiesProperty MoveSequenceValid ms = satisfiesExpression locationSequenceIsValid ms
   satisfiesProperty MoveSequenceContainsWin ms = containsWin ms
 
-instance HasPermutationGenerator (Prop MoveSequenceProperty) [Int] where
-  sources =
-    [ Source
-        { sourceName = "InvalidNoWin"
-        , covers = Prop <$> Not (Var MoveSequenceValid) :&&: Not (Var MoveSequenceContainsWin)
-        , gen =
-            genFilter (not . containsWin) $
-              genSatisfying $ Not locationSequenceIsValid
-        }
-    , Source
-        { sourceName = "ValidNoWin"
-        , covers = Prop <$> Var MoveSequenceValid :&&: Not (Var MoveSequenceContainsWin)
-        , gen =
-            genFilter (not . containsWin) $
-              genSatisfying locationSequenceIsValid
-        }
-    ]
-  generators =
-    [ Morphism
-        { name = "InvalidWin"
-        , match = fmap Prop . Not $ Var MoveSequenceValid
-        , contract = add (Prop MoveSequenceContainsWin)
-        , morphism = \moves -> genFilter
-            ( \w ->
-                containsWin w
-                  && satisfiesExpression (Not locationSequenceIsValid) w
-            )
-            $ do
-              if length moves < 2
-                then retry
-                else do
-                  winlocs <- Set.toList <$> element winTileSets
-                  whofirst <- element [[moves, winlocs], [winlocs, moves]]
-                  pure $ join $ transpose whofirst
-        }
-    , Morphism
-        { name = "ValidWin"
-        , match = var MoveSequenceValid
-        , contract = add (Prop MoveSequenceContainsWin)
-        , morphism = \moves -> do
-            winlocs <- Set.toList <$> element (errLabelWhenNull "1" winTileSets)
-            whofirst <- element $ errLabelWhenNull "2" [[moves, winlocs], [winlocs, moves]]
-            let win = join $ transpose whofirst
-            if containsWin win && satisfiesExpression locationSequenceIsValid win
-              then pure win
-              else retry
-        }
-    ]
+-- instance HasPermutationGenerator (Prop MoveSequenceProperty) [Int] where
+--   sources =
+--     [ Source
+--         { sourceName = "InvalidNoWin"
+--         , covers = Prop <$> Not (Var MoveSequenceValid) :&&: Not (Var MoveSequenceContainsWin)
+--         , gen =
+--             genFilter (not . containsWin) $
+--               genSatisfying $ Not locationSequenceIsValid
+--         }
+--     , Source
+--         { sourceName = "ValidNoWin"
+--         , covers = Prop <$> Var MoveSequenceValid :&&: Not (Var MoveSequenceContainsWin)
+--         , gen =
+--             genFilter (not . containsWin) $
+--               genSatisfying locationSequenceIsValid
+--         }
+--     ]
+--   generators =
+--     [ Morphism
+--         { name = "InvalidWin"
+--         , match = fmap Prop . Not $ Var MoveSequenceValid
+--         , contract = add (Prop MoveSequenceContainsWin)
+--         , morphism = \moves -> genFilter
+--             ( \w ->
+--                 containsWin w
+--                   && satisfiesExpression (Not locationSequenceIsValid) w
+--             )
+--             $ do
+--               if length moves < 2
+--                 then retry
+--                 else do
+--                   winlocs <- Set.toList <$> element winTileSets
+--                   whofirst <- element [[moves, winlocs], [winlocs, moves]]
+--                   pure $ join $ transpose whofirst
+--         }
+--     , Morphism
+--         { name = "ValidWin"
+--         , match = var MoveSequenceValid
+--         , contract = add (Prop MoveSequenceContainsWin)
+--         , morphism = \moves -> do
+--             winlocs <- Set.toList <$> element (errLabelWhenNull "1" winTileSets)
+--             whofirst <- element $ errLabelWhenNull "2" [[moves, winlocs], [winlocs, moves]]
+--             let win = join $ transpose whofirst
+--             if containsWin win && satisfiesExpression locationSequenceIsValid win
+--               then pure win
+--               else retry
+--         }
+--     ]
 
-errLabelWhenNull :: String -> [a] -> [a]
-errLabelWhenNull la li = if null li then error la else li
+-- errLabelWhenNull :: String -> [a] -> [a]
+-- errLabelWhenNull la li = if null li then error la else li
 
 instance HasParameterisedGenerator (Prop MoveSequenceProperty) [Int] where
-  parameterisedGenerator = buildGen @(Prop MoveSequenceProperty)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop MoveSequenceProperty)
 
-moveSequencePermutationGenSelfTest :: TestTree
-moveSequencePermutationGenSelfTest =
-  testGroup "moveSequencePermutationGenSelfTest" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop MoveSequenceProperty)
+-- moveSequencePermutationGenSelfTest :: TestTree
+-- moveSequencePermutationGenSelfTest =
+--   testGroup "moveSequencePermutationGenSelfTest" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop MoveSequenceProperty)

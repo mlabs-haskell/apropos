@@ -1,15 +1,12 @@
 module Spec.TicTacToe.PlayerLocationSequencePair (
   PlayerLocationSequencePairProperty (..),
-  playerLocationSequencePairPermutationGenSelfTest,
+  -- playerLocationSequencePairPermutationGenSelfTest,
 ) where
 
 import Apropos
 import Apropos.LogicalModel as LM
-import Control.Lens.Tuple (_1, _2)
 import Spec.TicTacToe.LocationSequence
 import Spec.TicTacToe.PlayerSequence
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
 
 data PlayerLocationSequencePairProperty
   = PlayerLocationSequencePairLocation LocationSequenceProperty
@@ -41,37 +38,38 @@ instance HasLogicalModel PlayerLocationSequencePairProperty ([Int], [Int]) where
     satisfiesProperty p (fst mseq)
   satisfiesProperty PlayerLocationSequencePairLengthsAreEqual (p, l) = length p == length l
 
-instance HasAbstractions (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
-  sourceAbstractions =
-    [ SoAs $
-        SourceAbstraction
-          { sourceAbsName = ""
-          , constructor = (,)
-          , productAbs =
-              ProductAbstraction
-                { abstractionName = ""
-                , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairPlayer . unProp)
-                , productModelAbstraction = _1
-                }
-                :& ProductAbstraction
-                  { abstractionName = ""
-                  , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairLocation . unProp)
-                  , productModelAbstraction = _2
-                  }
-                :& Nil
-          }
-    ]
+-- instance HasAbstractions (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
+--   sourceAbstractions =
+--     [ SoAs $
+--         SourceAbstraction
+--           { sourceAbsName = ""
+--           , constructor = (,)
+--           , productAbs =
+--               ProductAbstraction
+--                 { abstractionName = ""
+--                 , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairPlayer . unProp)
+--                 , productModelAbstraction = _1
+--                 }
+--                 :& ProductAbstraction
+--                   { abstractionName = ""
+--                   , propertyAbstraction = abstractsProperties (Prop . PlayerLocationSequencePairLocation . unProp)
+--                   , productModelAbstraction = _2
+--                   }
+--                 :& Nil
+--           }
+--     ]
 
-instance HasPermutationGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
-  sources = abstractionSources
-  generators = abstractionMorphisms ++ parallelAbstractionMorphisms
+-- instance HasPermutationGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
+--   sources = abstractionSources
+--   generators = abstractionMorphisms ++ parallelAbstractionMorphisms
 
 instance HasParameterisedGenerator (Prop PlayerLocationSequencePairProperty) ([Int], [Int]) where
-  parameterisedGenerator = buildGen @(Prop PlayerLocationSequencePairProperty)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop PlayerLocationSequencePairProperty)
 
-playerLocationSequencePairPermutationGenSelfTest :: TestTree
-playerLocationSequencePairPermutationGenSelfTest =
-  testGroup "playerLocationSequencePairPermutationGenSelfTest" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop PlayerLocationSequencePairProperty)
+-- playerLocationSequencePairPermutationGenSelfTest :: TestTree
+-- playerLocationSequencePairPermutationGenSelfTest =
+--   testGroup "playerLocationSequencePairPermutationGenSelfTest" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop PlayerLocationSequencePairProperty)

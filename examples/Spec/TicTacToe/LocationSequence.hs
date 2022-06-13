@@ -1,16 +1,13 @@
 module Spec.TicTacToe.LocationSequence (
   LocationSequenceProperty (..),
-  locationSequencePermutationGenSelfTest,
+  -- locationSequencePermutationGenSelfTest,
 ) where
 
 import Apropos
-import Apropos.Logic
 import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel (var)
 import Data.Set qualified as Set
 import Spec.TicTacToe.Location
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+    ( LocationProperty(LocationIsOutOfBounds, LocationIsWithinBounds) )
 
 data LocationSequenceProperty
   = AllLocationsAreInBounds
@@ -53,147 +50,148 @@ instance HasLogicalModel LocationSequenceProperty [Int] where
   satisfiesProperty LocationSequenceIsSingleton m = length m == 1
   satisfiesProperty LocationSequenceIsLongerThanGame m = length m > 9
 
-instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
-  sources =
-    [ Source
-        { sourceName = "null"
-        , covers = var LocationSequenceIsNull
-        , gen = pure []
-        }
-    , Source
-        { sourceName = "singleton out of bounds"
-        , covers = var LocationSequenceIsSingleton :&&: var SomeLocationIsOutOfBounds
-        , gen =
-            list (singleton 1) $
-              choice
-                [ int (linear minBound (-1))
-                , int (linear 9 maxBound)
-                ]
-        }
-    , Source
-        { sourceName = "MakeInBoundsSingleton"
-        , covers = var AllLocationsAreInBounds :&&: var LocationSequenceIsSingleton
-        , gen = list (singleton 1) $ int (linear 0 8)
-        }
-    , Source
-        { sourceName = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
-        , covers =
-            fmap Prop $
-              Var SomeLocationIsOccupiedTwice
-                :&&: Var SomeLocationIsOutOfBounds
-                :&&: Var LocationSequenceIsLongerThanGame
-        , gen =
-            genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-              let locationsLen = 10
-              locations' <-
-                list (singleton (locationsLen - 1)) $
-                  int (linear minBound maxBound)
-              list (singleton locationsLen) $ element locations'
-        }
-    ]
-  generators =
-    [ Morphism
-        { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
-        , match = Not $ var LocationSequenceIsNull
-        , contract =
-            removeAll
-              ( map
-                  Prop
-                  [ SomeLocationIsOutOfBounds
-                  , SomeLocationIsOccupiedTwice
-                  , LocationSequenceIsLongerThanGame
-                  ]
-              )
-              >> add (Prop AllLocationsAreInBounds)
-        , morphism = \locations -> do
-            let locationsLen = min 9 (length locations)
-            locations' <- shuffle [0 .. 8]
-            pure $ take locationsLen locations'
-        }
-    , Morphism
-        { name = "MakeAllLocationsAreInBoundsSomeOccupiedTwice"
-        , match = Yes
-        , contract =
-            removeAll
-              ( map
-                  Prop
-                  [ SomeLocationIsOutOfBounds
-                  , LocationSequenceIsNull
-                  ]
-              )
-              >> addAll
-                ( map
-                    Prop
-                    [ AllLocationsAreInBounds
-                    , SomeLocationIsOccupiedTwice
-                    ]
-                )
-        , morphism = \locations -> do
-            let locationsLen = max 2 (length locations)
-            locations' <- shuffle [0 .. 8]
-            let locations'' = take (locationsLen - 1) locations'
-            list (singleton locationsLen) $ element locations''
-        }
-    , Morphism
-        { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
-        , match = Not $ var LocationSequenceIsNull
-        , contract =
-            removeAll
-              ( map
-                  Prop
-                  [ AllLocationsAreInBounds
-                  , SomeLocationIsOccupiedTwice
-                  ]
-              )
-              >> add (Prop SomeLocationIsOutOfBounds)
-        , morphism = \locations ->
-            let f =
-                  ( satisfiesFormula
-                      ( var SomeLocationIsOutOfBounds
-                          :&&: Not (var SomeLocationIsOccupiedTwice)
-                      )
-                      . toProperties @(Prop LocationSequenceProperty)
-                  )
-             in do
-                  let locationsLen = length locations
-                  genFilter f $
-                    list (singleton locationsLen) $
-                      int (linear minBound maxBound)
-        }
-    , Morphism
-        { name = "MakeSomeLocationIsOccupiedTwice"
-        , match = Not (var LocationSequenceIsNull :||: var LocationSequenceIsSingleton)
-        , contract =
-            removeAll
-              ( map
-                  Prop
-                  [ AllLocationsAreInBounds
-                  , LocationSequenceIsNull
-                  , LocationSequenceIsSingleton
-                  ]
-              )
-              >> addAll
-                ( map
-                    Prop
-                    [ SomeLocationIsOccupiedTwice
-                    , SomeLocationIsOutOfBounds
-                    ]
-                )
-        , morphism = \locations -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
-            let locationsLen = length locations
-            locations' <-
-              list (singleton (locationsLen - 1)) $
-                int (linear minBound maxBound)
-            list (singleton locationsLen) $ element locations'
-        }
-    ]
+-- instance HasPermutationGenerator (Prop LocationSequenceProperty) [Int] where
+--   sources =
+--     [ Source
+--         { sourceName = "null"
+--         , covers = var LocationSequenceIsNull
+--         , gen = pure []
+--         }
+--     , Source
+--         { sourceName = "singleton out of bounds"
+--         , covers = var LocationSequenceIsSingleton :&&: var SomeLocationIsOutOfBounds
+--         , gen =
+--             list (singleton 1) $
+--               choice
+--                 [ int (linear minBound (-1))
+--                 , int (linear 9 maxBound)
+--                 ]
+--         }
+--     , Source
+--         { sourceName = "MakeInBoundsSingleton"
+--         , covers = var AllLocationsAreInBounds :&&: var LocationSequenceIsSingleton
+--         , gen = list (singleton 1) $ int (linear 0 8)
+--         }
+--     , Source
+--         { sourceName = "MakeSomeLocationIsOccupiedTwiceSequenceTooLong"
+--         , covers =
+--             fmap Prop $
+--               Var SomeLocationIsOccupiedTwice
+--                 :&&: Var SomeLocationIsOutOfBounds
+--                 :&&: Var LocationSequenceIsLongerThanGame
+--         , gen =
+--             genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+--               let locationsLen = 10
+--               locations' <-
+--                 list (singleton (locationsLen - 1)) $
+--                   int (linear minBound maxBound)
+--               list (singleton locationsLen) $ element locations'
+--         }
+--     ]
+--   generators =
+--     [ Morphism
+--         { name = "MakeAllLocationsAreInBoundsNoneOccupiedTwice"
+--         , match = Not $ var LocationSequenceIsNull
+--         , contract =
+--             removeAll
+--               ( map
+--                   Prop
+--                   [ SomeLocationIsOutOfBounds
+--                   , SomeLocationIsOccupiedTwice
+--                   , LocationSequenceIsLongerThanGame
+--                   ]
+--               )
+--               >> add (Prop AllLocationsAreInBounds)
+--         , morphism = \locations -> do
+--             let locationsLen = min 9 (length locations)
+--             locations' <- shuffle [0 .. 8]
+--             pure $ take locationsLen locations'
+--         }
+--     , Morphism
+--         { name = "MakeAllLocationsAreInBoundsSomeOccupiedTwice"
+--         , match = Yes
+--         , contract =
+--             removeAll
+--               ( map
+--                   Prop
+--                   [ SomeLocationIsOutOfBounds
+--                   , LocationSequenceIsNull
+--                   ]
+--               )
+--               >> addAll
+--                 ( map
+--                     Prop
+--                     [ AllLocationsAreInBounds
+--                     , SomeLocationIsOccupiedTwice
+--                     ]
+--                 )
+--         , morphism = \locations -> do
+--             let locationsLen = max 2 (length locations)
+--             locations' <- shuffle [0 .. 8]
+--             let locations'' = take (locationsLen - 1) locations'
+--             list (singleton locationsLen) $ element locations''
+--         }
+--     , Morphism
+--         { name = "MakeSomeLocationIsOutOfBoundsNoneOccupiedTwice"
+--         , match = Not $ var LocationSequenceIsNull
+--         , contract =
+--             removeAll
+--               ( map
+--                   Prop
+--                   [ AllLocationsAreInBounds
+--                   , SomeLocationIsOccupiedTwice
+--                   ]
+--               )
+--               >> add (Prop SomeLocationIsOutOfBounds)
+--         , morphism = \locations ->
+--             let f =
+--                   ( satisfiesFormula
+--                       ( var SomeLocationIsOutOfBounds
+--                           :&&: Not (var SomeLocationIsOccupiedTwice)
+--                       )
+--                       . toProperties @(Prop LocationSequenceProperty)
+--                   )
+--              in do
+--                   let locationsLen = length locations
+--                   genFilter f $
+--                     list (singleton locationsLen) $
+--                       int (linear minBound maxBound)
+--         }
+--     , Morphism
+--         { name = "MakeSomeLocationIsOccupiedTwice"
+--         , match = Not (var LocationSequenceIsNull :||: var LocationSequenceIsSingleton)
+--         , contract =
+--             removeAll
+--               ( map
+--                   Prop
+--                   [ AllLocationsAreInBounds
+--                   , LocationSequenceIsNull
+--                   , LocationSequenceIsSingleton
+--                   ]
+--               )
+--               >> addAll
+--                 ( map
+--                     Prop
+--                     [ SomeLocationIsOccupiedTwice
+--                     , SomeLocationIsOutOfBounds
+--                     ]
+--                 )
+--         , morphism = \locations -> genFilter (satisfiesProperty SomeLocationIsOutOfBounds) $ do
+--             let locationsLen = length locations
+--             locations' <-
+--               list (singleton (locationsLen - 1)) $
+--                 int (linear minBound maxBound)
+--             list (singleton locationsLen) $ element locations'
+--         }
+--     ]
 
 instance HasParameterisedGenerator (Prop LocationSequenceProperty) [Int] where
-  parameterisedGenerator = buildGen @(Prop LocationSequenceProperty)
+  parameterisedGenerator = undefined
+  -- parameterisedGenerator = buildGen @(Prop LocationSequenceProperty)
 
-locationSequencePermutationGenSelfTest :: TestTree
-locationSequencePermutationGenSelfTest =
-  testGroup "locationSequencePermutationGenSelfTest" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop LocationSequenceProperty)
+-- locationSequencePermutationGenSelfTest :: TestTree
+-- locationSequencePermutationGenSelfTest =
+--   testGroup "locationSequencePermutationGenSelfTest" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop LocationSequenceProperty)

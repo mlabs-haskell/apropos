@@ -1,16 +1,16 @@
 module Spec.IntPair (
   intPairGenTests,
   intPairGenPureTests,
-  intPairGenSelfTests,
+  -- intPairGenSelfTests,
   intPairGenPureRunner,
 ) where
 
 import Apropos
 import Apropos.LogicalModel
 
-import Control.Lens.Tuple (_1, _2)
 import Control.Monad (join)
-import Spec.IntPermutationGen
+import Spec.Int
+-- import Spec.IntPermutationGen
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -18,42 +18,44 @@ data IntPairProp
   = L IntProp
   | R IntProp
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Enumerable, Hashable)
+  deriving anyclass (Enumerable)
 
 instance LogicalModel IntPairProp where
-  logic = abstractionLogic @(Prop IntPairProp)
+  logic = undefined 
+--   logic = abstractionLogic @(Prop IntPairProp)
 
 instance HasLogicalModel IntPairProp (Int, Int) where
   satisfiesProperty (L p) (i, _) = satisfiesProperty p i
   satisfiesProperty (R p) (_, i) = satisfiesProperty p i
 
-instance HasAbstractions (Prop IntPairProp) (Int, Int) where
-  sourceAbstractions =
-    [ SoAs $
-        SourceAbstraction
-          { sourceAbsName = "make pair"
-          , constructor = (,)
-          , productAbs =
-              ProductAbstraction
-                { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties (Prop . L . unProp)
-                , productModelAbstraction = _1
-                }
-                :& ProductAbstraction
-                  { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties (Prop . R . unProp)
-                  , productModelAbstraction = _2
-                  }
-                :& Nil
-          }
-    ]
+-- instance HasAbstractions (Prop IntPairProp) (Int, Int) where
+--   sourceAbstractions =
+--     [ SoAs $
+--         SourceAbstraction
+--           { sourceAbsName = "make pair"
+--           , constructor = (,)
+--           , productAbs =
+--               ProductAbstraction
+--                 { abstractionName = "L"
+--                 , propertyAbstraction = abstractsProperties (Prop . L . unProp)
+--                 , productModelAbstraction = _1
+--                 }
+--                 :& ProductAbstraction
+--                   { abstractionName = "R"
+--                   , propertyAbstraction = abstractsProperties (Prop . R . unProp)
+--                   , productModelAbstraction = _2
+--                   }
+--                 :& Nil
+--           }
+--     ]
 
-instance HasPermutationGenerator (Prop IntPairProp) (Int, Int) where
-  sources = abstractionSources
-  generators = abstractionMorphisms
+-- instance HasPermutationGenerator (Prop IntPairProp) (Int, Int) where
+--   sources = abstractionSources
+--   generators = abstractionMorphisms
 
 instance HasParameterisedGenerator (Prop IntPairProp) (Int, Int) where
-  parameterisedGenerator = buildGen @(Prop IntPairProp)
+  parameterisedGenerator = undefined
+--   parameterisedGenerator = buildGen @(Prop IntPairProp)
 
 intPairGenTests :: TestTree
 intPairGenTests =
@@ -87,9 +89,9 @@ intPairGenPureTests =
               Yes
           ]
 
-intPairGenSelfTests :: TestTree
-intPairGenSelfTests =
-  testGroup "intPairGenSelfTests" $
-    pure $
-      fromGroup $
-        permutationGeneratorSelfTest @(Prop IntPairProp)
+-- intPairGenSelfTests :: TestTree
+-- intPairGenSelfTests =
+--   testGroup "intPairGenSelfTests" $
+--     pure $
+--       fromGroup $
+--         permutationGeneratorSelfTest @(Prop IntPairProp)

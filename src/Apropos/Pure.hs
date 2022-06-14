@@ -8,45 +8,45 @@ module Apropos.Pure (
 
 import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
 import Apropos.Gen.Enumerate
-import Apropos.HasParameterisedGenerator
-import Apropos.Logic (Formula (..), Strategy (..), enumerateScenariosWhere, satisfiesFormula)
+import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, TestLimit, property, withTests)
+import Apropos.Description (VariableRep, Description (..), variablesToDescription, DeepHasDatatypeInfo)
 
 data PureRunner p m = PureRunner
-  { expect :: Formula (NativeVariable p)
+  { expect :: Formula (VariableRep p)
   , script :: m -> Bool
   }
 
-runPureTest :: forall p m. (Ord p, HasParameterisedGenerator p m) => PureRunner p m -> Properties p -> Property
+runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
 runPureTest runner s = property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
-      (m :: m) <- parameterisedGenerator @p s
-      satisfiesFormula (fromNativeVariable @p <$> expect runner) s === script runner m
+      (m :: m) <- descriptionGen s
+      satisfiesFormula (expect runner) s === script runner m
 
-runPureTestsWhere :: forall p m. (Show (Properties p), Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
+runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
 runPureTestsWhere runner name condition =
   Group (fromString name) $
-    [ ( fromString $ show $ variablesToProperties scenario
-      , runPureTest runner (variablesToProperties scenario)
+    [ ( fromString $ show $ variablesToDescription scenario
+      , runPureTest runner (variablesToDescription scenario)
       )
     | scenario <- enumerateScenariosWhere condition
     ]
 
-enumeratePureTest :: forall p m. (Ord p, HasParameterisedGenerator p m) => PureRunner p m -> Properties p -> Property
+enumeratePureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
 enumeratePureTest runner s = withTests (1 :: TestLimit) $ property $ runGenModifiable test >>= errorHandler
   where
     test = forAll $ do
-      let (ms :: [m]) = enumerate $ parameterisedGenerator @p s
-          run m = satisfiesFormula (fromNativeVariable @p <$> expect runner) s === script runner m
+      let ms = enumerate $ descriptionGen s
+          run m = satisfiesFormula (expect runner) s === script runner m
       sequence_ (run <$> ms)
 
-enumeratePureTestsWhere :: forall p m. (Show (Properties p), Ord p, HasParameterisedGenerator p m) => PureRunner p m -> String -> Formula p -> Group
+enumeratePureTestsWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
 enumeratePureTestsWhere runner name condition =
   Group (fromString name) $
-    [ ( fromString $ show $ variablesToProperties scenario
-      , enumeratePureTest runner (variablesToProperties scenario)
+    [ ( fromString $ show $ variablesToDescription scenario
+      , enumeratePureTest runner (variablesToDescription scenario)
       )
     | scenario <- enumerateScenariosWhere condition
     ]

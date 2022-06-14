@@ -1,8 +1,6 @@
 module Apropos (
-  -- Apropos.Logic
+  -- Apropos.Formula
   Formula (..),
-  Strategy (..),
-  satisfiesExpression,
   -- Apropos.Gen
   Gen,
   label,
@@ -20,8 +18,7 @@ module Apropos (
   linear,
   linearFrom,
   singleton,
-  -- Apropos.HasParameterisedGenerator
-  HasParameterisedGenerator (..),
+  -- Apropos.Generator
   runGeneratorTest,
   runGeneratorTestsWhere,
   enumerateGeneratorTest,
@@ -39,7 +36,7 @@ module Apropos (
 ) where
 
 import Apropos.Gen
-import Apropos.HasParameterisedGenerator
+import Apropos.Generator
 import Apropos.Logic
 import Apropos.Pure
 import GHC.Generics (Generic)

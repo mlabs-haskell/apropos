@@ -74,10 +74,11 @@ library
     Apropos
     Apropos.Description
     Apropos.Error
+    Apropos.Formula
     Apropos.Gen
     Apropos.Gen.Enumerate
     Apropos.Gen.Range
-    Apropos.HasParameterisedGenerator
+    Apropos.Generator
     Apropos.Logic
     Apropos.Pure
 

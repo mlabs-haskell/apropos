@@ -39,12 +39,11 @@ import Apropos.HasPermutationGenerator (
   Source (Source, covers, sourceName),
   (&&&),
  )
-import Apropos.LogicalModel (Enumerable, LogicalModel (logic))
-import Apropos.LogicalModel.Formula
+import Apropos.Logic
 import Control.Lens ((#))
 import Control.Monad (guard, join)
 
-class LogicalModel p => HasAbstractions p m | p -> m where
+class (Strategy p m) => HasAbstractions p m | p -> m where
   sumAbstractions :: [SumAbstractionFor p m]
   sumAbstractions = []
   productAbstractions :: [ProductAbstractionFor p m]
@@ -69,9 +68,7 @@ data SourceAbstractionFor p m where
 data ProductAbstractionFor p m where
   PAs ::
     forall ap am bp bm.
-    ( Enumerable ap
-    , Enumerable bp
-    , HasParameterisedGenerator ap am
+    ( HasParameterisedGenerator ap am
     , HasPermutationGenerator ap am
     ) =>
     ProductAbstraction ap am bp bm ->
@@ -80,27 +77,25 @@ data ProductAbstractionFor p m where
 data SumAbstractionFor p m where
   SuAs ::
     forall ap am bp bm.
-    ( Enumerable ap
-    , Enumerable bp
-    , HasParameterisedGenerator ap am
+    ( HasParameterisedGenerator ap am
     , HasPermutationGenerator ap am
     ) =>
     SumAbstraction ap am bp bm ->
     SumAbstractionFor bp bm
 
-abstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
+abstractionMorphisms :: forall p m. (Ord p, HasAbstractions p m) => [Morphism p m]
 abstractionMorphisms =
   let productAbstractionMorphisms = join [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p]
       sumAbstractionMorphism = join [abstractSum abstraction <$> generators | SuAs abstraction <- sumAbstractions @p]
    in productAbstractionMorphisms ++ sumAbstractionMorphism
 
-abstractionSources :: forall p m. HasAbstractions p m => [Source p m]
+abstractionSources :: forall p m. (Ord p, HasAbstractions p m) => [Source p m]
 abstractionSources = sourcesFromSourceAbstractions ++ [sumSource sa s | SuAs sa <- sumAbstractions, s <- sources]
 
 {- | Product types with additional logic sometimes need to include parallel morphisms
  which change both fields of the product to keep some invariant
 -}
-parallelAbstractionMorphisms :: forall p m. (HasAbstractions p m) => [Morphism p m]
+parallelAbstractionMorphisms :: forall p m. (Ord p, HasAbstractions p m) => [Morphism p m]
 parallelAbstractionMorphisms =
   let abstractProductMorphisms = [abstractProd abstraction <$> generators | PAs abstraction <- productAbstractions @p]
    in join
@@ -112,15 +107,15 @@ parallelAbstractionMorphisms =
     seqs [] = [[]]
     seqs (x : xs) = let xs' = seqs xs in xs' ++ ((x :) <$> xs')
 
-abstractionLogic :: forall m p. HasAbstractions p m => Formula p
+abstractionLogic :: forall p m. HasAbstractions p m => Formula (NativeVariable p)
 abstractionLogic =
   All [abstractLogicProduct @p abstraction | PAs abstraction <- productAbstractions @p]
     :&&: All [abstractLogicSum @p abstraction | SuAs abstraction <- sumAbstractions @p]
 
-sourcesFromSourceAbstractions :: HasAbstractions p m => [Source p m]
+sourcesFromSourceAbstractions :: (Ord p, HasAbstractions p m) => [Source p m]
 sourcesFromSourceAbstractions = join [sourcesFromAbstraction a | SoAs a <- sourceAbstractions]
 
-sourcesFromAbstraction :: LogicalModel p => SourceAbstraction l p m -> [Source p m]
+sourcesFromAbstraction :: (Ord p, Strategy p m) => SourceAbstraction l p m -> [Source p m]
 sourcesFromAbstraction (SourceAbstraction sname con pabs) = do
   s <- withSources (pure con) pabs
   guard $ satisfiable (logic :&&: covers s) -- remove sources which can never be used
@@ -139,7 +134,7 @@ withSources
       :& ps
     ) =
     do
-      (Source sName sLogic sGen) <- sources @ap @am
+      (Source sName sLogic sGen) <- sources @ap
       let c' = c <*> sGen
       (Source sName' sLogic' sPGen') <- withSources c' ps
       pure $

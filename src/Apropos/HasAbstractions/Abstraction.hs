@@ -28,8 +28,7 @@ import Apropos.HasPermutationGenerator.Contract (
   Contract,
   labelContract,
  )
-import Apropos.LogicalModel (Formula (..), LogicalModel (logic))
-import Apropos.LogicalModel.Enumerable
+import Apropos.Logic (Formula (..), Strategy (..))
 import Control.Lens (Lens', Prism', prism', review, (#))
 import Data.Kind (Type)
 
@@ -47,7 +46,7 @@ infixr 9 :&
 
 data PAbs (l :: [(Type, Type)]) p m where
   Nil :: PAbs '[] p m
-  (:&) :: (HasParameterisedGenerator ap am, HasPermutationGenerator ap am, Enumerable ap, Enumerable p) => ProductAbstraction ap am p m -> PAbs l p m -> PAbs ('(ap, am) ': l) p m
+  (:&) :: (HasParameterisedGenerator ap am, HasPermutationGenerator ap am) => ProductAbstraction ap am p m -> PAbs l p m -> PAbs ('(ap, am) ': l) p m
 
 data ProductAbstraction ap am bp bm = ProductAbstraction
   { abstractionName :: String
@@ -113,21 +112,23 @@ sumSource
       , gen = (mAbs #) <$> pg
       }
 
-abstractsProperties :: Enumerable a => Enumerable b => (a -> b) -> Prism' b a
+abstractsProperties :: forall a b t. (Ord b, Strategy a t) => (a -> b) -> Prism' b a
 abstractsProperties injection = prism' injection (computeProjection injection)
   where
-    computeProjection :: Enumerable a => Enumerable b => (a -> b) -> (b -> Maybe a)
+    computeProjection :: (a -> b) -> (b -> Maybe a)
     computeProjection f = g
       where
-        g b = lookup b (zip (f <$> enumerated) enumerated)
+        g :: b -> Maybe a
+        g b = lookup b (zip (f <$> universe) universe)
 
 abstractContract :: Ord b => Prism' b a -> Contract a () -> Contract b ()
 abstractContract a = labelContract (review a)
 
-abstractLogicProduct :: forall bp bm ap am. LogicalModel ap => ProductAbstraction ap am bp bm -> Formula bp
-abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = (propAbs #) <$> logic
+abstractLogicProduct :: forall bp bm ap am. (Strategy ap am, Strategy bp bm) => ProductAbstraction ap am bp bm -> Formula (NativeVariable bp)
+abstractLogicProduct ProductAbstraction {propertyAbstraction = propAbs} = toNativeVariable . (propAbs #) <$> logic
 
-abstractLogicSum :: forall bp bm ap am. (LogicalModel ap, Enumerable ap) => SumAbstraction ap am bp bm -> Formula bp
+abstractLogicSum :: forall bp bm ap am. (Strategy ap am, Strategy bp bm) => SumAbstraction ap am bp bm -> Formula (NativeVariable bp)
 abstractLogicSum SumAbstraction {propertyAbstraction = propAbs, propLabel = sumLabel} =
-  (Var sumLabel :->: (propAbs #) <$> logic)
-    :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> enumerated))
+  toNativeVariable
+    <$> (Var sumLabel :->: (propAbs #) <$> logic)
+    :&&: (Not (Var sumLabel) :->: None (Var . (propAbs #) <$> universe))

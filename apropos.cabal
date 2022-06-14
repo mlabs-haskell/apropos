@@ -47,14 +47,17 @@ common lang
     , containers
     , digraph
     , free
+    , generics-sop
     , hashable          >=1.3.4.0
     , hedgehog
+    , ilist
     , lens
     , minisat-solver
     , mtl
     , pretty
     , pretty-show
     , safe
+    , tagged
     , template-haskell
     , text
     , transformers
@@ -71,6 +74,7 @@ library
   import:          lang
   exposed-modules:
     Apropos
+    Apropos.Description
     Apropos.Error
     Apropos.Gen
     Apropos.Gen.BacktrackingTraversal
@@ -78,15 +82,15 @@ library
     Apropos.Gen.Range
     Apropos.HasAbstractions
     Apropos.HasAbstractions.Abstraction
-    Apropos.HasLogicalModel
     Apropos.HasParameterisedGenerator
     Apropos.HasPermutationGenerator
     Apropos.HasPermutationGenerator.Contract
     Apropos.HasPermutationGenerator.Morphism
     Apropos.HasPermutationGenerator.Source
+    Apropos.Logic
     Apropos.LogicalModel
     Apropos.LogicalModel.Enumerable
-    Apropos.LogicalModel.Formula
+    Apropos.LogicalModel.HasLogicalModel
     Apropos.Overlay
     Apropos.Pure
 
@@ -99,6 +103,9 @@ test-suite examples
   hs-source-dirs: examples
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules:
+    Spec.Description.IntCompact
+    Spec.Description.IntPermutationGen
+    Spec.Description.IntSimple
     Spec.Int
     Spec.IntEither
     Spec.IntOverlay

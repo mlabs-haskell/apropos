@@ -1,16 +1,26 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
 
-module Apropos.LogicalModel.Formula (
+module Apropos.Logic (
   Formula (..),
   solveAll,
   enumerateSolutions,
+  enumerateScenariosWhere,
+  scenarios,
+  scenarioMap,
+  satisfiedBy,
+  satisfiesFormula,
   satisfiable,
+  Strategy (..),
+  variablesSet,
+  satisfiesExpression,
 ) where
 
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
+import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import SAT.MiniSat qualified as S
 
@@ -68,5 +78,48 @@ satisfiable = S.satisfiable . translateToSAT
 solveAll :: Ord v => Formula v -> [Map v Bool]
 solveAll = S.solve_all . translateToSAT
 
-enumerateSolutions :: (Ord p) => Formula p -> [Set p]
+enumerateSolutions :: (Ord v) => Formula v -> [Set v]
 enumerateSolutions f = Map.keysSet . Map.filter id <$> solveAll f
+
+enumerateScenariosWhere :: forall v a. (Ord v, Strategy v a) => Formula v -> [Set v]
+enumerateScenariosWhere holds = enumerateSolutions @v $ logic :&&: holds
+
+scenarios :: forall v a. (Ord v, Strategy v a) => [Set v]
+scenarios = enumerateScenariosWhere Yes
+
+scenarioMap :: (Ord v, Strategy v a) => Map Int (Set v)
+scenarioMap = Map.fromList $ zip [0 ..] scenarios
+
+satisfiedBy :: (Ord v, Strategy v a) => [v]
+satisfiedBy = Set.toList $
+  case scenarios of
+    [] -> error "no solutions found for model logic"
+    (sol : _) -> sol
+
+satisfiesFormula :: forall v a. (Ord v, Strategy v a) => Formula v -> Properties v -> Bool
+satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
+  where
+    set :: [v]
+    set = Set.toList (propertiesToVariables s)
+    unset :: [v]
+    unset = filter (`notElem` propertiesToVariables s) universe
+
+class Strategy v a | v -> a where
+  type Properties v
+  type NativeVariable v
+
+  logic :: Formula v
+  universe :: [v]
+
+  toProperties :: a -> Properties v
+  propertiesToVariables :: Properties v -> Set v
+  variablesToProperties :: Set v -> Properties v
+
+  toNativeVariable :: v -> NativeVariable v
+  fromNativeVariable :: NativeVariable v -> v
+
+variablesSet :: forall v a. (Strategy v a) => a -> Set v
+variablesSet = propertiesToVariables . toProperties @v
+
+satisfiesExpression :: forall v a. (Strategy v a, Ord v) => Formula v -> a -> Bool
+satisfiesExpression f m = satisfiesFormula f (toProperties @v m)

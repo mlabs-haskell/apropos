@@ -3,6 +3,7 @@ module Spec.IntPairOverlay (
 ) where
 
 import Apropos
+import Apropos.LogicalModel
 
 import Control.Lens.Tuple (_1, _2)
 import Spec.IntOverlay
@@ -20,21 +21,23 @@ data PairOfSmpl = L IntSmpl | R IntSmpl
 instance LogicalModel PairSmpl where
   logic = Yes
 
-instance HasAbstractions PairOfSmpl (Int, Int) where
+instance HasAbstractions (Prop PairOfSmpl) (Int, Int) where
   sourceAbstractions =
     [ SoAs $
         SourceAbstraction
           { sourceAbsName = "pair"
           , constructor = (,)
           , productAbs =
-              ProductAbstraction
-                { abstractionName = "L"
-                , propertyAbstraction = abstractsProperties L
-                , productModelAbstraction = _1
-                }
+              ( id @(ProductAbstraction (Prop IntSmpl) _ _ _) $
+                  ProductAbstraction
+                    { abstractionName = "L"
+                    , propertyAbstraction = abstractsProperties (Prop . L . unProp)
+                    , productModelAbstraction = _1
+                    }
+              )
                 :& ProductAbstraction
                   { abstractionName = "R"
-                  , propertyAbstraction = abstractsProperties R
+                  , propertyAbstraction = abstractsProperties (Prop . R . unProp)
                   , productModelAbstraction = _2
                   }
                 :& Nil
@@ -42,36 +45,36 @@ instance HasAbstractions PairOfSmpl (Int, Int) where
     ]
 
 instance LogicalModel PairOfSmpl where
-  logic = abstractionLogic @(Int, Int)
+  logic = abstractionLogic @(Prop PairOfSmpl)
 
 instance HasLogicalModel PairOfSmpl (Int, Int) where
   satisfiesProperty (L p) (x, _) = satisfiesProperty p x
   satisfiesProperty (R p) (_, x) = satisfiesProperty p x
 
-instance HasPermutationGenerator PairOfSmpl (Int, Int) where
+instance HasPermutationGenerator (Prop PairOfSmpl) (Int, Int) where
   sources = abstractionSources
   generators = abstractionMorphisms
 
-instance HasParameterisedGenerator PairOfSmpl (Int, Int) where
-  parameterisedGenerator = buildGen
+instance HasParameterisedGenerator (Prop PairOfSmpl) (Int, Int) where
+  parameterisedGenerator = buildGen @(Prop PairOfSmpl)
 
-instance Overlay PairSmpl PairOfSmpl where
-  overlays BothNonNeg = Var (L NonNegative) :&&: Var (R NonNegative)
+instance Overlay (Prop PairSmpl) (Prop PairOfSmpl) (Int, Int) (Int, Int) where
+  overlays (Prop BothNonNeg) = Prop <$> Var (L NonNegative) :&&: Var (R NonNegative)
 
 instance HasLogicalModel PairSmpl (Int, Int) where
-  satisfiesProperty = deduceFromOverlay
+  satisfiesProperty = deduceFromOverlay . Prop
 
-instance HasPermutationGenerator PairSmpl (Int, Int) where
+instance HasPermutationGenerator (Prop PairSmpl) (Int, Int) where
   sources = overlaySources
 
-instance HasParameterisedGenerator PairSmpl (Int, Int) where
-  parameterisedGenerator = buildGen
+instance HasParameterisedGenerator (Prop PairSmpl) (Int, Int) where
+  parameterisedGenerator = buildGen @(Prop PairSmpl)
 
 smplPairTests :: TestTree
 smplPairTests =
   testGroup
     "smplPairTests"
-    [ fromGroup $ permutationGeneratorSelfTest @PairOfSmpl
-    , testProperty "overlay is sound" $ soundOverlay @PairSmpl
-    , fromGroup $ permutationGeneratorSelfTest @PairSmpl
+    [ fromGroup $ permutationGeneratorSelfTest @(Prop PairOfSmpl)
+    , testProperty "overlay is sound" $ soundOverlay @(Prop PairSmpl)
+    , fromGroup $ permutationGeneratorSelfTest @(Prop PairSmpl)
     ]

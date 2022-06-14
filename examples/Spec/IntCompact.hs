@@ -1,4 +1,4 @@
-module Spec.Description.IntCompact (
+module Spec.IntCompact (
   intCompactGenTests,
   intCompactPureTests,
 ) where

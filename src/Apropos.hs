@@ -3,12 +3,6 @@ module Apropos (
   Formula (..),
   Strategy (..),
   satisfiesExpression,
-  -- Apropos.LogicalModel.Enumerable
-  Enumerable (..),
-  -- Apropos.LogicalModel.Formula
-  -- Apropos.HasLogicalModel
-  HasLogicalModel (..),
-  Prop (Prop, unProp),
   -- Apropos.Gen
   Gen,
   label,
@@ -41,15 +35,11 @@ module Apropos (
   enumeratePureTest,
   enumeratePureTestsWhere,
   -- Usefull Reexports
-  Hashable,
   Generic,
 ) where
 
 import Apropos.Gen
 import Apropos.HasParameterisedGenerator
 import Apropos.Logic
-import Apropos.LogicalModel
-import Apropos.LogicalModel.HasLogicalModel
 import Apropos.Pure
-import Data.Hashable (Hashable)
 import GHC.Generics (Generic)

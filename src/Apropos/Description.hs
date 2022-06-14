@@ -34,12 +34,11 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Logic
-import Data.Hashable (Hashable)
 import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
-import Apropos.Gen
+import Apropos.Gen ()
 
 {- | A type describing an object.
 
@@ -54,7 +53,7 @@ class Description d a | d -> a where
   additionalLogic :: Formula (VariableRep d)
   additionalLogic = Yes
 
-  objectForDescription :: d -> Gen a
+  -- objectForDescription :: d -> Gen a
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.
@@ -128,7 +127,6 @@ data VariableRep a = V
   , vCons :: ConstructorName
   }
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Hashable)
 
 data FieldSelector
   = Index Int

@@ -1,4 +1,4 @@
-module Spec.Description.IntSimple (
+module Spec.IntSimple (
   intSimpleGenTests,
   intSimplePureTests,
   IntDescr,

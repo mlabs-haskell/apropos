@@ -119,7 +119,7 @@ unflatten fp =
           return . First . unK . inj $ prod
       | otherwise = K Nothing
 
-{- | Type of a variable representing the coice of a single constructor within a
+{- | Type of a variable representing the choice of a single constructor within a
  datatype. A datatype is described by a set of such variables, one for each of
  its constructors recursively.
 

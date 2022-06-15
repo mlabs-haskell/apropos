@@ -6,6 +6,7 @@ module Spec.IntSimple (
 
 import Apropos
 import Apropos.Description
+import Hedgehog (Group)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Hedgehog (fromGroup)
 
@@ -49,25 +50,27 @@ instance Description IntDescr Int where
   descriptionGen s =
     case sign s of
       Zero -> pure 0
-      Positive ->
-        if isBound s
-          then pure maxBound
-          else intGen (size s)
-      Negative ->
-        if isBound s
-          then pure minBound
-          else negate <$> intGen (size s)
+      Positive -> intGen
+      Negative -> intGen
     where
-      intGen :: Size -> Gen Int
-      intGen Small = int (linear 1 10)
-      intGen Large = int (linear 11 (maxBound - 1))
+      bound :: Int
+      sig :: Int -> Int
+      (bound, sig) =
+        case sign s of
+          Positive -> (maxBound, id)
+          Negative -> (minBound, negate)
+          Zero -> (0, id)
 
-intSimpleGenTests :: TestTree
-intSimpleGenTests =
-  testGroup "intGenTests" $
-    fromGroup
-      <$> [ runGeneratorTestsWhere @IntDescr "Int Generator" Yes
-          ]
+      intGen :: Gen Int
+      intGen =
+        if isBound s
+          then pure bound
+          else case size s of
+            Small -> int (linear (sig 1) (sig 10))
+            Large -> int (linear (sig 11) (bound + sig (-1)))
+
+intSimpleGenTests :: Group
+intSimpleGenTests = selfTest @IntDescr
 
 intSimplePureRunner :: PureRunner IntDescr Int
 intSimplePureRunner =

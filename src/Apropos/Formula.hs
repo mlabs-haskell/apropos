@@ -1,15 +1,15 @@
 module Apropos.Formula (
-    Formula (..),
-    solveAll,
-    enumerateSolutions,
-    satisfiable
+  Formula (..),
+  solveAll,
+  enumerateSolutions,
+  satisfiable,
 ) where
 
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.Set (Set)
 import GHC.Generics (Generic)
 import SAT.MiniSat qualified as S
-import Data.Map (Map)
-import Data.Set (Set)
-import Data.Map qualified as Map
 
 infixr 6 :&&:
 infixr 5 :||:

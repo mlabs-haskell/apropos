@@ -19,18 +19,18 @@ module Apropos (
   linearFrom,
   singleton,
   -- Apropos.Generator
-  runGeneratorTest,
-  runGeneratorTestsWhere,
-  enumerateGeneratorTest,
-  enumerateGeneratorTestsWhere,
+  selfTest,
+  selfTestWhere,
+  exhaustiveSelfTest,
+  exhaustiveSelfTestWhere,
   genSatisfying,
   sampleGenTest,
   -- Apropos.Pure
   PureRunner (..),
   runPureTest,
   runPureTestsWhere,
-  enumeratePureTest,
-  enumeratePureTestsWhere,
+  exhaustiveRunPureTest,
+  exhaustiveRunPureTestsWhere,
   -- Usefull Reexports
   Generic,
 ) where

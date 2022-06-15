@@ -42,7 +42,7 @@ intCompactGenTests :: TestTree
 intCompactGenTests =
   testGroup "intGenTests" $
     fromGroup
-      <$> [ runGeneratorTestsWhere @IntDescr "Int Generator" Yes
+      <$> [ selfTest @IntDescr
           ]
 
 intCompactPureRunner :: PureRunner IntDescr Int

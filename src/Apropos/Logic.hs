@@ -8,7 +8,7 @@ module Apropos.Logic (
   scenarios,
   scenarioMap,
   satisfiedBy,
-  satisfiesFormula
+  satisfiesFormula,
 ) where
 
 import Data.Map (Map)
@@ -16,9 +16,13 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Apropos.Formula
-    ( Formula(..), satisfiable, solveAll, enumerateSolutions )
-import Apropos.Description (logic, VariableRep, descriptionToVariables, universe, Description, DeepHasDatatypeInfo)
+import Apropos.Description (DeepHasDatatypeInfo, Description, VariableRep, descriptionToVariables, logic, universe)
+import Apropos.Formula (
+  Formula (..),
+  enumerateSolutions,
+  satisfiable,
+  solveAll,
+ )
 
 enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> [Set (VariableRep d)]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds

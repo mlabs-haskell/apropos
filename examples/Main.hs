@@ -4,6 +4,7 @@ import Spec.IntCompact
 import Spec.IntSimple
 
 import Test.Tasty
+import Test.Tasty.Hedgehog (fromGroup)
 
 main :: IO ()
 main = defaultMain tests
@@ -16,7 +17,7 @@ tests =
         "Description"
         [ testGroup
             "Simple Int types with logic"
-            [ intSimpleGenTests
+            [ fromGroup intSimpleGenTests
             , intSimplePureTests
             ]
         , testGroup

@@ -1,5 +1,8 @@
 module Apropos.Gen.Enumerate (
   enumerate,
+  Exhaustivity (..),
+  exhaustivityLabel,
+  runTest,
 ) where
 
 import Apropos.Gen
@@ -7,6 +10,7 @@ import Apropos.Gen.Range
 import Control.Monad (join, replicateM)
 import Control.Monad.Free
 import Data.List (permutations)
+import Hedgehog (Property, property, withTests)
 
 -- Gen can be interpreted as an exhaustive enumeration
 enumerate :: Gen a -> [a]
@@ -38,3 +42,24 @@ enumerate _ = error "enumerate can't do that"
 
 (>=>=) :: [r] -> (r -> Gen a) -> [a]
 (>=>=) a b = (enumerate . b) =<< a
+
+data Exhaustivity = Probablistic | Exhaustive
+
+exhaustivityLabel :: Exhaustivity -> String
+exhaustivityLabel Probablistic = "probablistic"
+exhaustivityLabel Exhaustive = "exhaustive"
+
+runTest :: Exhaustivity -> Gen a -> (a -> Gen ()) -> Property
+runTest ex gen comp =
+  case ex of
+    Probablistic -> runTest'
+    Exhaustive -> withTests 1 runTest'
+  where
+    runTest' :: Property
+    runTest' = property $ runGenModifiable test >>= errorHandler
+
+    test :: GenModifiable ()
+    test = forAll $ do
+      case ex of
+        Probablistic -> gen >>= comp
+        Exhaustive -> sequence_ (comp <$> enumerate gen)

@@ -65,8 +65,7 @@ common lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
-    -Wmissing-deriving-strategies -ddump-splices
-    -fwrite-ide-info
+    -Wmissing-deriving-strategies -ddump-splices -fwrite-ide-info
 
 library
   import:          lang

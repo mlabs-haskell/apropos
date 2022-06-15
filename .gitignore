@@ -54,3 +54,5 @@ cabal.project.local*
 # Hoogle 
 .hoogle/
 .haddock/
+
+weeder.dhall

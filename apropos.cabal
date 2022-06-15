@@ -45,10 +45,8 @@ common lang
   build-depends:
     , base              >=4.14
     , containers
-    , digraph
     , free
     , generics-sop
-    , hashable          >=1.3.4.0
     , hedgehog
     , ilist
     , lens
@@ -56,7 +54,6 @@ common lang
     , mtl
     , pretty
     , pretty-show
-    , safe
     , tagged
     , template-haskell
     , text
@@ -69,6 +66,7 @@ common lang
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
     -Wmissing-deriving-strategies -ddump-splices
+    -fwrite-ide-info
 
 library
   import:          lang
@@ -76,22 +74,12 @@ library
     Apropos
     Apropos.Description
     Apropos.Error
+    Apropos.Formula
     Apropos.Gen
-    Apropos.Gen.BacktrackingTraversal
     Apropos.Gen.Enumerate
     Apropos.Gen.Range
-    Apropos.HasAbstractions
-    Apropos.HasAbstractions.Abstraction
-    Apropos.HasParameterisedGenerator
-    Apropos.HasPermutationGenerator
-    Apropos.HasPermutationGenerator.Contract
-    Apropos.HasPermutationGenerator.Morphism
-    Apropos.HasPermutationGenerator.Source
+    Apropos.Generator
     Apropos.Logic
-    Apropos.LogicalModel
-    Apropos.LogicalModel.Enumerable
-    Apropos.LogicalModel.HasLogicalModel
-    Apropos.Overlay
     Apropos.Pure
 
   hs-source-dirs:  src
@@ -103,23 +91,8 @@ test-suite examples
   hs-source-dirs: examples
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules:
-    Spec.Description.IntCompact
-    Spec.Description.IntPermutationGen
-    Spec.Description.IntSimple
-    Spec.Int
-    Spec.IntEither
-    Spec.IntOverlay
-    Spec.IntPair
-    Spec.IntPairOverlay
-    Spec.IntPermutationGen
-    Spec.Rational
-    Spec.TicTacToe.Location
-    Spec.TicTacToe.LocationSequence
-    Spec.TicTacToe.Move
-    Spec.TicTacToe.MoveSequence
-    Spec.TicTacToe.Player
-    Spec.TicTacToe.PlayerLocationSequencePair
-    Spec.TicTacToe.PlayerSequence
+    Spec.IntCompact
+    Spec.IntSimple
 
   build-depends:
     , apropos

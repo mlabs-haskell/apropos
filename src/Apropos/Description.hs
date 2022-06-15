@@ -12,6 +12,10 @@ module Apropos.Description (
   SOPGeneric,
   HasDatatypeInfo,
   v,
+  variablesToDescription,
+  descriptionToVariables,
+  logic,
+  universe
 ) where
 
 import Data.String (IsString (fromString))
@@ -33,12 +37,12 @@ import GHC.Generics (Generic)
 
 import Data.Tagged (Tagged, unproxy, untag)
 
-import Apropos.Logic
-import Data.Hashable (Hashable)
+import Apropos.Formula
 import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
+import Apropos.Gen
 
 {- | A type describing an object.
 
@@ -46,12 +50,15 @@ import Data.Maybe (fromJust, fromMaybe)
   of the object.
 -}
 class Description d a | d -> a where
-  -- | Describe an object; generate a description object from an object.
+  -- | Describe a value; generate a description object from a value.
   describe :: a -> d
 
-  -- | optionally add additional logic constraining valid description types
+  -- | Optionally add additional logic constraining valid description values
   additionalLogic :: Formula (VariableRep d)
   additionalLogic = Yes
+
+  -- | Generate test values matching a description.
+  descriptionGen :: d -> Gen a
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.
@@ -125,7 +132,6 @@ data VariableRep a = V
   , vCons :: ConstructorName
   }
   deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (Hashable)
 
 data FieldSelector
   = Index Int
@@ -380,20 +386,11 @@ v path = Var . resolveFS path
         cs :: [Constructor]
         cs = toConstructors @a
 
-instance (DeepHasDatatypeInfo d, Description d a) => Strategy (VariableRep d) a where
-  type Properties (VariableRep d) = d
-  type NativeVariable (VariableRep d) = VariableRep d
 
-  logic = typeLogic :&&: additionalLogic
+logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
+logic = typeLogic :&&: additionalLogic
 
-  universe = Set.toList allVariables
-
-  toProperties = describe
-
-  propertiesToVariables = descriptionToVariables
-  variablesToProperties = variablesToDescription
-
-  toNativeVariable = id
-  fromNativeVariable = id
+universe :: (DeepHasDatatypeInfo d) => [VariableRep d]
+universe = Set.toList allVariables
 
 type SOPGeneric = SOP.Generic

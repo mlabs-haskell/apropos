@@ -9,7 +9,9 @@ module Apropos.Gen (
   errorHandler,
   forAll,
   forAllWith,
+  forAllApropos,
   forAllWithRetries,
+  runTest,
   label,
   failWithFootnote,
   bool,
@@ -45,23 +47,32 @@ import Data.String (fromString)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Internal.Gen (generalize)
-import Hedgehog.Internal.Property (PropertyT (PropertyT))
+import Hedgehog.Internal.Property (PropertyT (PropertyT), Property, property)
 import Hedgehog.Range qualified as HRange
 
-runGenModifiable :: GenModifiable a -> PropertyT IO (Either GenException a)
-runGenModifiable g = runExceptT $ runReaderT g (GenModifier id False)
+runGenModifiableE :: GenModifiable a -> PropertyT IO (Either GenException a)
+runGenModifiableE g = runExceptT $ runReaderT g (GenModifier id False)
+
+runGenModifiable :: GenModifiable a -> PropertyT IO a
+runGenModifiable test = runGenModifiableE test >>= errorHandler
+
+forAllApropos :: (Show a) => Gen a -> PropertyT IO a
+forAllApropos = runGenModifiable . forAll
 
 errorHandler :: Either GenException a -> PropertyT IO a
 errorHandler (Left Retry) = H.footnote "retry limit reached" >> H.discard
 errorHandler (Left (GenException err)) = H.footnote err >> H.failure
 errorHandler (Right a) = pure a
 
+runTest :: Gen a -> (a -> Gen ()) -> Property
+runTest gen comp = property $ forAllApropos (gen >>= comp)
+
 forAllWithRetries :: forall a. Show a => Int -> Gen a -> GenModifiable a
 forAllWithRetries retries g = go 0
   where
     go :: Int -> GenModifiable a
     go l = do
-      res <- lift $ lift $ runGenModifiable $ forAll $ scale (2 * l +) g
+      res <- lift $ lift $ runGenModifiableE $ forAll $ scale (2 * l +) g
       case res of
         Left Retry ->
           if l > retries
@@ -344,7 +355,7 @@ gen2Interleaved (Free (Prune g next)) = do
   gen2Interleaved $ next res
 gen2Interleaved (Free (ThrowRetry _)) = liftG $ throwE Retry
 gen2Interleaved (Free (OnRetry a b next)) = do
-  res <- liftP $ lift $ lift $ runGenModifiable $ forAll a
+  res <- liftP $ lift $ lift $ runGenModifiableE $ forAll a
   case res of
     Right r -> gen2Interleaved $ next r
     Left Retry -> gen2Interleaved b >>= (gen2Interleaved . next)

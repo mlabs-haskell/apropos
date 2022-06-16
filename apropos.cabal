@@ -45,6 +45,7 @@ common lang
   build-depends:
     , base              >=4.14
     , containers
+    , exceptions
     , free
     , generics-sop
     , hedgehog
@@ -75,7 +76,6 @@ library
     Apropos.Error
     Apropos.Formula
     Apropos.Gen
-    Apropos.Gen.Enumerate
     Apropos.Gen.Range
     Apropos.Generator
     Apropos.Logic

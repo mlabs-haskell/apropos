@@ -21,16 +21,11 @@ module Apropos (
   -- Apropos.Generator
   selfTest,
   selfTestWhere,
-  exhaustiveSelfTest,
-  exhaustiveSelfTestWhere,
   genSatisfying,
   sampleGenTest,
   -- Apropos.Pure
-  PureRunner (..),
   runPureTest,
   runPureTestsWhere,
-  exhaustiveRunPureTest,
-  exhaustiveRunPureTestsWhere,
   -- Usefull Reexports
   Generic,
 ) where

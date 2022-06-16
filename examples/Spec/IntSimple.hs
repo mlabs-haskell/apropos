@@ -6,9 +6,7 @@ module Spec.IntSimple (
 
 import Apropos
 import Apropos.Description
-import Hedgehog (Group)
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+import Hedgehog (Group, assert)
 
 data IntDescr = IntDescr
   { sign :: Sign
@@ -72,16 +70,10 @@ instance Description IntDescr Int where
 intSimpleGenTests :: Group
 intSimpleGenTests = selfTest @IntDescr
 
-intSimplePureRunner :: PureRunner IntDescr Int
-intSimplePureRunner =
-  PureRunner
-    { expect = v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative"
-    , script = \i -> i < 0 && i >= -10
-    }
-
-intSimplePureTests :: TestTree
-intSimplePureTests =
-  testGroup "intSimplePureTests" $
-    fromGroup
-      <$> [ runPureTestsWhere intSimplePureRunner "AcceptsSmallNegativeInts" Yes
-          ]
+intSimplePureTests :: Group
+intSimplePureTests = 
+  runPureTestsWhere @IntDescr
+    (v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative")
+    (\i -> assert $ i < 0 && i >= -10)
+    "AcceptsSmallNegativeInts"
+    Yes

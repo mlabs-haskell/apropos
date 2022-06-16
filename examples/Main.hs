@@ -18,12 +18,12 @@ tests =
         [ testGroup
             "Simple Int types with logic"
             [ fromGroup intSimpleGenTests
-            , intSimplePureTests
+            , fromGroup intSimplePureTests
             ]
         , testGroup
             "Compact Int types"
-            [ intCompactGenTests
-            , intCompactPureTests
+            [ fromGroup intCompactGenTests
+            , fromGroup intCompactPureTests
             ]
         ]
     ]

@@ -1,47 +1,47 @@
 module Apropos.Pure (
-  PureRunner (..),
   runPureTest,
   runPureTestsWhere,
-  exhaustiveRunPureTest,
-  exhaustiveRunPureTestsWhere,
 ) where
 
 import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
-import Apropos.Gen ((===))
-import Apropos.Gen.Enumerate
+import Apropos.Gen (liftGenModifiable, runTest)
 import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
 import Data.String (fromString)
-import Hedgehog (Group (..), Property)
+import Hedgehog (Group (..), Property, PropertyT, (===))
+import Control.Monad.Trans (lift)
+import Hedgehog.Internal.Property (unPropertyT, runTestT)
+import Hedgehog.Internal.Gen (evalGenT)
+import qualified Hedgehog.Internal.Seed as Seed
+import Hedgehog.Internal.Tree
+import Control.Monad.IO.Class (liftIO)
 
-data PureRunner p m = PureRunner
-  { expect :: Formula (VariableRep p)
-  , script :: m -> Bool
-  }
-
-runPureTest' :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Exhaustivity -> PureRunner d a -> d -> Property
-runPureTest' ex runner s =
+runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
+runPureTest expect script d =
   runTest
-    ex
-    (descriptionGen s)
-    (\m -> satisfiesFormula (expect runner) s === script runner m)
+    (descriptionGen d)
+    (liftGenModifiable 
+      . lift 
+      . lift . \a -> do
+          b <- liftIO $ passes (script a)
+          b === sat 
+    )
+  where
+    sat :: Bool
+    sat = satisfiesFormula expect d
 
-runPureTestsWhere' :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => Exhaustivity -> PureRunner d a -> String -> Formula (VariableRep d) -> Group
-runPureTestsWhere' ex runner name condition =
+    passes :: forall b. PropertyT IO b -> IO Bool
+    passes prop = do
+      seed <- Seed.random
+      m <- runTreeT . evalGenT 0 seed . runTestT . unPropertyT $ prop
+      case nodeValue m of
+        Just (Right _, _) -> pure True
+        _ -> pure False
+
+runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> String -> Formula (VariableRep d) -> Group
+runPureTestsWhere expect script name condition =
   Group (fromString name) $
     [ ( fromString $ show $ variablesToDescription scenario
-      , runPureTest' ex runner (variablesToDescription scenario)
+      , runPureTest expect script (variablesToDescription scenario)
       )
     | scenario <- enumerateScenariosWhere condition
     ]
-
-runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
-runPureTest = runPureTest' Probablistic
-
-runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
-runPureTestsWhere = runPureTestsWhere' Probablistic
-
-exhaustiveRunPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
-exhaustiveRunPureTest = runPureTest' Exhaustive
-
-exhaustiveRunPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
-exhaustiveRunPureTestsWhere = runPureTestsWhere' Exhaustive

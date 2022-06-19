@@ -73,7 +73,6 @@ library
   exposed-modules:
     Apropos
     Apropos.Description
-    Apropos.Error
     Apropos.Formula
     Apropos.Gen
     Apropos.Gen.Range

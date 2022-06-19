@@ -5,8 +5,7 @@ module Spec.IntCompact (
 
 import Apropos
 import Apropos.Description
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+import Hedgehog (Group, assert)
 
 data IntDescr
   = Zero
@@ -38,23 +37,13 @@ instance Description IntDescr Int where
   descriptionGen (Negative (Large False)) = int (linear (minBound + 1) (-11))
   descriptionGen (Negative Small) = int (linear (-10) (-1))
 
-intCompactGenTests :: TestTree
-intCompactGenTests =
-  testGroup "intGenTests" $
-    fromGroup
-      <$> [ runGeneratorTestsWhere @IntDescr "Int Generator" Yes
-          ]
+intCompactGenTests :: Group
+intCompactGenTests = selfTest @IntDescr
 
-intCompactPureRunner :: PureRunner IntDescr Int
-intCompactPureRunner =
-  PureRunner
-    { expect = v [("Negative", 0)] "Small"
-    , script = \i -> i < 0 && i >= -10
-    }
-
-intCompactPureTests :: TestTree
+intCompactPureTests :: Group
 intCompactPureTests =
-  testGroup "intCompactPureTests" $
-    fromGroup
-      <$> [ runPureTestsWhere intCompactPureRunner "AcceptsSmallNegativeInts" Yes
-          ]
+  runPureTestsWhere @IntDescr
+    (v [("Negative", 0)] "Small")
+    (\i -> assert $ i < 0 && i >= -10)
+    "AcceptsSmallNegativeInts"
+    Yes

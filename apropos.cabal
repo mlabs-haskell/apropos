@@ -45,6 +45,7 @@ common lang
   build-depends:
     , base              >=4.14
     , containers
+    , exceptions
     , free
     , generics-sop
     , hedgehog
@@ -65,8 +66,7 @@ common lang
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
-    -Wmissing-deriving-strategies -ddump-splices
-    -fwrite-ide-info
+    -Wmissing-deriving-strategies -ddump-splices -fwrite-ide-info
 
 library
   import:          lang
@@ -76,7 +76,6 @@ library
     Apropos.Error
     Apropos.Formula
     Apropos.Gen
-    Apropos.Gen.Enumerate
     Apropos.Gen.Range
     Apropos.Generator
     Apropos.Logic

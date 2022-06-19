@@ -1,42 +1,38 @@
 module Apropos.Generator (
-  runGeneratorTest,
-  runGeneratorTestsWhere,
-  enumerateGeneratorTest,
-  enumerateGeneratorTestsWhere,
+  selfTest,
+  selfTestWhere,
   genSatisfying,
   sampleGenTest,
 ) where
 
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
 import Apropos.Gen
-import Apropos.Gen.Enumerate (enumerate)
 import Apropos.Logic (
-  Formula,
+  Formula (..),
   enumerateScenariosWhere,
   scenarioMap,
   scenarios,
  )
 import Data.Map qualified as Map
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, property, withTests)
-import Apropos.Description (Description(..), VariableRep, DeepHasDatatypeInfo, variablesToDescription)
+import Generics.SOP (Proxy (Proxy), datatypeInfo, datatypeName)
+import Hedgehog (Group (..), Property, property)
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
-runGeneratorTest :: forall d a. (Eq d, Show d, Description d a) => d -> Property
-runGeneratorTest s = property $ runGenModifiable test >>= errorHandler
-  where
-    test = forAll $ do
-      m <- descriptionGen s
-      describe m === s
+selfTestForDescription :: forall d a. (Eq d, Show d, Description d a) => d -> Property
+selfTestForDescription s = runTest (descriptionGen s) (\m -> describe m === s)
 
-runGeneratorTestsWhere ::
+selfTest :: forall d a. (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) => Group
+selfTest = selfTestWhere @d Yes
+
+selfTestWhere ::
   forall d a.
   (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) =>
-  String ->
   Formula (VariableRep d) ->
   Group
-runGeneratorTestsWhere name condition =
-  Group (fromString name) $
-    [ (fromString $ show $ variablesToDescription scenario, runGeneratorTest (variablesToDescription scenario))
+selfTestWhere condition =
+  Group (fromString (datatypeName (datatypeInfo @d Proxy)) <> " self test") $
+    [ (fromString $ show $ variablesToDescription scenario, selfTestForDescription (variablesToDescription scenario))
     | scenario <- enumerateScenariosWhere condition
     ]
 
@@ -49,38 +45,12 @@ genPropSet = do
     Just set -> pure (variablesToDescription set)
 
 sampleGenTest :: forall d a. (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) => Property
-sampleGenTest = property $ runGenModifiable test >>= errorHandler
-  where
-    test = forAll $ do
+sampleGenTest =
+  property $
+    forAllApropos $ do
       ps <- genPropSet @d
       (m :: m) <- descriptionGen ps
       describe m === ps
-
-enumerateGeneratorTest ::
-  forall d a.
-  (Eq d, Show d, Description d a) =>
-  d ->
-  Property
-enumerateGeneratorTest s =
-  withTests (1 :: TestLimit) $
-    property $ runGenModifiable test >>= errorHandler
-  where
-    test = forAll $ do
-      let ms = enumerate $ descriptionGen @d s
-          run m = describe m === s
-      sequence_ (run <$> ms)
-
-enumerateGeneratorTestsWhere ::
-  forall d a.
-  (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) =>
-  String ->
-  Formula (VariableRep d) ->
-  Group
-enumerateGeneratorTestsWhere name condition =
-  Group (fromString name) $
-    [ (fromString $ show $ variablesToDescription scenario, enumerateGeneratorTest @d (variablesToDescription scenario))
-    | scenario <- enumerateScenariosWhere condition
-    ]
 
 genSatisfying :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Gen a
 genSatisfying f = do

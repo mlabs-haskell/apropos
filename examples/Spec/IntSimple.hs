@@ -6,8 +6,7 @@ module Spec.IntSimple (
 
 import Apropos
 import Apropos.Description
-import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Hedgehog (fromGroup)
+import Hedgehog (Group, assert)
 
 data IntDescr = IntDescr
   { sign :: Sign
@@ -49,36 +48,32 @@ instance Description IntDescr Int where
   descriptionGen s =
     case sign s of
       Zero -> pure 0
-      Positive ->
-        if isBound s
-          then pure maxBound
-          else intGen (size s)
-      Negative ->
-        if isBound s
-          then pure minBound
-          else negate <$> intGen (size s)
+      Positive -> intGen
+      Negative -> intGen
     where
-      intGen :: Size -> Gen Int
-      intGen Small = int (linear 1 10)
-      intGen Large = int (linear 11 (maxBound - 1))
+      bound :: Int
+      sig :: Int -> Int
+      (bound, sig) =
+        case sign s of
+          Positive -> (maxBound, id)
+          Negative -> (minBound, negate)
+          Zero -> (0, id)
 
-intSimpleGenTests :: TestTree
-intSimpleGenTests =
-  testGroup "intGenTests" $
-    fromGroup
-      <$> [ runGeneratorTestsWhere @IntDescr "Int Generator" Yes
-          ]
+      intGen :: Gen Int
+      intGen =
+        if isBound s
+          then pure bound
+          else case size s of
+            Small -> int (linear (sig 1) (sig 10))
+            Large -> int (linear (sig 11) (bound + sig (-1)))
 
-intSimplePureRunner :: PureRunner IntDescr Int
-intSimplePureRunner =
-  PureRunner
-    { expect = v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative"
-    , script = \i -> i < 0 && i >= -10
-    }
+intSimpleGenTests :: Group
+intSimpleGenTests = selfTest @IntDescr
 
-intSimplePureTests :: TestTree
+intSimplePureTests :: Group
 intSimplePureTests =
-  testGroup "intSimplePureTests" $
-    fromGroup
-      <$> [ runPureTestsWhere intSimplePureRunner "AcceptsSmallNegativeInts" Yes
-          ]
+  runPureTestsWhere @IntDescr
+    (v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative")
+    (\i -> assert $ i < 0 && i >= -10)
+    "AcceptsSmallNegativeInts"
+    Yes

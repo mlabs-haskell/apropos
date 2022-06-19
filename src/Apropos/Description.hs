@@ -15,7 +15,7 @@ module Apropos.Description (
   variablesToDescription,
   descriptionToVariables,
   logic,
-  universe
+  universe,
 ) where
 
 import Data.String (IsString (fromString))
@@ -38,11 +38,11 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Formula
+import Apropos.Gen
 import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
-import Apropos.Gen
 
 {- | A type describing an object.
 
@@ -385,7 +385,6 @@ v path = Var . resolveFS path
 
         cs :: [Constructor]
         cs = toConstructors @a
-
 
 logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
 logic = typeLogic :&&: additionalLogic

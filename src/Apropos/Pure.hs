@@ -1,52 +1,48 @@
 module Apropos.Pure (
-  PureRunner (..),
   runPureTest,
   runPureTestsWhere,
-  enumeratePureTest,
-  enumeratePureTestsWhere,
 ) where
 
-import Apropos.Gen (errorHandler, forAll, runGenModifiable, (===))
-import Apropos.Gen.Enumerate
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
+import Apropos.Gen (liftGenModifiable, runTest)
 import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans (lift)
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, TestLimit, property, withTests)
-import Apropos.Description (VariableRep, Description (..), variablesToDescription, DeepHasDatatypeInfo)
+import Hedgehog (Group (..), Property, PropertyT, (===))
+import Hedgehog.Internal.Gen (evalGenT)
+import Hedgehog.Internal.Property (runTestT, unPropertyT)
+import Hedgehog.Internal.Seed qualified as Seed
+import Hedgehog.Internal.Tree
 
-data PureRunner p m = PureRunner
-  { expect :: Formula (VariableRep p)
-  , script :: m -> Bool
-  }
-
-runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
-runPureTest runner s = property $ runGenModifiable test >>= errorHandler
+runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
+runPureTest expect script d =
+  runTest
+    (descriptionGen d)
+    ( liftGenModifiable
+        . lift
+        . lift
+        . \a -> do
+          b <- liftIO $ passes (script a)
+          b === sat
+    )
   where
-    test = forAll $ do
-      (m :: m) <- descriptionGen s
-      satisfiesFormula (expect runner) s === script runner m
+    sat :: Bool
+    sat = satisfiesFormula expect d
 
-runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
-runPureTestsWhere runner name condition =
+    passes :: forall b. PropertyT IO b -> IO Bool
+    passes prop = do
+      seed <- Seed.random
+      m <- runTreeT . evalGenT 0 seed . runTestT . unPropertyT $ prop
+      case nodeValue m of
+        Just (Right _, _) -> pure True
+        _ -> pure False
+
+runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> String -> Formula (VariableRep d) -> Group
+runPureTestsWhere expect script name condition =
   Group (fromString name) $
     [ ( fromString $ show $ variablesToDescription scenario
-      , runPureTest runner (variablesToDescription scenario)
-      )
-    | scenario <- enumerateScenariosWhere condition
-    ]
-
-enumeratePureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => PureRunner d a -> d -> Property
-enumeratePureTest runner s = withTests (1 :: TestLimit) $ property $ runGenModifiable test >>= errorHandler
-  where
-    test = forAll $ do
-      let ms = enumerate $ descriptionGen s
-          run m = satisfiesFormula (expect runner) s === script runner m
-      sequence_ (run <$> ms)
-
-enumeratePureTestsWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show d) => PureRunner d a -> String -> Formula (VariableRep d) -> Group
-enumeratePureTestsWhere runner name condition =
-  Group (fromString name) $
-    [ ( fromString $ show $ variablesToDescription scenario
-      , enumeratePureTest runner (variablesToDescription scenario)
+      , runPureTest expect script (variablesToDescription scenario)
       )
     | scenario <- enumerateScenariosWhere condition
     ]

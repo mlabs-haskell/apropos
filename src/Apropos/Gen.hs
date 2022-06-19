@@ -47,7 +47,7 @@ import Data.String (fromString)
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as HGen
 import Hedgehog.Internal.Gen (generalize)
-import Hedgehog.Internal.Property (PropertyT (PropertyT), Property, property)
+import Hedgehog.Internal.Property (Property, PropertyT (PropertyT), property)
 import Hedgehog.Range qualified as HRange
 
 runGenModifiableE :: GenModifiable a -> PropertyT IO (Either GenException a)

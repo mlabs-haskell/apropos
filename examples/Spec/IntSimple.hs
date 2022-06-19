@@ -71,7 +71,7 @@ intSimpleGenTests :: Group
 intSimpleGenTests = selfTest @IntDescr
 
 intSimplePureTests :: Group
-intSimplePureTests = 
+intSimplePureTests =
   runPureTestsWhere @IntDescr
     (v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative")
     (\i -> assert $ i < 0 && i >= -10)

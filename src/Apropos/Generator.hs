@@ -46,10 +46,11 @@ genPropSet = do
 
 sampleGenTest :: forall d a. (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) => Property
 sampleGenTest =
-  property $ forAllApropos $ do
-    ps <- genPropSet @d
-    (m :: m) <- descriptionGen ps
-    describe m === ps
+  property $
+    forAllApropos $ do
+      ps <- genPropSet @d
+      (m :: m) <- descriptionGen ps
+      describe m === ps
 
 genSatisfying :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Gen a
 genSatisfying f = do

@@ -6,24 +6,25 @@ module Apropos.Pure (
 import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
 import Apropos.Gen (liftGenModifiable, runTest)
 import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans (lift)
 import Data.String (fromString)
 import Hedgehog (Group (..), Property, PropertyT, (===))
-import Control.Monad.Trans (lift)
-import Hedgehog.Internal.Property (unPropertyT, runTestT)
 import Hedgehog.Internal.Gen (evalGenT)
-import qualified Hedgehog.Internal.Seed as Seed
+import Hedgehog.Internal.Property (runTestT, unPropertyT)
+import Hedgehog.Internal.Seed qualified as Seed
 import Hedgehog.Internal.Tree
-import Control.Monad.IO.Class (liftIO)
 
 runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
 runPureTest expect script d =
   runTest
     (descriptionGen d)
-    (liftGenModifiable 
-      . lift 
-      . lift . \a -> do
+    ( liftGenModifiable
+        . lift
+        . lift
+        . \a -> do
           b <- liftIO $ passes (script a)
-          b === sat 
+          b === sat
     )
   where
     sat :: Bool

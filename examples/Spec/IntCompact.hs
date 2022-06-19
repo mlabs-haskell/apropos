@@ -37,7 +37,7 @@ instance Description IntDescr Int where
   descriptionGen (Negative (Large False)) = int (linear (minBound + 1) (-11))
   descriptionGen (Negative Small) = int (linear (-10) (-1))
 
-intCompactGenTests :: Group 
+intCompactGenTests :: Group
 intCompactGenTests = selfTest @IntDescr
 
 intCompactPureTests :: Group

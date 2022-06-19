@@ -31,7 +31,7 @@ selfTestWhere ::
   Formula (VariableRep d) ->
   Group
 selfTestWhere condition =
-  Group (fromString $ datatypeName (datatypeInfo @d Proxy) ++ " self test") $
+  Group (fromString (datatypeName (datatypeInfo @d Proxy)) <> " self test") $
     [ (fromString $ show $ variablesToDescription scenario, selfTestForDescription (variablesToDescription scenario))
     | scenario <- enumerateScenariosWhere condition
     ]

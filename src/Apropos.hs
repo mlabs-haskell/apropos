@@ -15,6 +15,6 @@ module Apropos (
 ) where
 
 import Apropos.Generator
-import Apropos.Logic
+import Apropos.Formula
 import Apropos.Runner
 import GHC.Generics (Generic)

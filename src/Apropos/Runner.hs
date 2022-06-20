@@ -4,8 +4,7 @@ module Apropos.Runner (
   runTestsWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), variablesToDescription)
-import Apropos.Logic (scenarios)
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), variablesToDescription, scenarios)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)
 import Data.String (fromString)

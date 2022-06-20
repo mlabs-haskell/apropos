@@ -5,14 +5,8 @@ module Apropos.Generator (
   sampleGenTest,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
-import Apropos.Logic (
-  Formula (..),
-  enumerateScenariosWhere,
-  runTest,
-  scenarioMap,
-  scenarios,
- )
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription, enumerateScenariosWhere, scenarios, scenarioMap)
+import Apropos.Formula ( Formula(..) )
 import Data.Map qualified as Map
 import Data.String (fromString)
 import Generics.SOP (Proxy (Proxy), datatypeInfo, datatypeName)
@@ -22,7 +16,10 @@ import Hedgehog.Range (linear)
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property
-selfTestForDescription s = runTest (genForDescription s) (\m -> describe m === s)
+selfTestForDescription s =
+  property $ do
+    m <- forAll (genForDescription s)
+    describe m === s
 
 selfTest :: forall d a. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Group
 selfTest = selfTestWhere @d Yes

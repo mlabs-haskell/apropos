@@ -16,6 +16,14 @@ module Apropos.Description (
   descriptionToVariables,
   logic,
   universe,
+  Formula (..),
+  solveAll,
+  enumerateSolutions,
+  enumerateScenariosWhere,
+  scenarios,
+  scenarioMap,
+  satisfiedBy,
+  satisfies,
 ) where
 
 import Data.String (IsString (fromString))
@@ -391,5 +399,28 @@ logic = typeLogic :&&: additionalLogic
 
 universe :: (DeepHasDatatypeInfo d) => [VariableRep d]
 universe = Set.toList allVariables
+
+enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> [Set (VariableRep d)]
+enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
+
+scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => [Set (VariableRep d)]
+scenarios = enumerateScenariosWhere Yes
+
+scenarioMap :: (Description d a, DeepHasDatatypeInfo d) => Map Int (Set (VariableRep d))
+scenarioMap = Map.fromList $ zip [0 ..] scenarios
+
+satisfiedBy :: (Description d a, DeepHasDatatypeInfo d) => [VariableRep d]
+satisfiedBy = Set.toList $
+  case scenarios of
+    [] -> error "no solutions found for model logic"
+    (sol : _) -> sol
+
+satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
+satisfies f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
+  where
+    set :: [VariableRep d]
+    set = Set.toList (descriptionToVariables s)
+    unset :: [VariableRep d]
+    unset = filter (`notElem` descriptionToVariables s) universe
 
 type SOPGeneric = SOP.Generic

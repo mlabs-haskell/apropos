@@ -51,6 +51,8 @@ common lang
     , hedgehog
     , ilist
     , lens
+    , lifted-base
+    , list-t
     , minisat-solver
     , mtl
     , pretty
@@ -74,8 +76,6 @@ library
     Apropos
     Apropos.Description
     Apropos.Formula
-    Apropos.Gen
-    Apropos.Gen.Range
     Apropos.Generator
     Apropos.Logic
     Apropos.Pure

@@ -38,11 +38,11 @@ import GHC.Generics (Generic)
 import Data.Tagged (Tagged, unproxy, untag)
 
 import Apropos.Formula
-import Apropos.Gen
 import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
+import Hedgehog (MonadGen)
 
 {- | A type describing an object.
 
@@ -58,7 +58,7 @@ class Description d a | d -> a where
   additionalLogic = Yes
 
   -- | Generate test values matching a description.
-  descriptionGen :: d -> Gen a
+  genForDescription :: (MonadGen m) => d -> m a
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.

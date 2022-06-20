@@ -6,7 +6,9 @@ module Spec.IntSimple (
 
 import Apropos
 import Apropos.Description
-import Hedgehog (Group, assert)
+import Hedgehog (Group, assert, MonadGen)
+import Hedgehog.Gen (int)
+import Hedgehog.Range (linear)
 
 data IntDescr = IntDescr
   { sign :: Sign
@@ -45,7 +47,7 @@ instance Description IntDescr Int where
       , v [("IntDescr", "isBound")] "True" :->: v [("IntDescr", "size")] "Large"
       ]
 
-  descriptionGen s =
+  genForDescription s =
     case sign s of
       Zero -> pure 0
       Positive -> intGen
@@ -59,7 +61,7 @@ instance Description IntDescr Int where
           Negative -> (minBound, negate)
           Zero -> (0, id)
 
-      intGen :: Gen Int
+      intGen :: (MonadGen m) => m Int
       intGen =
         if isBound s
           then pure bound

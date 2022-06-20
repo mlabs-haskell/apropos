@@ -6,28 +6,29 @@ module Apropos.Generator (
 ) where
 
 import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
-import Apropos.Gen
 import Apropos.Logic (
   Formula (..),
   enumerateScenariosWhere,
   scenarioMap,
-  scenarios,
+  scenarios, runTest
  )
 import Data.Map qualified as Map
 import Data.String (fromString)
 import Generics.SOP (Proxy (Proxy), datatypeInfo, datatypeName)
-import Hedgehog (Group (..), Property, property)
+import Hedgehog (Group (..), Property, property, Gen, (===), label, forAll, PropertyT)
+import Hedgehog.Gen (int, element)
+import Hedgehog.Range (linear)
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
-selfTestForDescription :: forall d a. (Eq d, Show d, Description d a) => d -> Property
-selfTestForDescription s = runTest (descriptionGen s) (\m -> describe m === s)
+selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property
+selfTestForDescription s = runTest (genForDescription s) (\m -> describe m === s)
 
-selfTest :: forall d a. (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) => Group
+selfTest :: forall d a. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Group
 selfTest = selfTestWhere @d Yes
 
 selfTestWhere ::
   forall d a.
-  (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) =>
+  (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) =>
   Formula (VariableRep d) ->
   Group
 selfTestWhere condition =
@@ -44,16 +45,15 @@ genPropSet = do
     Nothing -> error "bad index in scenario sample this is a bug in apropos"
     Just set -> pure (variablesToDescription set)
 
-sampleGenTest :: forall d a. (Ord d, Show d, Description d a, DeepHasDatatypeInfo d) => Property
+sampleGenTest :: forall d a. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Property
 sampleGenTest =
-  property $
-    forAllApropos $ do
-      ps <- genPropSet @d
-      (m :: m) <- descriptionGen ps
+  property $ do
+      ps <- forAll $ genPropSet @d
+      (m :: m) <- forAll $ genForDescription ps
       describe m === ps
 
-genSatisfying :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Gen a
+genSatisfying :: forall d a m. (Description d a, DeepHasDatatypeInfo d, Monad m, Show a) => Formula (VariableRep d) -> PropertyT m a
 genSatisfying f = do
   label $ fromString $ show f
-  s <- element (enumerateScenariosWhere f)
-  descriptionGen (variablesToDescription s)
+  s <- forAll $ element (enumerateScenariosWhere f)
+  forAll $ genForDescription (variablesToDescription s)

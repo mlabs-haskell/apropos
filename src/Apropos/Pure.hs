@@ -4,41 +4,33 @@ module Apropos.Pure (
 ) where
 
 import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
-import Apropos.Gen (liftGenModifiable, runTest)
 import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans (lift)
 import Data.String (fromString)
-import Hedgehog (Group (..), Property, PropertyT, (===))
-import Hedgehog.Internal.Gen (evalGenT)
-import Hedgehog.Internal.Property (runTestT, unPropertyT)
-import Hedgehog.Internal.Seed qualified as Seed
-import Hedgehog.Internal.Tree
+import Hedgehog (Group (..), Property, PropertyT, property, (===), forAll)
+import Hedgehog.Internal.Property (unPropertyT, PropertyT (PropertyT), TestT (unTest, TestT))
+import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
+import Data.Either (isRight)
 
-runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
-runPureTest expect script d =
-  runTest
-    (descriptionGen d)
-    ( liftGenModifiable
-        . lift
-        . lift
-        . \a -> do
-          b <- liftIO $ passes (script a)
-          b === sat
-    )
-  where
-    sat :: Bool
-    sat = satisfiesFormula expect d
+runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show a) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
+runPureTest expect script d = property $ do
+  a <- forAll $ genForDescription d
+  b <- passes (script a)
+  b === sat
+    where
+      sat :: Bool
+      sat = satisfiesFormula expect d
 
-    passes :: forall b. PropertyT IO b -> IO Bool
-    passes prop = do
-      seed <- Seed.random
-      m <- runTreeT . evalGenT 0 seed . runTestT . unPropertyT $ prop
-      case nodeValue m of
-        Just (Right _, _) -> pure True
-        _ -> pure False
+      passes :: PropertyT IO () -> PropertyT IO Bool
+      passes =
+        PropertyT
+          . TestT 
+          . ExceptT 
+          . fmap (Right . isRight) 
+          . runExceptT 
+          . unTest 
+          . unPropertyT
 
-runPureTestsWhere :: forall d a. (Show d, Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> String -> Formula (VariableRep d) -> Group
+runPureTestsWhere :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> String -> Formula (VariableRep d) -> Group
 runPureTestsWhere expect script name condition =
   Group (fromString name) $
     [ ( fromString $ show $ variablesToDescription scenario

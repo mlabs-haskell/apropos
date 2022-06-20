@@ -1,23 +1,6 @@
 module Apropos (
   -- Apropos.Formula
   Formula (..),
-  -- Apropos.Gen
-  Gen,
-  label,
-  failWithFootnote,
-  bool,
-  int,
-  list,
-  shuffle,
-  element,
-  choice,
-  genFilter,
-  retry,
-  -- Apropos.Gen.Range
-  Range,
-  linear,
-  linearFrom,
-  singleton,
   -- Apropos.Generator
   selfTest,
   selfTestWhere,
@@ -30,7 +13,6 @@ module Apropos (
   Generic,
 ) where
 
-import Apropos.Gen
 import Apropos.Generator
 import Apropos.Logic
 import Apropos.Pure

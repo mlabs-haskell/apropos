@@ -9,7 +9,7 @@ module Apropos.Logic (
   scenarioMap,
   satisfiedBy,
   satisfiesFormula,
-  runTest
+  runTest,
 ) where
 
 import Data.Map (Map)
@@ -24,7 +24,7 @@ import Apropos.Formula (
   satisfiable,
   solveAll,
  )
-import Hedgehog (forAll, property, Gen, Property, PropertyT)
+import Hedgehog (Gen, Property, PropertyT, forAll, property)
 
 enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> [Set (VariableRep d)]
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
@@ -49,5 +49,5 @@ satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$>
     unset :: [VariableRep d]
     unset = filter (`notElem` descriptionToVariables s) universe
 
-runTest :: (Show a) => Gen a -> (a -> PropertyT IO ()) -> Property 
+runTest :: (Show a) => Gen a -> (a -> PropertyT IO ()) -> Property
 runTest gen comp = property (forAll gen >>= comp)

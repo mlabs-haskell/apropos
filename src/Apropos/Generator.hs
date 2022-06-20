@@ -9,14 +9,15 @@ import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, 
 import Apropos.Logic (
   Formula (..),
   enumerateScenariosWhere,
+  runTest,
   scenarioMap,
-  scenarios, runTest
+  scenarios,
  )
 import Data.Map qualified as Map
 import Data.String (fromString)
 import Generics.SOP (Proxy (Proxy), datatypeInfo, datatypeName)
-import Hedgehog (Group (..), Property, property, Gen, (===), label, forAll, PropertyT)
-import Hedgehog.Gen (int, element)
+import Hedgehog (Gen, Group (..), Property, PropertyT, forAll, label, property, (===))
+import Hedgehog.Gen (element, int)
 import Hedgehog.Range (linear)
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
@@ -48,9 +49,9 @@ genPropSet = do
 sampleGenTest :: forall d a. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Property
 sampleGenTest =
   property $ do
-      ps <- forAll $ genPropSet @d
-      (m :: m) <- forAll $ genForDescription ps
-      describe m === ps
+    ps <- forAll $ genPropSet @d
+    (m :: m) <- forAll $ genForDescription ps
+    describe m === ps
 
 genSatisfying :: forall d a m. (Description d a, DeepHasDatatypeInfo d, Monad m, Show a) => Formula (VariableRep d) -> PropertyT m a
 genSatisfying f = do

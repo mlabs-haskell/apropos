@@ -6,7 +6,7 @@ module Spec.IntSimple (
 
 import Apropos
 import Apropos.Description
-import Hedgehog (Group, assert, MonadGen)
+import Hedgehog (Group, MonadGen, assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 

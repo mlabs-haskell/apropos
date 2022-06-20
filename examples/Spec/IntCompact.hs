@@ -47,6 +47,8 @@ intCompactPureTests =
   runTests @IntDescr
     "AcceptsSmallNegativeInts" $
     AproposTest
-      { expect = v [("Negative", 0)] "Small"
+      { expect = \case
+          Negative Small -> True
+          _ -> False
       , test   = \i -> assert $ i < 0 && i >= -10
       }

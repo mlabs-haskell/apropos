@@ -8,7 +8,7 @@ module Apropos.Logic (
   scenarios,
   scenarioMap,
   satisfiedBy,
-  satisfiesFormula,
+  satisfies,
   runTest,
 ) where
 
@@ -41,8 +41,8 @@ satisfiedBy = Set.toList $
     [] -> error "no solutions found for model logic"
     (sol : _) -> sol
 
-satisfiesFormula :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
-satisfiesFormula f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
+satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
+satisfies f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
   where
     set :: [VariableRep d]
     set = Set.toList (descriptionToVariables s)

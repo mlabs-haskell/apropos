@@ -77,6 +77,6 @@ intSimplePureTests =
   runTests @IntDescr
     "AcceptsSmallNegativeInts" $
     AproposTest
-    { expect = v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative"
+    { expect = \d -> size d == Small && sign d == Negative
     , test   = \i -> assert $ i < 0 && i >= -10
     }

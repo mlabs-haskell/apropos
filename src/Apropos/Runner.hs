@@ -4,8 +4,8 @@ module Apropos.Runner (
   runTestsWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
-import Apropos.Logic (Formula (..), enumerateScenariosWhere, satisfiesFormula)
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), variablesToDescription)
+import Apropos.Logic (scenarios)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)
 import Data.String (fromString)
@@ -14,19 +14,16 @@ import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest),
 
 data AproposTest d a
   = AproposTest
-  { expect :: Formula (VariableRep d) 
+  { expect :: d -> Bool 
   , test :: a -> PropertyT IO ()
   }
 
-runTest :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show a) => AproposTest d a -> d -> Property
+runTest :: forall d a. (Description d a, Show a) => AproposTest d a -> d -> Property
 runTest atest d = property $ do
   a <- forAll $ genForDescription d
   b <- passes (test atest a)
-  b === sat
+  b === expect atest d
   where
-    sat :: Bool
-    sat = satisfiesFormula (expect atest) d
-
     passes :: PropertyT IO () -> PropertyT IO Bool
     passes =
       PropertyT
@@ -38,13 +35,13 @@ runTest atest d = property $ do
         . unPropertyT
 
 runTests :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) => String -> AproposTest d a ->  Group
-runTests name = runTestsWhere name Yes
+runTests name = runTestsWhere name (const True)
 
-runTestsWhere :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) =>  String -> Formula (VariableRep d) -> AproposTest d a -> Group
-runTestsWhere name condition atest =
+runTestsWhere :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) =>  String -> (d -> Bool) -> AproposTest d a -> Group
+runTestsWhere name cond atest =
   Group (fromString name) $
-    [ ( fromString $ show $ variablesToDescription scenario
-      , runTest atest (variablesToDescription scenario)
+    [ ( fromString $ show scenario
+      , runTest atest scenario
       )
-    | scenario <- enumerateScenariosWhere condition
+    | scenario <- filter cond . map variablesToDescription $ scenarios
     ]

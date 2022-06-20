@@ -51,8 +51,6 @@ common lang
     , hedgehog
     , ilist
     , lens
-    , lifted-base
-    , list-t
     , minisat-solver
     , mtl
     , pretty

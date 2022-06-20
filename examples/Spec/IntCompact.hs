@@ -44,8 +44,9 @@ intCompactGenTests = selfTest @IntDescr
 
 intCompactPureTests :: Group
 intCompactPureTests =
-  runPureTestsWhere @IntDescr
-    (v [("Negative", 0)] "Small")
-    (\i -> assert $ i < 0 && i >= -10)
-    "AcceptsSmallNegativeInts"
-    Yes
+  runTests @IntDescr
+    "AcceptsSmallNegativeInts" $
+    AproposTest
+      { expect = v [("Negative", 0)] "Small"
+      , test   = \i -> assert $ i < 0 && i >= -10
+      }

@@ -74,8 +74,9 @@ intSimpleGenTests = selfTest @IntDescr
 
 intSimplePureTests :: Group
 intSimplePureTests =
-  runPureTestsWhere @IntDescr
-    (v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative")
-    (\i -> assert $ i < 0 && i >= -10)
-    "AcceptsSmallNegativeInts"
-    Yes
+  runTests @IntDescr
+    "AcceptsSmallNegativeInts" $
+    AproposTest
+    { expect = v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative"
+    , test   = \i -> assert $ i < 0 && i >= -10
+    }

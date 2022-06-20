@@ -1,6 +1,7 @@
-module Apropos.Pure (
-  runPureTest,
-  runPureTestsWhere,
+module Apropos.Runner (
+  AproposTest(..),
+  runTests,
+  runTestsWhere,
 ) where
 
 import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription)
@@ -11,14 +12,20 @@ import Data.String (fromString)
 import Hedgehog (Group (..), Property, PropertyT, forAll, property, (===))
 import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest), unPropertyT)
 
-runPureTest :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show a) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> d -> Property
-runPureTest expect script d = property $ do
+data AproposTest d a
+  = AproposTest
+  { expect :: Formula (VariableRep d) 
+  , test :: a -> PropertyT IO ()
+  }
+
+runTest :: forall d a. (Description d a, DeepHasDatatypeInfo d, Show a) => AproposTest d a -> d -> Property
+runTest atest d = property $ do
   a <- forAll $ genForDescription d
-  b <- passes (script a)
+  b <- passes (test atest a)
   b === sat
   where
     sat :: Bool
-    sat = satisfiesFormula expect d
+    sat = satisfiesFormula (expect atest) d
 
     passes :: PropertyT IO () -> PropertyT IO Bool
     passes =
@@ -30,11 +37,14 @@ runPureTest expect script d = property $ do
         . unTest
         . unPropertyT
 
-runPureTestsWhere :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (a -> PropertyT IO ()) -> String -> Formula (VariableRep d) -> Group
-runPureTestsWhere expect script name condition =
+runTests :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) => String -> AproposTest d a ->  Group
+runTests name = runTestsWhere name Yes
+
+runTestsWhere :: forall d a. (Show d, Show a, Description d a, DeepHasDatatypeInfo d) =>  String -> Formula (VariableRep d) -> AproposTest d a -> Group
+runTestsWhere name condition atest =
   Group (fromString name) $
     [ ( fromString $ show $ variablesToDescription scenario
-      , runPureTest expect script (variablesToDescription scenario)
+      , runTest atest (variablesToDescription scenario)
       )
     | scenario <- enumerateScenariosWhere condition
     ]

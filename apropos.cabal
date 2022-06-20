@@ -76,7 +76,7 @@ library
     Apropos.Formula
     Apropos.Generator
     Apropos.Logic
-    Apropos.Pure
+    Apropos.Runner
 
   hs-source-dirs:  src
 

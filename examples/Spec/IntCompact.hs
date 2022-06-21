@@ -6,6 +6,8 @@ module Spec.IntCompact (
 import Apropos
 import Apropos.Description
 import Hedgehog (Group, assert)
+import Hedgehog.Gen (int)
+import Hedgehog.Range (linear)
 
 data IntDescr
   = Zero
@@ -29,13 +31,14 @@ instance Description IntDescr Int where
         | i < 11 && i > -111 = Small
         | otherwise = Large {isBound = i == minBound || i == maxBound}
 
-  descriptionGen Zero = pure 0
-  descriptionGen (Positive (Large True)) = pure maxBound
-  descriptionGen (Positive (Large False)) = int (linear 11 (maxBound - 1))
-  descriptionGen (Positive Small) = int (linear 1 10)
-  descriptionGen (Negative (Large True)) = pure minBound
-  descriptionGen (Negative (Large False)) = int (linear (minBound + 1) (-11))
-  descriptionGen (Negative Small) = int (linear (-10) (-1))
+  genForDescription = \case
+    Zero -> pure 0
+    Positive (Large True) -> pure maxBound
+    Positive (Large False) -> int (linear 11 (maxBound - 1))
+    Positive Small -> int (linear 1 10)
+    Negative (Large True) -> pure minBound
+    Negative (Large False) -> int (linear (minBound + 1) (-11))
+    Negative Small -> int (linear (-10) (-1))
 
 intCompactGenTests :: Group
 intCompactGenTests = selfTest @IntDescr

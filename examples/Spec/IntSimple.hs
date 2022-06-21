@@ -5,8 +5,7 @@ module Spec.IntSimple (
 ) where
 
 import Apropos
-import Apropos.Description
-import Hedgehog (Group, MonadGen, assert)
+import Hedgehog (Group (Group), MonadGen, assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 
@@ -70,12 +69,17 @@ instance Description IntDescr Int where
             Large -> int (linear (sig 11) (bound + sig (-1)))
 
 intSimpleGenTests :: Group
-intSimpleGenTests = selfTest @IntDescr
+intSimpleGenTests =
+  Group
+    "self test"
+    (selfTest @IntDescr)
 
 intSimplePureTests :: Group
 intSimplePureTests =
-  runPureTestsWhere @IntDescr
-    (v [("IntDescr", "size")] "Small" :&&: v [("IntDescr", "sign")] "Negative")
-    (\i -> assert $ i < 0 && i >= -10)
+  Group
     "AcceptsSmallNegativeInts"
-    Yes
+    . runTests @IntDescr
+    $ AproposTest
+      { expect = \d -> size d == Small && sign d == Negative
+      , test = \i -> assert $ i < 0 && i >= -10
+      }

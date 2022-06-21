@@ -72,11 +72,12 @@ library
   import:          lang
   exposed-modules:
     Apropos
+
+  other-modules:
     Apropos.Description
     Apropos.Formula
     Apropos.Generator
-    Apropos.Logic
-    Apropos.Pure
+    Apropos.Runner
 
   hs-source-dirs:  src
 

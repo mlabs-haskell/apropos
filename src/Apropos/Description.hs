@@ -13,9 +13,11 @@ module Apropos.Description (
   HasDatatypeInfo,
   v,
   variablesToDescription,
-  descriptionToVariables,
   logic,
-  universe,
+  allVariables,
+  enumerateScenariosWhere,
+  scenarios,
+  satisfies,
 ) where
 
 import Data.String (IsString (fromString))
@@ -389,7 +391,18 @@ v path = Var . resolveFS path
 logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
 logic = typeLogic :&&: additionalLogic
 
-universe :: (DeepHasDatatypeInfo d) => [VariableRep d]
-universe = Set.toList allVariables
+enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Set (Set (VariableRep d))
+enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
+
+scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (VariableRep d))
+scenarios = enumerateScenariosWhere Yes
+
+satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
+satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
+  where
+    set :: Set (VariableRep d)
+    set = descriptionToVariables s
+    unset :: Set (VariableRep d)
+    unset = Set.difference allVariables set
 
 type SOPGeneric = SOP.Generic

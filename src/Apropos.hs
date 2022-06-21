@@ -1,19 +1,21 @@
 module Apropos (
-  -- Apropos.Formula
-  Formula (..),
-  -- Apropos.Generator
+  Description (describe, additionalLogic, genForDescription),
+  v,
+  allVariables,
+  Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
   selfTest,
   selfTestWhere,
-  genSatisfying,
-  sampleGenTest,
-  -- Apropos.Pure
-  runPureTest,
-  runPureTestsWhere,
+  satisfies,
+  AproposTest (AproposTest, expect, test),
+  runTests,
+  runTestsWhere,
   -- Usefull Reexports
   Generic,
+  SOPGeneric,
+  HasDatatypeInfo,
 ) where
 
+import Apropos.Description
+import Apropos.Formula
 import Apropos.Generator
-import Apropos.Logic
-import Apropos.Pure
-import GHC.Generics (Generic)
+import Apropos.Runner

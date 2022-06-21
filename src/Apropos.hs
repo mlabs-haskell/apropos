@@ -1,5 +1,5 @@
-module AproposRoot (
-  Description(describe, additionalLogic, genForDescription),
+module Apropos (
+  Description (describe, additionalLogic, genForDescription),
   v,
   allVariables,
   Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
@@ -15,7 +15,7 @@ module AproposRoot (
   HasDatatypeInfo,
 ) where
 
+import Apropos.Description
 import Apropos.Formula
 import Apropos.Generator
 import Apropos.Runner
-import Apropos.Description

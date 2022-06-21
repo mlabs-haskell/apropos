@@ -71,7 +71,9 @@ common lang
 library
   import:          lang
   exposed-modules:
-    AproposRoot
+    Apropos
+
+  other-modules:
     Apropos.Description
     Apropos.Formula
     Apropos.Generator

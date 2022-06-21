@@ -3,7 +3,7 @@ module Spec.IntCompact (
   intCompactPureTests,
 ) where
 
-import AproposRoot
+import Apropos
 import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)

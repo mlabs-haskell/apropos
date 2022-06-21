@@ -1,14 +1,14 @@
 module Apropos.Generator (
   runTest,
   selfTest,
-  selfTestWhere
+  selfTestWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, enumerateScenariosWhere,  variablesToDescription)
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, enumerateScenariosWhere, variablesToDescription)
 import Apropos.Formula (Formula (..))
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
-import Hedgehog ( Property, PropertyT, forAll, property, (===))
+import Hedgehog (Property, PropertyT, forAll, property, (===))
 
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
 runTest cond d = property $ forAll (genForDescription d) >>= cond

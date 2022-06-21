@@ -2,11 +2,11 @@ module AproposRoot (
   Description(describe, additionalLogic, genForDescription),
   v,
   allVariables,
-  Formula (Var, Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
+  Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
   selfTest,
   selfTestWhere,
   satisfies,
-  AproposTest (expect, test),
+  AproposTest (AproposTest, expect, test),
   runTests,
   runTestsWhere,
   -- Usefull Reexports

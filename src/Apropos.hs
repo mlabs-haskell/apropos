@@ -1,5 +1,6 @@
 module Apropos (
   Description (describe, refineDescription, genDescribed),
+  Attribute,
   allAttributes,
   Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
   attr,

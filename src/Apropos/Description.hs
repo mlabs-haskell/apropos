@@ -5,7 +5,7 @@
 
 module Apropos.Description (
   Description (..),
-  VariableRep (V),
+  Attribute (Attr),
   typeLogic,
   DeepHasDatatypeInfo,
   Generic,
@@ -56,7 +56,7 @@ class Description d a | d -> a where
   describe :: a -> d
 
   -- | Optionally add additional logic constraining valid description values
-  refineDescription :: Formula (VariableRep d)
+  refineDescription :: Formula (Attribute d)
   refineDescription = Yes
 
   -- | Generate test values matching a description.
@@ -129,9 +129,9 @@ unflatten fp =
  and a path of '(ConstructorName, Int)' pairs, each component representing a
  containing constructor and field number.
 -}
-data VariableRep a = V
-  { vPath :: [(ConstructorName, Int)]
-  , vCons :: ConstructorName
+data Attribute d = Attr
+  { attrPath :: [(ConstructorName, Int)]
+  , attrConstr :: ConstructorName
   }
   deriving stock (Eq, Ord, Show, Generic)
 
@@ -155,11 +155,11 @@ instance Num FieldSelector where
 instance IsString FieldSelector where
   fromString = RecordField
 
-rootVarRep :: ConstructorName -> VariableRep a
-rootVarRep = V []
+rootVarRep :: ConstructorName -> Attribute d
+rootVarRep = Attr []
 
-pushVR :: ConstructorName -> Int -> VariableRep a -> VariableRep a
-pushVR cn i (V vrs cn') = V ((cn, i) : vrs) cn'
+pushVR :: ConstructorName -> Int -> Attribute d -> Attribute d
+pushVR cn i (Attr vrs cn') = Attr ((cn, i) : vrs) cn'
 
 {- | Calculate the set of variables for an object.
 
@@ -173,21 +173,21 @@ pushVR cn i (V vrs cn') = V ((cn, i) : vrs) cn'
  = Examples
 
  >>> descriptionToVariables True
- fromList [V [] "True"]
+ fromList [Attr [] "True"]
 
  >>> descriptionToVariables False
- fromList [V [] "False"]
+ fromList [Attr [] "False"]
 
  >>> descriptionToVariables (True, False)
- fromList [V [] "(,)", V [("(,)",0)] "True", V [("(,)",1)] "False"]
+ fromList [Attr [] "(,)", Attr [("(,)",0)] "True", Attr [("(,)",1)] "False"]
 
  >>> descriptionToVariables (Just True)
- fromList [V [] "Just", V [("Just",0)] "True"]
+ fromList [Attr [] "Just", Attr [("Just",0)] "True"]
 
  >>> descriptionToVariables (Nothing @(Maybe Bool))
- fromList [V [] "Nothing"]
+ fromList [Attr [] "Nothing"]
 -}
-descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (VariableRep d)
+descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (Attribute d)
 descriptionToVariables =
   foldTree
     ( \cn flds ->
@@ -203,7 +203,7 @@ data MapTree k a = MapNode
   }
   deriving stock (Show)
 
-variablesToDescription :: (DeepHasDatatypeInfo d) => Set (VariableRep d) -> d
+variablesToDescription :: (DeepHasDatatypeInfo d) => Set (Attribute d) -> d
 variablesToDescription s =
   let tree = collapseMapTree . buildMapTree $ s
    in case unflatten . FlatPack $ tree of
@@ -222,7 +222,7 @@ variablesToDescription s =
               $ mt
         }
 
-    buildMapTree :: Set (VariableRep d) -> MapTree Int ConstructorName
+    buildMapTree :: Set (Attribute d) -> MapTree Int ConstructorName
     buildMapTree = Set.foldr insertVar emptyMt
 
     emptyMt :: MapTree k String
@@ -232,11 +232,11 @@ variablesToDescription s =
         , mapSubForest = Map.empty
         }
 
-    insertVar :: VariableRep d -> MapTree Int ConstructorName -> MapTree Int ConstructorName
-    insertVar (V [] cons) mt =
+    insertVar :: Attribute d -> MapTree Int ConstructorName -> MapTree Int ConstructorName
+    insertVar (Attr [] cons) mt =
       mt {mapRootLabel = cons}
-    insertVar (V ((_, i) : path) cons) mt =
-      mt {mapSubForest = Map.alter (Just . insertVar (V path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
+    insertVar (Attr ((_, i) : path) cons) mt =
+      mt {mapSubForest = Map.alter (Just . insertVar (Attr path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
 
 data TwoTree a = TwoNode
   { twoRootLabel :: a
@@ -281,43 +281,43 @@ toConstructors = untag (toConstructors' @a)
     constructorK :: forall a'. DeepHasDatatypeInfo a' => K [Constructor] a'
     constructorK = K $ untag (toConstructors' @a')
 
-{- | Calculate a set of logical constraints governing valid @Set VariableRep@s
+{- | Calculate a set of logical constraints governing valid @Set Attribute@s
  for a type.
 
  = Examples (simplified)
  >>> typeLogic @Bool
- ExactlyOne [V V [] "False", V V [] "True"]
+ ExactlyOne [Attr Attr [] "False", Attr Attr [] "True"]
 
  >>> typeLogic @(Bool, Bool)
  All [
-   ExactlyOne [V V [("(,)",0)] "False", V V [("(,)",0)] "True"],
-   ExactlyOne [V V [("(,)",1)] "False", V V [("(,)",1)] "True"]
+   ExactlyOne [Attr Attr [("(,)",0)] "False", Attr Attr [("(,)",0)] "True"],
+   ExactlyOne [Attr Attr [("(,)",1)] "False", Attr Attr [("(,)",1)] "True"]
  ]
 
  >>> typeLogic @(Either Bool Bool)
  All [
-   ExactlyOne [V V [] "Left",V V [] "Right"],
-   V V [] "Left" :->: All [
-     ExactlyOne [V V [("Left",0)] "False",V V [("Left",0)] "True"],
+   ExactlyOne [Attr Attr [] "Left",Attr Attr [] "Right"],
+   Attr Attr [] "Left" :->: All [
+     ExactlyOne [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
    ],
-   Not (V (V [] "Left")) :->: None [V V [("Left",0)] "False",V V [("Left",0)] "True"],
-   V V [] "Right" :->: All [
-     ExactlyOne [V V [("Right",0)] "False",V V [("Right",0)] "True"]
+   Not (Attr (Attr [] "Left")) :->: None [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
+   Attr Attr [] "Right" :->: All [
+     ExactlyOne [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
    ],
-   Not (V (V [] "Right")) :->: None [V V [("Right",0)] "False",V V [("Right",0)] "True"]
+   Not (Attr (Attr [] "Right")) :->: None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
  ]
 -}
-typeLogic :: forall a. (DeepHasDatatypeInfo a) => Formula (VariableRep a)
-typeLogic = All . sumLogic $ toConstructors @a
+typeLogic :: forall d. (DeepHasDatatypeInfo d) => Formula (Attribute d)
+typeLogic = All . sumLogic $ toConstructors @d
   where
-    sumLogic :: [Constructor] -> [Formula (VariableRep a)]
+    sumLogic :: [Constructor] -> [Formula (Attribute d)]
     sumLogic cs =
       -- Only one of the top-level constructors can be selected
       ExactlyOne (subVars cs) :
       -- apply 'prodLogic' to all the fields
       concatMap prodLogic cs
 
-    prodLogic :: Constructor -> [Formula (VariableRep a)]
+    prodLogic :: Constructor -> [Formula (Attribute d)]
     prodLogic (TwoNode (ConsInfo cn _) cs) =
       -- for each present constructor, one of the constructors of each of its fields can be selected
       [ rootVar cn :->: (All . imap (\i -> ExactlyOne . pushedSubvars cn i) $ cs)
@@ -327,13 +327,13 @@ typeLogic = All . sumLogic $ toConstructors @a
       ]
         ++ iconcatMap (\i -> map (fmap $ pushVR cn i) . concatMap prodLogic) cs
 
-    pushedSubvars :: ConstructorName -> Int -> [Constructor] -> [Formula (VariableRep a)]
+    pushedSubvars :: ConstructorName -> Int -> [Constructor] -> [Formula (Attribute d)]
     pushedSubvars cn i = map (fmap (pushVR cn i)) . subVars
 
-    subVars :: [Constructor] -> [Formula (VariableRep a)]
+    subVars :: [Constructor] -> [Formula (Attribute d)]
     subVars = map (rootVar . consName . twoRootLabel)
 
-rootVar :: ConstructorName -> Formula (VariableRep a)
+rootVar :: ConstructorName -> Formula (Attribute d)
 rootVar = Var . rootVarRep
 
 {- | Enumerate all the variables of a type.
@@ -341,29 +341,29 @@ rootVar = Var . rootVarRep
   = Examples
 
   >>> allAttributes @Bool
-  fromList [V [] "GHC.Types.False",V [] "GHC.Types.True"]
+  fromList [Attr [] "GHC.Types.False",Attr [] "GHC.Types.True"]
 
   >>> allAttributes @(Bool, Bool)
   fromList
-  [ V [] "GHC.Tuple.(,)"
-  , V [("GHC.Tuple.(,)",0)] "GHC.Types.False"
-  , V [("GHC.Tuple.(,)",0)] "GHC.Types.True"
-  , V [("GHC.Tuple.(,)",1)] "GHC.Types.False"
-  , V [("GHC.Tuple.(,)",1)] "GHC.Types.True"
+  [ Attr [] "GHC.Tuple.(,)"
+  , Attr [("GHC.Tuple.(,)",0)] "GHC.Types.False"
+  , Attr [("GHC.Tuple.(,)",0)] "GHC.Types.True"
+  , Attr [("GHC.Tuple.(,)",1)] "GHC.Types.False"
+  , Attr [("GHC.Tuple.(,)",1)] "GHC.Types.True"
  ]
 
  >>> allAttributes @(Maybe Bool)
  fromList
-  [ V [] "GHC.Maybe.Just"
-  , V [] "GHC.Maybe.Nothing"
-  , V [("GHC.Maybe.Just",0)] "GHC.Types.False"
-  , V [("GHC.Maybe.Just",0)] "GHC.Types.True"
+  [ Attr [] "GHC.Maybe.Just"
+  , Attr [] "GHC.Maybe.Nothing"
+  , Attr [("GHC.Maybe.Just",0)] "GHC.Types.False"
+  , Attr [("GHC.Maybe.Just",0)] "GHC.Types.True"
   ]
 -}
-allAttributes :: forall a. (DeepHasDatatypeInfo a) => Set (VariableRep a)
-allAttributes = Set.unions . map allAttributes' $ toConstructors @a
+allAttributes :: forall d. (DeepHasDatatypeInfo d) => Set (Attribute d)
+allAttributes = Set.unions . map allAttributes' $ toConstructors @d
   where
-    allAttributes' :: Constructor -> Set (VariableRep a)
+    allAttributes' :: Constructor -> Set (Attribute d)
     allAttributes' =
       foldTwoTree
         ( \(ConsInfo cn _) flds ->
@@ -371,11 +371,11 @@ allAttributes = Set.unions . map allAttributes' $ toConstructors @a
               <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
-attr :: forall a. (DeepHasDatatypeInfo a) => [(ConstructorName, FieldSelector)] -> ConstructorName -> Formula (VariableRep a)
+attr :: forall d. (DeepHasDatatypeInfo d) => [(ConstructorName, FieldSelector)] -> ConstructorName -> Formula (Attribute d)
 attr path = Var . resolveFS path
   where
-    resolveFS :: [(ConstructorName, FieldSelector)] -> ConstructorName -> VariableRep a
-    resolveFS p = V (resPath cs p)
+    resolveFS :: [(ConstructorName, FieldSelector)] -> ConstructorName -> Attribute d
+    resolveFS p = Attr (resPath cs p)
       where
         resPath :: [Constructor] -> [(ConstructorName, FieldSelector)] -> [(ConstructorName, Int)]
         resPath _ [] = []
@@ -386,23 +386,23 @@ attr path = Var . resolveFS path
         findConstructor con' = head . filter ((== con') . consName . twoRootLabel)
 
         cs :: [Constructor]
-        cs = toConstructors @a
+        cs = toConstructors @d
 
-logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
+logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (Attribute d)
 logic = typeLogic :&&: refineDescription
 
-enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Set (Set (VariableRep d))
+enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (Attribute d) -> Set (Set (Attribute d))
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 
-scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (VariableRep d))
+scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (Attribute d))
 scenarios = enumerateScenariosWhere Yes
 
-satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (d -> Bool)
+satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (Attribute d) -> (d -> Bool)
 satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
   where
-    set :: Set (VariableRep d)
+    set :: Set (Attribute d)
     set = descriptionToVariables s
-    unset :: Set (VariableRep d)
+    unset :: Set (Attribute d)
     unset = Set.difference allAttributes set
 
 type SOPGeneric = SOP.Generic

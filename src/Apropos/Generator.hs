@@ -4,7 +4,7 @@ module Apropos.Generator (
   selfTestWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, enumerateScenariosWhere, variablesToDescription)
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), Attribute, enumerateScenariosWhere, variablesToDescription)
 import Apropos.Formula (Formula (..))
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
@@ -23,7 +23,7 @@ selfTest = selfTestWhere @d Yes
 selfTestWhere ::
   forall d a s.
   (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d, IsString s) =>
-  Formula (VariableRep d) ->
+  Formula (Attribute d) ->
   [(s, Property)]
 selfTestWhere condition =
   [ (fromString $ show $ variablesToDescription scenario, selfTestForDescription (variablesToDescription scenario))

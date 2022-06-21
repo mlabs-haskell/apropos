@@ -13,12 +13,10 @@ module Apropos.Description (
   HasDatatypeInfo,
   v,
   variablesToDescription,
-  descriptionToVariables,
   logic,
   allVariables,
   enumerateScenariosWhere,
   scenarios,
-  satisfiedBy,
   satisfies,
 ) where
 
@@ -398,12 +396,6 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 
 scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (VariableRep d))
 scenarios = enumerateScenariosWhere Yes
-
-satisfiedBy :: (Description d a, DeepHasDatatypeInfo d) => [VariableRep d]
-satisfiedBy = Set.toList $
-  case Set.toList scenarios of
-    [] -> error "no solutions found for model logic"
-    (sol : _) -> sol
 
 satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
 satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)

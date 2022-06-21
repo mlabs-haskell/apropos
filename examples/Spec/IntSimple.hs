@@ -4,8 +4,7 @@ module Spec.IntSimple (
   IntDescr,
 ) where
 
-import Apropos
-import Apropos.Description
+import AproposRoot
 import Hedgehog (Group (Group), MonadGen, assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)

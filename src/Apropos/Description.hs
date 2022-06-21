@@ -15,10 +15,9 @@ module Apropos.Description (
   variablesToDescription,
   descriptionToVariables,
   logic,
-  universe,
+  allVariables,
   enumerateScenariosWhere,
   scenarios,
-  scenarioMap,
   satisfiedBy,
   satisfies,
 ) where
@@ -394,30 +393,24 @@ v path = Var . resolveFS path
 logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
 logic = typeLogic :&&: additionalLogic
 
-universe :: (DeepHasDatatypeInfo d) => [VariableRep d]
-universe = Set.toList allVariables
-
-enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> [Set (VariableRep d)]
+enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Set (Set (VariableRep d))
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 
-scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => [Set (VariableRep d)]
+scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (VariableRep d))
 scenarios = enumerateScenariosWhere Yes
-
-scenarioMap :: (Description d a, DeepHasDatatypeInfo d) => Map Int (Set (VariableRep d))
-scenarioMap = Map.fromList $ zip [0 ..] scenarios
 
 satisfiedBy :: (Description d a, DeepHasDatatypeInfo d) => [VariableRep d]
 satisfiedBy = Set.toList $
-  case scenarios of
+  case Set.toList scenarios of
     [] -> error "no solutions found for model logic"
     (sol : _) -> sol
 
 satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
-satisfies f s = satisfiable $ f :&&: All (Var <$> set) :&&: None (Var <$> unset)
+satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
   where
-    set :: [VariableRep d]
-    set = Set.toList (descriptionToVariables s)
-    unset :: [VariableRep d]
-    unset = filter (`notElem` descriptionToVariables s) universe
+    set :: Set (VariableRep d)
+    set = descriptionToVariables s
+    unset :: Set (VariableRep d)
+    unset = Set.difference allVariables set
 
 type SOPGeneric = SOP.Generic

@@ -10,6 +10,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import GHC.Generics (Generic)
 import SAT.MiniSat qualified as S
+import Data.Set qualified as Set
 
 infixr 6 :&&:
 infixr 5 :||:
@@ -65,5 +66,5 @@ satisfiable = S.satisfiable . translateToSAT
 solveAll :: Ord v => Formula v -> [Map v Bool]
 solveAll = S.solve_all . translateToSAT
 
-enumerateSolutions :: (Ord v) => Formula v -> [Set v]
-enumerateSolutions f = Map.keysSet . Map.filter id <$> solveAll f
+enumerateSolutions :: (Ord v) => Formula v -> Set (Set v)
+enumerateSolutions f = Set.fromList $ Map.keysSet . Map.filter id <$> solveAll f

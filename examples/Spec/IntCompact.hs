@@ -31,13 +31,14 @@ instance Description IntDescr Int where
         | i < 11 && i > -111 = Small
         | otherwise = Large {isBound = i == minBound || i == maxBound}
 
-  genForDescription Zero = pure 0
-  genForDescription (Positive (Large True)) = pure maxBound
-  genForDescription (Positive (Large False)) = int (linear 11 (maxBound - 1))
-  genForDescription (Positive Small) = int (linear 1 10)
-  genForDescription (Negative (Large True)) = pure minBound
-  genForDescription (Negative (Large False)) = int (linear (minBound + 1) (-11))
-  genForDescription (Negative Small) = int (linear (-10) (-1))
+  genForDescription = \case
+    Zero -> pure 0
+    Positive (Large True) -> pure maxBound
+    Positive (Large False) -> int (linear 11 (maxBound - 1))
+    Positive Small -> int (linear 1 10)
+    Negative (Large True) -> pure minBound
+    Negative (Large False) -> int (linear (minBound + 1) (-11))
+    Negative Small -> int (linear (-10) (-1))
 
 intCompactGenTests :: Group
 intCompactGenTests = selfTest @IntDescr

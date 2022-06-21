@@ -11,7 +11,7 @@ import Data.String (IsString, fromString)
 import Hedgehog (Property, PropertyT, forAll, property, (===))
 
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
-runTest cond d = property $ forAll (genForDescription d) >>= cond
+runTest cond d = property $ forAll (genDescribed d) >>= cond
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property

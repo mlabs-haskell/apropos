@@ -15,14 +15,14 @@ import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest),
 
 data AproposTest d a = AproposTest
   { expect :: d -> Bool
-  , test :: a -> PropertyT IO ()
+  , aproposTest :: a -> PropertyT IO ()
   }
 
 runAproposTest :: forall d a. (Description d a, Show a) => AproposTest d a -> d -> Property
 runAproposTest atest d =
   runTest
     ( \a -> do
-        b <- passes (test atest a)
+        b <- passes (aproposTest atest a)
         b === expect atest d
     )
     d

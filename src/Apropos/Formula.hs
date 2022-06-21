@@ -18,25 +18,25 @@ infixr 4 :++:
 infixr 2 :->:
 infix 1 :<->:
 
-data Formula v
-  = Var v
+data Formula attr
+  = Var attr
   | Yes
   | No
-  | Not (Formula v)
-  | Formula v :&&: Formula v
-  | Formula v :||: Formula v
-  | Formula v :++: Formula v
-  | Formula v :->: Formula v
-  | Formula v :<->: Formula v
-  | All [Formula v]
-  | Some [Formula v]
-  | None [Formula v]
-  | ExactlyOne [Formula v]
-  | AtMostOne [Formula v]
+  | Not (Formula attr)
+  | Formula attr :&&: Formula attr
+  | Formula attr :||: Formula attr
+  | Formula attr :++: Formula attr
+  | Formula attr :->: Formula attr
+  | Formula attr :<->: Formula attr
+  | All [Formula attr]
+  | Some [Formula attr]
+  | None [Formula attr]
+  | ExactlyOne [Formula attr]
+  | AtMostOne [Formula attr]
   deriving stock (Generic, Functor)
 
-translateToSAT :: Formula v -> S.Formula v
-translateToSAT (Var v) = S.Var v
+translateToSAT :: Formula attr -> S.Formula attr
+translateToSAT (Var attr) = S.Var attr
 translateToSAT Yes = S.Yes
 translateToSAT No = S.No
 translateToSAT (Not c) = S.Not (translateToSAT c)
@@ -51,20 +51,20 @@ translateToSAT (None cs) = S.None (translateToSAT <$> cs)
 translateToSAT (ExactlyOne cs) = S.ExactlyOne (translateToSAT <$> cs)
 translateToSAT (AtMostOne cs) = S.AtMostOne (translateToSAT <$> cs)
 
-instance (Eq v) => Eq (Formula v) where
+instance (Eq attr) => Eq (Formula attr) where
   a == b = translateToSAT a == translateToSAT b
 
-instance (Ord v) => Ord (Formula v) where
+instance (Ord attr) => Ord (Formula attr) where
   compare a b = compare (translateToSAT a) (translateToSAT b)
 
-instance (Show v) => Show (Formula v) where
+instance (Show attr) => Show (Formula attr) where
   show a = show (translateToSAT a)
 
-satisfiable :: Ord v => Formula v -> Bool
+satisfiable :: Ord attr => Formula attr -> Bool
 satisfiable = S.satisfiable . translateToSAT
 
-solveAll :: Ord v => Formula v -> [Map v Bool]
+solveAll :: Ord attr => Formula attr -> [Map attr Bool]
 solveAll = S.solve_all . translateToSAT
 
-enumerateSolutions :: (Ord v) => Formula v -> Set (Set v)
+enumerateSolutions :: (Ord attr) => Formula attr -> Set (Set attr)
 enumerateSolutions f = Set.fromList $ Map.keysSet . Map.filter id <$> solveAll f

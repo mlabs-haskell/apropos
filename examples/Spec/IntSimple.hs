@@ -40,13 +40,13 @@ instance Description IntDescr Int where
       , isBound = i == minBound || i == maxBound
       }
 
-  additionalLogic =
+  refineDescription =
     All
-      [ v [("IntDescr", "sign")] "Zero" :->: v [("IntDescr", "size")] "Small"
-      , v [("IntDescr", "isBound")] "True" :->: v [("IntDescr", "size")] "Large"
+      [ attr [("IntDescr", "sign")] "Zero" :->: attr [("IntDescr", "size")] "Small"
+      , attr [("IntDescr", "isBound")] "True" :->: attr [("IntDescr", "size")] "Large"
       ]
 
-  genForDescription s =
+  genDescribed s =
     case sign s of
       Zero -> pure 0
       Positive -> intGen
@@ -81,5 +81,5 @@ intSimplePureTests =
     . runTests @IntDescr
     $ AproposTest
       { expect = \d -> size d == Small && sign d == Negative
-      , test = \i -> assert $ i < 0 && i >= -10
+      , aproposTest = \i -> assert $ i < 0 && i >= -10
       }

@@ -11,10 +11,10 @@ module Apropos.Description (
   Generic,
   SOPGeneric,
   HasDatatypeInfo,
-  v,
+  attr,
   variablesToDescription,
   logic,
-  allVariables,
+  allAttributes,
   enumerateScenariosWhere,
   scenarios,
   satisfies,
@@ -56,11 +56,11 @@ class Description d a | d -> a where
   describe :: a -> d
 
   -- | Optionally add additional logic constraining valid description values
-  additionalLogic :: Formula (VariableRep d)
-  additionalLogic = Yes
+  refineDescription :: Formula (VariableRep d)
+  refineDescription = Yes
 
   -- | Generate test values matching a description.
-  genForDescription :: (MonadGen m) => d -> m a
+  genDescribed :: (MonadGen m) => d -> m a
 
 {- | A constraint asserting that a type and the types of all its fields recursively
  implement 'HasDatatypeInfo'.
@@ -340,10 +340,10 @@ rootVar = Var . rootVarRep
 
   = Examples
 
-  >>> allVariables @Bool
+  >>> allAttributes @Bool
   fromList [V [] "GHC.Types.False",V [] "GHC.Types.True"]
 
-  >>> allVariables @(Bool, Bool)
+  >>> allAttributes @(Bool, Bool)
   fromList
   [ V [] "GHC.Tuple.(,)"
   , V [("GHC.Tuple.(,)",0)] "GHC.Types.False"
@@ -352,7 +352,7 @@ rootVar = Var . rootVarRep
   , V [("GHC.Tuple.(,)",1)] "GHC.Types.True"
  ]
 
- >>> allVariables @(Maybe Bool)
+ >>> allAttributes @(Maybe Bool)
  fromList
   [ V [] "GHC.Maybe.Just"
   , V [] "GHC.Maybe.Nothing"
@@ -360,19 +360,19 @@ rootVar = Var . rootVarRep
   , V [("GHC.Maybe.Just",0)] "GHC.Types.True"
   ]
 -}
-allVariables :: forall a. (DeepHasDatatypeInfo a) => Set (VariableRep a)
-allVariables = Set.unions . map allVariables' $ toConstructors @a
+allAttributes :: forall a. (DeepHasDatatypeInfo a) => Set (VariableRep a)
+allAttributes = Set.unions . map allAttributes' $ toConstructors @a
   where
-    allVariables' :: Constructor -> Set (VariableRep a)
-    allVariables' =
+    allAttributes' :: Constructor -> Set (VariableRep a)
+    allAttributes' =
       foldTwoTree
         ( \(ConsInfo cn _) flds ->
             Set.singleton (rootVarRep cn)
               <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
-v :: forall a. (DeepHasDatatypeInfo a) => [(ConstructorName, FieldSelector)] -> ConstructorName -> Formula (VariableRep a)
-v path = Var . resolveFS path
+attr :: forall a. (DeepHasDatatypeInfo a) => [(ConstructorName, FieldSelector)] -> ConstructorName -> Formula (VariableRep a)
+attr path = Var . resolveFS path
   where
     resolveFS :: [(ConstructorName, FieldSelector)] -> ConstructorName -> VariableRep a
     resolveFS p = V (resPath cs p)
@@ -389,7 +389,7 @@ v path = Var . resolveFS path
         cs = toConstructors @a
 
 logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d)
-logic = typeLogic :&&: additionalLogic
+logic = typeLogic :&&: refineDescription
 
 enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (VariableRep d) -> Set (Set (VariableRep d))
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
@@ -397,12 +397,12 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (VariableRep d))
 scenarios = enumerateScenariosWhere Yes
 
-satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> d -> Bool
+satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (VariableRep d) -> (d -> Bool)
 satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
   where
     set :: Set (VariableRep d)
     set = descriptionToVariables s
     unset :: Set (VariableRep d)
-    unset = Set.difference allVariables set
+    unset = Set.difference allAttributes set
 
 type SOPGeneric = SOP.Generic

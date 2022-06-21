@@ -30,7 +30,7 @@ instance Description IntDescr Int where
         | i < 11 && i > -111 = Small
         | otherwise = Large {isBound = i == minBound || i == maxBound}
 
-  genForDescription = \case
+  genDescribed = \case
     Zero -> pure 0
     Positive (Large True) -> pure maxBound
     Positive (Large False) -> int (linear 11 (maxBound - 1))
@@ -54,5 +54,5 @@ intCompactPureTests =
       { expect = \case
           Negative Small -> True
           _ -> False
-      , test = \i -> assert $ i < 0 && i >= -10
+      , aproposTest = \i -> assert $ i < 0 && i >= -10
       }

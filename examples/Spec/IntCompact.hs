@@ -5,7 +5,7 @@ module Spec.IntCompact (
 
 import Apropos
 import Apropos.Description
-import Hedgehog (Group, assert)
+import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 
@@ -41,15 +41,19 @@ instance Description IntDescr Int where
     Negative Small -> int (linear (-10) (-1))
 
 intCompactGenTests :: Group
-intCompactGenTests = selfTest @IntDescr
+intCompactGenTests =
+  Group
+    "self test"
+    (selfTest @IntDescr)
 
 intCompactPureTests :: Group
 intCompactPureTests =
-  runTests @IntDescr
-    "AcceptsSmallNegativeInts" $
-    AproposTest
+  Group
+    "AcceptsSmallNegativeInts"
+    . runTests @IntDescr
+    $ AproposTest
       { expect = \case
           Negative Small -> True
           _ -> False
-      , test   = \i -> assert $ i < 0 && i >= -10
+      , test = \i -> assert $ i < 0 && i >= -10
       }

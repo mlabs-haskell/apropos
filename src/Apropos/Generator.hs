@@ -6,14 +6,12 @@ module Apropos.Generator (
   sampleGenTest,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, variablesToDescription, enumerateScenariosWhere, scenarios)
-import Apropos.Formula ( Formula(..) )
-import Data.String (fromString)
-import Generics.SOP (Proxy (Proxy), datatypeInfo, datatypeName)
-import Hedgehog (Gen, Group (..), Property, PropertyT, forAll, label, property, (===))
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), VariableRep, enumerateScenariosWhere, scenarios, variablesToDescription)
+import Apropos.Formula (Formula (..))
+import Data.Set qualified as Set
+import Data.String (IsString, fromString)
+import Hedgehog (Gen, Property, PropertyT, forAll, label, property, (===))
 import Hedgehog.Gen (element)
-import qualified Data.Set as Set
-
 
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
 runTest cond d = property $ forAll (genForDescription d) >>= cond
@@ -22,19 +20,18 @@ runTest cond d = property $ forAll (genForDescription d) >>= cond
 selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property
 selfTestForDescription d = runTest (\a -> describe a === d) d
 
-selfTest :: forall d a. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) => Group
+selfTest :: forall d a s. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d, IsString s) => [(s, Property)]
 selfTest = selfTestWhere @d Yes
 
 selfTestWhere ::
-  forall d a.
-  (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d) =>
+  forall d a s.
+  (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d, IsString s) =>
   Formula (VariableRep d) ->
-  Group
+  [(s, Property)]
 selfTestWhere condition =
-  Group (fromString (datatypeName (datatypeInfo @d Proxy)) <> " self test") $
-    [ (fromString $ show $ variablesToDescription scenario, selfTestForDescription (variablesToDescription scenario))
-    | scenario <- Set.toList $ enumerateScenariosWhere condition
-    ]
+  [ (fromString $ show $ variablesToDescription scenario, selfTestForDescription (variablesToDescription scenario))
+  | scenario <- Set.toList $ enumerateScenariosWhere condition
+  ]
 
 descriptionGen :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Gen d
 descriptionGen = variablesToDescription <$> element (Set.toList scenarios)

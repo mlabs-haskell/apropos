@@ -8,9 +8,9 @@ module Apropos.Formula (
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Set (Set)
+import Data.Set qualified as Set
 import GHC.Generics (Generic)
 import SAT.MiniSat qualified as S
-import Data.Set qualified as Set
 
 infixr 6 :&&:
 infixr 5 :||:

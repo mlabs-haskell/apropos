@@ -7,14 +7,14 @@ module Apropos (
   genSatisfying,
   sampleGenTest,
   -- Apropos.Runner
-  AproposTest(..),
+  AproposTest (..),
   runTests,
   runTestsWhere,
   -- Usefull Reexports
   Generic,
 ) where
 
-import Apropos.Generator
 import Apropos.Formula
+import Apropos.Generator
 import Apropos.Runner
 import GHC.Generics (Generic)

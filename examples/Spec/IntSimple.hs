@@ -30,7 +30,7 @@ intSimpleBadProperty =
 data IntDescr = IntDescr
   { sign :: Sign
   , size :: Size
-  , isBound :: Bool -- Is this 'minBound' or 'maxBound'?
+  , isBound :: Bool -- Is this equsl to 'minBound' or 'maxBound'?
   }
   deriving stock (Generic, Eq, Ord, Show)
   deriving anyclass (SOPGeneric, HasDatatypeInfo) -- These are required, unfortunately.
@@ -73,24 +73,24 @@ instance Description IntDescr Int where
   genDescribed s =
     case sign s of
       Zero -> pure 0
-      Positive -> intGen
-      Negative -> intGen
+      s' -> intGen s'
     where
-      bound :: Int
-      sig :: Int -> Int
-      (bound, sig) =
-        case sign s of
-          Positive -> (maxBound, id)
-          Negative -> (minBound, negate)
-          Zero -> (0, id)
+      bound :: Sign -> Int
+      bound Positive = maxBound
+      bound Negative = minBound
+      bound Zero = 0
 
-      intGen :: (MonadGen m) => m Int
-      intGen =
+      sig :: Sign -> Int -> Int
+      sig Negative = negate
+      sig _ = id
+
+      intGen :: (MonadGen m) => Sign -> m Int
+      intGen s' =
         if isBound s
-          then pure bound
+          then pure (bound s')
           else case size s of
-            Small -> int (linear (sig 1) (sig 10))
-            Large -> int (linear (sig 11) (bound + sig (-1)))
+            Small -> int (linear (sig s' 1) (sig s' 10))
+            Large -> int (linear (sig s' 11) (bound s' - sig s' 1))
 
 -- Let's first test that our instance is lawful.
 intSimpleSelfTest :: Group

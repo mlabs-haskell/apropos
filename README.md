@@ -89,7 +89,7 @@ all combinations of properties, hopefully testing against all relevant edge case
 Let's use this to find our bug in `abs`.
 
 First, let's capture the interesting properties and possible edge cases of `Int`:
-```
+```haskell
 data IntDescr = IntDescr
   { sign :: Sign
   , size :: Size
@@ -189,7 +189,7 @@ forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
 A `selfTest` method is provided to test that this law holds, and build confidence
 thhat our `Description` instance is correct.
 
-```
+```haskell
 intSimpleSelfTest :: Group
 intSimpleSelfTest =
   Group
@@ -197,7 +197,7 @@ intSimpleSelfTest =
     (selfTest @IntDescr)
 ```
 
-```
+```haskell
 self test
   IntDescr {sign = Positive, size = Large, isBound = False}: OK (0.03s)
       ✓ IntDescr {sign = Positive, size = Large, isBound = False} passed 100 tests.
@@ -240,7 +240,7 @@ plugged straight into Hedgehog's `Group`.
 
 So our `abs` test looks like this:
 
-```
+```haskell
 absTest :: Group
 absTest =
   Group

@@ -99,4 +99,5 @@ test-suite examples
     , mtl
     , tasty
     , tasty-hedgehog
+    , tasty-hunit
     , text

@@ -18,7 +18,7 @@ values - so-called 'edge cases', that these generators are very unlikely to find
 We can motivate this with an example, based on <https://github.com/nick8325/quickcheck/issues/98>:
 
 The [abs](https://hackage.haskell.org/package/base/docs/Prelude.html#v:abs)
-from Prelude is supposed to return the absolute value of a number. 
+function from Prelude is supposed to return the absolute value of a number. 
 
 Therefore, this function should always hold:
 
@@ -28,7 +28,7 @@ absIsAlwaysPositive n = abs n >= 0
 ```
 
 Unfortunately, due to two's complement arithmetic, the negation of
-`minBound :: Int` is not representable as a `Int`. Prelude's `abs` function just
+`minBound :: Int` is not representable as an `Int`. Prelude's `abs` function just
  gives up and returns `minBound`. Hence:
 
  ```haskell
@@ -46,8 +46,8 @@ Property testing is unlikely to catch this, though:
 
 The solution is to write additional unit or property tests for any edge cases you
 can think of. This quickly becomes tedious. As the complexity of your code grows,
- this can become a more and more of a problem, and you won't know if you've
- missed omething.
+this can become more and more of a problem, and you won't know if you've
+missed something.
 
 ## What is `apropos`?
 `apropos` integrates with the [Hedgehog]() testing library and attempts to solve this problem using 'description types', which describe and automatically test against
@@ -72,7 +72,7 @@ against at a time, but you can work around this by using a product type.
 `d` is a type you define describing the interesting properties of `a`. This is 
 known as the 'description type'.
 
-You begin by defining  function `describe` that generates a description from a
+You begin by defining a function `describe` that generates a description from a
 value.
 
 Whilst it is theoretically possible to define an ADT that precisely captures any

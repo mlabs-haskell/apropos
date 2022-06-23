@@ -6,10 +6,10 @@ module Spec.IntSimple (
 ) where
 
 import Apropos
-import Hedgehog (MonadGen, assert, property, forAll, Property, Group (Group))
+import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
-import Test.Tasty.HUnit (assertBool, Assertion)
+import Test.Tasty.HUnit (Assertion, assertBool)
 
 -- This example is based on https://github.com/nick8325/quickcheck/issues/98, and is due to our very own Baldur Blöndal.
 
@@ -103,8 +103,9 @@ intSimpleSelfTest =
 intSimpleAproposExample :: Group
 intSimpleAproposExample =
   Group
-    "apropos testing" $
-    runTests @IntDescr AproposTest
-      { expect = const True -- should hold for all negative integers
-      , aproposTest = assert . absIsAlwaysPositive
-      }
+    "apropos testing"
+    $ runTests @IntDescr
+      AproposTest
+        { expect = const True -- should hold for all negative integers
+        , aproposTest = assert . absIsAlwaysPositive
+        }

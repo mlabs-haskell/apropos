@@ -1,7 +1,7 @@
 module Spec.IntCompact (
   intCompactSelfTest,
   intCompactExampleUnit,
-  intCompactAproposExample
+  intCompactAproposExample,
 ) where
 
 import Apropos
@@ -63,16 +63,17 @@ intCompactSelfTest =
     "self test"
     (selfTest @IntDescr)
 
--- Not only does 'apropos' test for values that have the given properties, it also 
+-- Not only does 'apropos' test for values that have the given properties, it also
 -- ensures that those without them fail the test.
 intCompactAproposExample :: Group
 intCompactAproposExample =
   Group
-    "apropos testing" $
-    runTests @IntDescr AproposTest
-      { expect =
-        \case
-          Positive _ -> True  -- all positive values should pass.
-          _ -> False          -- all other values should fail!
-      , aproposTest = assert . hasNegativeNegation
-      }
+    "apropos testing"
+    $ runTests @IntDescr
+      AproposTest
+        { expect =
+            \case
+              Positive _ -> True -- all positive values should pass.
+              _ -> False -- all other values should fail!
+        , aproposTest = assert . hasNegativeNegation
+        }

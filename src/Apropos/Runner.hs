@@ -5,7 +5,7 @@ module Apropos.Runner (
 ) where
 
 import Apropos.Description (DeepHasDatatypeInfo, Description (..))
-import Apropos.Generator (runTest, filteredTests, decorateTests)
+import Apropos.Generator (decorateTests, filteredTests, runTest)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)
 import Data.String (IsString)

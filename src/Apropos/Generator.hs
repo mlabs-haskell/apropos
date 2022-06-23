@@ -6,11 +6,11 @@ module Apropos.Generator (
   selfTestWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), variablesToDescription, scenarios)
+import Apropos.Description (DeepHasDatatypeInfo, Description (..), scenarios, variablesToDescription)
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
 import Hedgehog (Property, PropertyT, forAll, property, (===))
-import Data.Set (Set)
 
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
 runTest cond d = property $ forAll (genDescribed d) >>= cond
@@ -34,4 +34,3 @@ selfTestWhere ::
   (d -> Bool) ->
   [(s, Property)]
 selfTestWhere = decorateTests selfTestForDescription . filteredTests
-

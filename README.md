@@ -187,7 +187,7 @@ forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
 ```
 
 A `selfTest` method is provided to test that this law holds, and build confidence
-thhat our `Description` instance is correct.
+that our `Description` instance is correct.
 
 ```haskell
 intSimpleSelfTest :: Group

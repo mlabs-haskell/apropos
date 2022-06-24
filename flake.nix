@@ -27,7 +27,7 @@
         };
       nixpkgsFor' = system: import nixpkgs { inherit system; };
 
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc921";
 
       fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc921" "fourmolu" { };
 
@@ -49,7 +49,7 @@
           shell = {
             withHoogle = true;
 
-            tools.haskell-language-server = { };
+#           tools.haskell-language-server = { };
 
             exactDeps = true;
 

@@ -51,7 +51,7 @@ import Hedgehog (MonadGen)
   You use description types by defining a type that captures the desired properties
   of the object.
 -}
-class Description d a | d -> a where
+class (DeepHasDatatypeInfo d) => Description d a | d -> a where
   -- | Describe a value; generate a description object from a value.
   describe :: a -> d
 
@@ -388,13 +388,13 @@ attr path = Var . resolveFS path
         cs :: [Constructor]
         cs = toConstructors @d
 
-logic :: (Description d a, DeepHasDatatypeInfo d) => Formula (Attribute d)
+logic :: (Description d a) => Formula (Attribute d)
 logic = typeLogic :&&: refineDescription
 
-enumerateScenariosWhere :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Formula (Attribute d) -> Set (Set (Attribute d))
+enumerateScenariosWhere :: forall d a. (Description d a) => Formula (Attribute d) -> Set (Set (Attribute d))
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 
-scenarios :: forall d a. (Description d a, DeepHasDatatypeInfo d) => Set (Set (Attribute d))
+scenarios :: forall d a. (Description d a) => Set (Set (Attribute d))
 scenarios = enumerateScenariosWhere Yes
 
 satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula (Attribute d) -> (d -> Bool)

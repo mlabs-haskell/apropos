@@ -1,15 +1,25 @@
-- Split the repo into `apropos` and `apropos-plutus`
-  - move `Apropos.Script` and `Apropos.Tx` to `apropos-plutus`
-- Implement `Apropos.Tx`
-  - This could depend on `plutus-simple-model` or be influenced by its design
-- Consider design of `Apropos.Gen`
-  - possibly create a Free Monad abstraction layer to hide implementation details
-- Consider HasParameterisedEnumerator for types that are easy to exhaustively enumerate
-  - if the type has <100 inhabitants it may be preferable to enumerate rather than randomly generate them
-  - this may be aided by a better Gen abstraction that allows us to compose the enuerated tests into
-  a single property that runs once.
-- Create road plan for `apropos-plutus` standard library models
-  - having a shared library of specifications could make the library more usable
-  - this shared library might be best developed by encouraging upstreaming from library users
-- Collect space size statistics from generators. Generate 1000 values or so and filter identical values - this could be an interesting statistic. If we have generators that only produce a small number of values for some parameterisation we could reduce the number of tests for that space, flag this as a notable statistic that may indicate a problem, perhaps other use cases or statistics could be found.
-- Attach weights to propositions such that we can modulate the number of tests in each property based on these weights. We could allow user specified importance weightings and combine these with weights derived from distribution introspection as described above.This will allow the user to express importance and stop us wasting cycles on generators that have exhausted their space.
+The objective of the `apropos` project is to provide usable testing for Plutus dApps. This includes the neccesary test harnesses and runners, as well as the generation of appropriate test data.
+
+This result will be composed of three components -
+
+* `apropos` (this repo) - a pure Haskell testing framework for generating test data, appropriate for (but not exclusive to) testing Plutus dApps.  
+  **STATUS:** Functionally complete, documentation and examples need completing and coding style needs improving.
+
+* [`plutus-simple-model`](https://github.com/mlabs-haskell/plutus-simple-model) - A Haskell library for running Plutus transactions with their scripts.  
+  **STATUS:** Lacks GHC 9 support, needed for Plutarch in current projects under development.
+
+* `hedgehog-plutus-simple` - Test drivers for the Hedgehog testing framework and `plutus-simple-model`.  
+  **STATUS:** Not started, awaiting GHC 9 support on `plutus-simple-model`.
+
+The following tasks remain to be completed for MVP:
+
+* Complete Haddocks for `apropos`.
+
+* More examples for `apropos`.
+
+* GHC 9 support on `plutus-simple-model`.
+
+* `hedgehog-plutus-simple` implementation - not expected to be too involved.
+
+Following this, communication with teams using the `apropos` project will establish
+priorities for further functionality.

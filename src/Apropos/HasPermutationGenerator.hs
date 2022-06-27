@@ -38,10 +38,8 @@ import Apropos.HasPermutationGenerator.Source (
  )
 import Apropos.LogicalModel (
   Enumerable,
-  Formula (..),
-  LogicalModel (logic, scenarios),
-  enumerated,
-  solveAll,
+  LogicalModel (scenarios),
+  enumerateScenariosWhere,
  )
 import Control.Monad (guard, unless, void, when)
 import Data.DiGraph (
@@ -199,10 +197,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         graph = unsafeFromList ((,[]) <$> scenarios) `union` fromEdges es
         cache = shortestPathCache graph
     s <- sources @p
-    let sols =
-          Map.keysSet . Map.filter id
-            <$> solveAll
-              (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+    let sols = enumerateScenariosWhere $ covers s
     when (null sols) $ error $ "source: " ++ sourceName s ++ "was empty"
     (p1, p2) <- zip sols (tail sols ++ [head sols])
     guard $ not $ reachable cache p1 p2
@@ -240,7 +235,7 @@ class (Hashable p, HasLogicalModel p m, Show m) => HasPermutationGenerator p m w
         [ (ps, [g])
         | s <- wrapSourceWithCheck <$> sources @p
         , let g :: Gen m = gen s
-        , ps <- Map.keysSet . Map.filter id <$> solveAll (logic :&&: covers s :&&: All [Var p :||: Not (Var p) | p <- enumerated])
+        , ps <- enumerateScenariosWhere $ covers s
         ]
 
   findMorphisms ::

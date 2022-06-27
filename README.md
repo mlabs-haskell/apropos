@@ -1,4 +1,4 @@
-# 'apropos'
+# `apropos`
 
 Hedgehog generation that sniffs out edge cases.
 

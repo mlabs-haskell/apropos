@@ -70,10 +70,9 @@ intCompactAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      AproposTest
-        { expect =
-            \case
-              Positive _ -> True -- all positive values should pass.
-              _ -> False -- all other values should fail!
-        , aproposTest = assert . hasNegativeNegation
-        }
+      (\case
+        Positive _ -> True -- all positive values should pass.
+        _ -> False -- all other values should fail!
+      ) 
+      (assert . hasNegativeNegation)
+

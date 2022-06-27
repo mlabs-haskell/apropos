@@ -1,30 +1,25 @@
 module Apropos.Runner (
-  AproposTest (..),
   runTests,
   runTestsWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..))
-import Apropos.Generator (decorateTests, filteredTests, runTest)
+import Apropos.Description (Description (..), scenarios, variablesToDescription)
+import Apropos.Generator (decorateTests, runTest)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)
 import Data.String (IsString)
 import Hedgehog (Property, PropertyT, (===))
 import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest), unPropertyT)
+import qualified Data.Set as Set
+import qualified Data.Map as Map
 
-data AproposTest d a = AproposTest
-  { expect :: d -> Bool
-  , aproposTest :: a -> PropertyT IO ()
-  }
-
-runAproposTest :: forall d a. (Description d a, Show a) => AproposTest d a -> d -> Property
-runAproposTest atest d =
+runAproposTest :: forall d a. (Description d a, Show a) => Bool -> (a -> PropertyT IO ()) -> d -> Property
+runAproposTest expect test =
   runTest
     ( \a -> do
-        b <- passes (aproposTest atest a)
-        expect atest d === b
+        b <- passes (test a)
+        expect === b
     )
-    d
   where
     passes :: PropertyT IO () -> PropertyT IO Bool
     passes =
@@ -36,8 +31,42 @@ runAproposTest atest d =
         . unTest
         . unPropertyT
 
-runTests :: forall d a s. (Show d, Show a, Ord d, Description d a, DeepHasDatatypeInfo d, IsString s) => AproposTest d a -> [(s, Property)]
-runTests = runTestsWhere (const True)
+{-| 
 
-runTestsWhere :: forall d a s. (Show d, Show a, Ord d, Description d a, DeepHasDatatypeInfo d, IsString s) => (d -> Bool) -> AproposTest d a -> [(s, Property)]
-runTestsWhere cond atest = decorateTests (runAproposTest atest) $ filteredTests cond
+Run Apropos tests.
+
+Apropos is able to test both positive and neagtive cases. By returning 'False'
+from the predicate, you can expect the test to fail for a given description.
+
+To be able to ignore descritions entirely, use 'runTestsWhere'.
+-}
+runTests ::
+  forall d a s.
+  (Show d, Show a, Ord d, Description d a, IsString s)
+  => (d -> Bool) -- ^ Should the test pass or fail?
+  -> (a -> PropertyT IO ()) -- ^ The test to run
+  -> [(s, Property)]
+runTests f = runTestsWhere (Just . f)
+
+{-|
+
+Run Apropos tests on a subset of descriptions.
+
+This function is provided with a predicate of type @d -> Maybe Bool@. 'Nothing'
+causes the description to be ignored, 'Just True' tests that it causes the test
+to pass, and 'Just False' tests that it causes it to fail.
+
+-}
+runTestsWhere ::
+  forall d a s.
+  (Show d, Show a, Ord d, Description d a, IsString s)
+  => (d -> Maybe Bool) -- ^ Should the test pass, fail, or be ignored?
+  -> (a -> PropertyT IO ()) -- ^ The test to run
+  -> [(s, Property)]
+runTestsWhere expect test =
+  decorateTests
+    . Map.mapMaybeWithKey (\d () -> (\b -> runAproposTest b test d) <$> expect d)
+    . Map.fromSet (const ())
+    . Set.map variablesToDescription
+    $ scenarios @d
+

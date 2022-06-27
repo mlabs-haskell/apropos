@@ -75,7 +75,6 @@ library
 
   other-modules:
     Apropos.Description
-    Apropos.Formula
     Apropos.Generator
     Apropos.Runner
 

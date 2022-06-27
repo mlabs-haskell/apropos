@@ -61,7 +61,7 @@ instance Description IntDescr Int where
       }
 
   -- Not all 'IntDescr's are valid. Let's define which ones are.
-  refineDescription :: Formula (Attribute IntDescr)
+  refineDescription :: Formula IntDescr
   refineDescription =
     All
       [ attr [("IntDescr", "sign")] "Zero" :->: attr [("IntDescr", "size")] "Small"
@@ -105,7 +105,5 @@ intSimpleAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      AproposTest
-        { expect = const True -- should hold for all negative integers
-        , aproposTest = assert . absIsAlwaysPositive
-        }
+      (const True) -- should hold for all negative integers 
+      (assert . absIsAlwaysPositive)

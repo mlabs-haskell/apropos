@@ -105,5 +105,5 @@ intSimpleAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      (const True) -- should hold for all negative integers 
+      (const True) -- should hold for all negative integers
       (assert . absIsAlwaysPositive)

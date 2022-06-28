@@ -76,13 +76,12 @@ class (DeepHasDatatypeInfo d) => Description d a | d -> a where
   --  You specify a Hedgehog 'Hedgehog.Gen' that generates a value for a given description.
   genDescribed :: (MonadGen m) => d -> m a
 
-{- | 
+{- |
 
 This somewhat strange constraint enforces that description types and all their
 fields implement 'GHC.Generic', 'SOPGeneric', and 'HasDatatypeInfo'. This is used
 by many Apropos functions. You can probably ignore this, but it may be helful for
 building combinators on top of Apropos.
-
 -}
 class (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDatatypeInfo a
 
@@ -391,7 +390,7 @@ fromList
   , ([("Right",0)],"True")
   ]
 
->>> allAttributes @(Either Bool (Bool,Bool))  
+>>> allAttributes @(Either Bool (Bool,Bool))
 fromList
   [ ([],"Left")
   , ([],"Right")
@@ -500,7 +499,7 @@ enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 scenarios :: forall d a. (Description d a) => Set (Set (Attribute Int d))
 scenarios = enumerateScenariosWhere Yes
 
-{-| 
+{- |
 Whether a description satisfies a formula.
 
 Useful for using a 'Formula' to create a predicate to pass to a runner.

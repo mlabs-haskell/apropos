@@ -16,13 +16,16 @@ module Apropos (
   Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
   allAttributes,
   satisfies,
+
   -- * Test runners
   selfTest,
   selfTestWhere,
   runTests,
   runTestsWhere,
+
   -- * Utility type
   DeepHasDatatypeInfo,
+
   -- * Useful Reexports
   Generic,
   SOPGeneric,

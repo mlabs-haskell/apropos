@@ -70,9 +70,8 @@ intCompactAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      (\case
-        Positive _ -> True -- all positive values should pass.
-        _ -> False -- all other values should fail!
-      ) 
+      ( \case
+          Positive _ -> True -- all positive values should pass.
+          _ -> False -- all other values should fail!
+      )
       (assert . hasNegativeNegation)
-

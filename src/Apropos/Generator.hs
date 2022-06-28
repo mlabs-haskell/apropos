@@ -6,12 +6,12 @@ module Apropos.Generator (
 ) where
 
 import Apropos.Description (Description (..), scenarios, variablesToDescription)
+import Data.Bifunctor (first)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
 import Hedgehog (Property, PropertyT, forAll, property, (===))
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Bifunctor (first)
 
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
 runTest cond d = property $ forAll (genDescribed d) >>= cond
@@ -23,7 +23,7 @@ decorateTests = map (first $ fromString . show) . Map.toList
 selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property
 selfTestForDescription d = runTest (\a -> describe a === d) d
 
-{-|
+{- |
 Test the lawfulness of a 'Description' instance.
 
 The result type is @IsString s => [(s, Property)]@ so it can be plugged directly

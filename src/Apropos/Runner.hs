@@ -38,7 +38,7 @@ Run Apropos tests.
 Apropos is able to test both positive and negative cases. By returning 'False'
 from the predicate, you can expect the test to fail for a given description.
 
-To ignore descritions entirely, use 'runTestsWhere'.
+To ignore descriptions entirely, use 'runTestsWhere'.
 -}
 runTests ::
   forall d a s.

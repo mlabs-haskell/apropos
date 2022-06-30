@@ -1,13 +1,14 @@
 module Apropos.Generator (
   runTest,
-  filteredTests,
   decorateTests,
   selfTest,
   selfTestWhere,
 ) where
 
-import Apropos.Description (DeepHasDatatypeInfo, Description (..), scenarios, variablesToDescription)
-import Data.Set (Set)
+import Apropos.Description (Description (..), scenarios, variablesToDescription)
+import Data.Bifunctor (first)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
 import Hedgehog (Property, PropertyT, forAll, property, (===))
@@ -15,22 +16,30 @@ import Hedgehog (Property, PropertyT, forAll, property, (===))
 runTest :: (Show a, Description d a) => (a -> PropertyT IO ()) -> d -> Property
 runTest cond d = property $ forAll (genDescribed d) >>= cond
 
-filteredTests :: forall d a. (Description d a, DeepHasDatatypeInfo d, Ord d) => (d -> Bool) -> Set d
-filteredTests f = Set.filter f . Set.map variablesToDescription $ scenarios @d
-
-decorateTests :: (IsString s, Show d) => (d -> Property) -> Set d -> [(s, Property)]
-decorateTests f = map (\d -> (fromString $ show d, f d)) . Set.toList
+decorateTests :: (IsString s, Show d) => Map d Property -> [(s, Property)]
+decorateTests = map (first $ fromString . show) . Map.toList
 
 -- TODO caching calls to the solver in genSatisfying would probably be worth it
 selfTestForDescription :: forall d a. (Eq d, Show d, Show a, Description d a) => d -> Property
 selfTestForDescription d = runTest (\a -> describe a === d) d
 
-selfTest :: forall d a s. (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d, IsString s) => [(s, Property)]
+{- |
+Test the lawfulness of a 'Description' instance.
+
+The result type is @IsString s => [(s, Property)]@ so it can be plugged directly
+into the Hedgehog 'Hedgehog.Group' constructor.
+-}
+selfTest :: forall d a s. (Ord d, Show d, Show a, Description d a, IsString s) => [(s, Property)]
 selfTest = selfTestWhere @d (const True)
 
+-- | Like 'selfTest', but you can filter which descriptions are tested.
 selfTestWhere ::
-  forall d a s.
-  (Ord d, Show d, Show a, Description d a, DeepHasDatatypeInfo d, IsString s) =>
+  (Ord d, Show d, Show a, Description d a, IsString s) =>
   (d -> Bool) ->
   [(s, Property)]
-selfTestWhere = decorateTests selfTestForDescription . filteredTests
+selfTestWhere f =
+  decorateTests
+    . Map.fromSet selfTestForDescription
+    . Set.filter f
+    . Set.map variablesToDescription
+    $ scenarios

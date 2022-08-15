@@ -63,7 +63,9 @@ common lang
 
 
   ghc-options:
-    -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wall -Wcompat -Wincomplete-uni-patterns
+    -- -Wredundant-constraints
+    -- compatability fix as Hashable eventually start implying Eq
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
     -Wmissing-deriving-strategies -ddump-splices
 

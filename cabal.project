@@ -11,5 +11,5 @@ test-show-details: direct
 
 source-repository-package
   type: git
-  location: https://github.com/Geometer1729/digraph
-  tag: d4dfec22f6a6eb646dcfa9591eaca0a9be88d260
+  location: https://github.com/AriFordsham/digraph
+  tag: 7e037cd5f6296e208b0de085e27bbdb3c310f934

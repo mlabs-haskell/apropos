@@ -27,7 +27,7 @@
         };
       nixpkgsFor' = system: import nixpkgs { inherit system; };
 
-      compiler-nix-name = "ghc902";
+      compiler-nix-name = "ghc924";
 
       fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc924" "fourmolu" { };
 
@@ -48,7 +48,7 @@
           modules = [{ packages = { }; }];
           shell = {
             # TODO: Reenable this. Disabled due to some incmprehensible haskell.nix bug.
-            withHoogle = false;
+            withHoogle = true;
 
             tools.haskell-language-server = { };
 
@@ -71,7 +71,7 @@
             ];
           };
           sha256map = {
-            "https://github.com/Geometer1729/digraph"."d4dfec22f6a6eb646dcfa9591eaca0a9be88d260" = "sha256-ytQkJ18tYs13rt66s4jdbaGa5mLNEIerF8u24PvyPLA=";
+            "https://github.com/AriFordsham/digraph"."7e037cd5f6296e208b0de085e27bbdb3c310f934" = "sha256-eN1wEkd/gAoQHARck/F5US7L4OPJisc9glWxNkvHaF8=";
 
           };
         };

@@ -4,7 +4,7 @@
   inputs = {
     haskell-nix.url = "github:input-output-hk/haskell.nix";
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
-    haskell-nix.inputs.nixpkgs.follows = "haskell-nix/nixpkgs-2105";
+    haskell-nix.inputs.nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
     flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -27,9 +27,9 @@
         };
       nixpkgsFor' = system: import nixpkgs { inherit system; };
 
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc902";
 
-      fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc921" "fourmolu" { };
+      fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc924" "fourmolu" { };
 
       projectFor = system:
         let
@@ -47,7 +47,8 @@
           cabalProjectFileName = "cabal.project";
           modules = [{ packages = { }; }];
           shell = {
-            withHoogle = true;
+            # TODO: Reenable this. Disabled due to some incmprehensible haskell.nix bug.
+            withHoogle = false;
 
             tools.haskell-language-server = { };
 

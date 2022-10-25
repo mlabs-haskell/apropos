@@ -47,7 +47,6 @@
           cabalProjectFileName = "cabal.project";
           modules = [{ packages = { }; }];
           shell = {
-            # TODO: Reenable this. Disabled due to some incmprehensible haskell.nix bug.
             withHoogle = true;
 
             tools.haskell-language-server = { };

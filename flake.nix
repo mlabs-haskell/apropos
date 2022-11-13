@@ -70,7 +70,7 @@
             ];
           };
           sha256map = {
-            "https://github.com/AriFordsham/digraph"."7e037cd5f6296e208b0de085e27bbdb3c310f934" = "sha256-eN1wEkd/gAoQHARck/F5US7L4OPJisc9glWxNkvHaF8=";
+            "https://github.com/mlabs-haskell/digraph"."32afdad81d02301c6c6f37f2a2e6e9e7f3bdc9eb" = "sha256-eN1wEkd/gAoQHARck/F5US7L4OPJisc9glWxNkvHaF8=";
 
           };
         };

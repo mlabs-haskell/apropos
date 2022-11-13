@@ -4,7 +4,7 @@
   inputs = {
     haskell-nix.url = "github:input-output-hk/haskell.nix";
     nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
-    haskell-nix.inputs.nixpkgs.follows = "haskell-nix/nixpkgs-2105";
+    haskell-nix.inputs.nixpkgs.follows = "haskell-nix/nixpkgs-unstable";
     flake-compat-ci.url = "github:hercules-ci/flake-compat-ci";
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -27,9 +27,9 @@
         };
       nixpkgsFor' = system: import nixpkgs { inherit system; };
 
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc924";
 
-      fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc921" "fourmolu" { };
+      fourmoluFor = system: (nixpkgsFor system).haskell-nix.tool "ghc924" "fourmolu" { };
 
       projectFor = system:
         let
@@ -70,7 +70,7 @@
             ];
           };
           sha256map = {
-            "https://github.com/Geometer1729/digraph"."d4dfec22f6a6eb646dcfa9591eaca0a9be88d260" = "sha256-ytQkJ18tYs13rt66s4jdbaGa5mLNEIerF8u24PvyPLA=";
+            "https://github.com/mlabs-haskell/digraph"."32afdad81d02301c6c6f37f2a2e6e9e7f3bdc9eb" = "sha256-eN1wEkd/gAoQHARck/F5US7L4OPJisc9glWxNkvHaF8=";
 
           };
         };

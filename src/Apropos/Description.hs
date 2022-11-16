@@ -332,9 +332,10 @@ typeLogic = All . sumLogic $ toConstructors @d
     sumLogic :: [Constructor] -> [Formula d]
     sumLogic cs =
       -- Only one of the top-level constructors can be selected
-      ExactlyOne (subVars cs) :
-      -- apply 'prodLogic' to all the fields
-      concatMap prodLogic cs
+      ExactlyOne (subVars cs)
+        :
+        -- apply 'prodLogic' to all the fields
+        concatMap prodLogic cs
 
     prodLogic :: Constructor -> [Formula d]
     prodLogic (TwoNode (ConsInfo cn _) cs) =

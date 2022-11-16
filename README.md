@@ -96,19 +96,16 @@ data IntDescr = IntDescr
   , isBound :: Bool -- Is this equal to `minBound` or `maxBound`?
   }
   deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
   
 data Sign = Positive | Negative | Zero
   deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 data Size = Large | Small
   deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 ```
 
 We need `Ord` for the implementation of `apropos`. `Show` is needed by `Hedgehog`.
-`Generic` (from `GHC.Generics`), `SOPGeneric` (a re-export from `generics-sop`), and `HasDatatypeInfo` (also from `generics-sop`) is boilerplate that is unfortunately required
+`Generic` (from `GHC.Generics`) is required
 for all description types, including the types of their fields recursively.
 
 Now let's define our `Description` instance, asserting that `IntDescr` describes

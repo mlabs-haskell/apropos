@@ -84,7 +84,7 @@ forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
 
 'Apropos.selfTest' is provided for testing adherence to this law.
 
-The type @d@ and the types of all its fields recursively must derive 'Generic', 'SOPGeneric', and 'HasDatatypeInfo'.
+The type @d@ and the types of all its fields recursively must derive 'Generic'.
 -}
 class (DeepGeneric d) => Description d a | d -> a where
   -- | Describe a value

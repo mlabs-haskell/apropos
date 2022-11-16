@@ -4,9 +4,9 @@ module Spec.IntCompact (
   intCompactAproposExample,
 ) where
 
-import Apropos.Description (Description (describe, genDescribed))
-import Apropos.Generator (selfTest)
-import Apropos.Runner (runTests)
+import Apropos
+    ( selfTest, runTests, Description(describe, genDescribed) )
+import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
 import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
@@ -62,7 +62,7 @@ intCompactSelfTest :: Group
 intCompactSelfTest =
   Group
     "self test"
-    (selfTest @IntDescr)
+    (selfTest $ Proxy @IntDescr)
 
 -- Not only does 'apropos' test for values that have the given properties, it also
 -- ensures that those without them fail the test.

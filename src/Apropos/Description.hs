@@ -299,8 +299,8 @@ data ConsInfo = ConsInfo
   }
   deriving stock (Show)
 
-toConstructors :: forall a. (DeepGeneric a) => [Constructor]
-toConstructors = untag (toConstructors' @a)
+toConstructors :: forall a. (DeepGeneric a) => Proxy a -> [Constructor]
+toConstructors _ = untag (toConstructors' @a)
   where
     toConstructors' :: forall a'. (DeepGeneric a') => Tagged a' [Constructor]
     toConstructors' =
@@ -350,7 +350,7 @@ toConstructors = untag (toConstructors' @a)
  ]
 -}
 typeLogic :: forall d. (DeepGeneric d) => Formula d
-typeLogic = All . sumLogic $ toConstructors @d
+typeLogic = All . sumLogic $ toConstructors (Proxy @d)
   where
     sumLogic :: [Constructor] -> [Formula d]
     sumLogic cs =
@@ -437,11 +437,11 @@ fromList
   , ([("(,)",1),("First","getFirst")],"True")
   ]
 -}
-allAttributes :: forall d. (DeepGeneric d) => Set ([(SOP.ConstructorName, FieldSelector)], SOP.ConstructorName)
-allAttributes = Set.map ((\Attr {attrPath, attrConstr} -> (attrPath, attrConstr)) . attrIntToFS) $ allAttributes' @d
+allAttributes :: forall d. (DeepGeneric d) => Proxy d -> Set ([(SOP.ConstructorName, FieldSelector)], SOP.ConstructorName)
+allAttributes _ = Set.map ((\Attr {attrPath, attrConstr} -> (attrPath, attrConstr)) . attrIntToFS) $ allAttributes' @d
 
 allAttributes' :: forall d. (DeepGeneric d) => Set (Attribute Int d)
-allAttributes' = Set.unions . map constructorAttributes $ toConstructors @d
+allAttributes' = Set.unions . map constructorAttributes $ toConstructors (Proxy @d)
   where
     constructorAttributes :: Constructor -> Set (Attribute Int d)
     constructorAttributes =
@@ -479,7 +479,7 @@ attr ::
 attr p = Var . attrFSToInt . Attr p
 
 attrFSToInt :: forall d. (DeepGeneric d) => Attribute FieldSelector d -> Attribute Int d
-attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
+attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors $ Proxy @d) attrPath) attrConstr
   where
     resolvePath :: [Constructor] -> [(SOP.ConstructorName, FieldSelector)] -> [(SOP.ConstructorName, Int)]
     resolvePath _ [] = []
@@ -496,7 +496,7 @@ attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) 
     resolveField fld con = fromJust $ elemIndex fld =<< (consFields . twoRootLabel $ con)
 
 attrIntToFS :: forall d. (DeepGeneric d) => Attribute Int d -> Attribute FieldSelector d
-attrIntToFS Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
+attrIntToFS Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors $ Proxy @d) attrPath) attrConstr
   where
     resolvePath :: [Constructor] -> [(SOP.ConstructorName, Int)] -> [(SOP.ConstructorName, FieldSelector)]
     resolvePath _ [] = []

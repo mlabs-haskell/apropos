@@ -9,6 +9,7 @@ import Apropos.Description (Description (describe, genDescribed), scenarios, var
 import Data.Bifunctor (first)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Proxy (Proxy)
 import Data.Set qualified as Set
 import Data.String (IsString, fromString)
 import Hedgehog (Property, PropertyT, forAll, property, (===))
@@ -29,8 +30,8 @@ Test the lawfulness of a 'Description' instance.
 The result type is @IsString s => [(s, Property)]@ so it can be plugged directly
 into the Hedgehog 'Hedgehog.Group' constructor.
 -}
-selfTest :: forall d a s. (Ord d, Show d, Show a, Description d a, IsString s) => [(s, Property)]
-selfTest = selfTestWhere @d (const True)
+selfTest :: forall d a s. (Ord d, Show d, Show a, Description d a, IsString s) => Proxy d -> [(s, Property)]
+selfTest _ = selfTestWhere @d (const True)
 
 -- | Like 'selfTest', but you can filter which descriptions are tested.
 selfTestWhere ::

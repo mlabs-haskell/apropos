@@ -5,13 +5,9 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos.Description (
-  Description,
-  Formula (All, (:->:)),
-  attr,
- )
-import Apropos.Generator (selfTest)
-import Apropos.Runner (runTests)
+import Apropos
+    ( attr, selfTest, runTests, Description(..), Formula((:->:), All) )
+import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
 import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)
 import Hedgehog.Gen (int)
@@ -101,7 +97,7 @@ intSimpleSelfTest :: Group
 intSimpleSelfTest =
   Group
     "self test"
-    (selfTest @IntDescr)
+    (selfTest $ Proxy @IntDescr)
 
 -- And we catch our bug!
 intSimpleAproposExample :: Group

@@ -5,8 +5,14 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos
-import GHC.Generics ( Generic )
+import Apropos.Description (
+  Description,
+  Formula (All, (:->:)),
+  attr,
+ )
+import Apropos.Generator (selfTest)
+import Apropos.Runner (runTests)
+import GHC.Generics (Generic)
 import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
@@ -33,7 +39,7 @@ data IntDescr = IntDescr
   , size :: Size
   , isBound :: Bool -- Is this equsl to 'minBound' or 'maxBound'?
   }
-  deriving stock (Generic, Eq, Ord, Show)-- These are required, unfortunately.
+  deriving stock (Generic, Eq, Ord, Show) -- These are required, unfortunately.
 
 data Sign = Positive | Negative | Zero
   deriving stock (Generic, Eq, Ord, Show)

@@ -3,7 +3,7 @@ module Apropos.Runner (
   runTestsWhere,
 ) where
 
-import Apropos.Description (Description (..), scenarios, variablesToDescription)
+import Apropos.Description (Description, scenarios, variablesToDescription)
 import Apropos.Generator (decorateTests, runTest)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)

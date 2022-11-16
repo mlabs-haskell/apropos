@@ -13,7 +13,21 @@ module Apropos (
   --  A 'Formula' is an expression built of attributes, specified using the 'attr' combinator, and operators specified by the constructors of the 'Formula' type.
   attr,
   FieldSelector,
-  Formula (Yes, No, Not, (:&&:), (:||:), (:++:), (:->:), (:<->:), All, Some, None, ExactlyOne, AtMostOne),
+  Formula (
+    Yes,
+    No,
+    Not,
+    (:&&:),
+    (:||:),
+    (:++:),
+    (:->:),
+    (:<->:),
+    All,
+    Some,
+    None,
+    ExactlyOne,
+    AtMostOne
+  ),
   allAttributes,
   satisfies,
 
@@ -27,6 +41,28 @@ module Apropos (
   DeepGeneric,
 ) where
 
-import Apropos.Description
-import Apropos.Generator
-import Apropos.Runner
+import Apropos.Description (
+  DeepGeneric,
+  Description (describe, genDescribed, refineDescription),
+  FieldSelector,
+  Formula (
+    All,
+    AtMostOne,
+    ExactlyOne,
+    No,
+    None,
+    Not,
+    Some,
+    Yes,
+    (:&&:),
+    (:++:),
+    (:->:),
+    (:<->:),
+    (:||:)
+  ),
+  allAttributes,
+  attr,
+  satisfies,
+ )
+import Apropos.Generator (selfTest, selfTestWhere)
+import Apropos.Runner (runTests, runTestsWhere)

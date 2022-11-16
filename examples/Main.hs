@@ -1,9 +1,18 @@
 module Main (main) where
 
-import Spec.IntCompact
-import Spec.IntSimple
+import Spec.IntCompact (
+  intCompactAproposExample,
+  intCompactExampleUnit,
+  intCompactSelfTest,
+ )
+import Spec.IntSimple (
+  intSimpleAproposExample,
+  intSimpleBadProperty,
+  intSimpleExampleUnit,
+  intSimpleSelfTest,
+ )
 
-import Test.Tasty
+import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (testCase)
 import Test.Tasty.Hedgehog (fromGroup, testProperty)
 

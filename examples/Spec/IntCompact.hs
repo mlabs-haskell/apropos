@@ -4,8 +4,10 @@ module Spec.IntCompact (
   intCompactAproposExample,
 ) where
 
-import Apropos
-import GHC.Generics ( Generic )
+import Apropos.Description (Description (describe, genDescribed))
+import Apropos.Generator (selfTest)
+import Apropos.Runner (runTests)
+import GHC.Generics (Generic)
 import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)

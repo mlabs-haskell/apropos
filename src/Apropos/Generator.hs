@@ -5,7 +5,7 @@ module Apropos.Generator (
   selfTestWhere,
 ) where
 
-import Apropos.Description (Description (..), scenarios, variablesToDescription)
+import Apropos.Description (Description (describe, genDescribed), scenarios, variablesToDescription)
 import Data.Bifunctor (first)
 import Data.Map (Map)
 import Data.Map qualified as Map

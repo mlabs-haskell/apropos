@@ -24,22 +24,9 @@ module Apropos (
   runTestsWhere,
 
   -- * Utility type
-  DeepHasDatatypeInfo,
-
-  -- * Useful Reexports
-  Generic,
-  SOPGeneric,
-  HasDatatypeInfo,
+  DeepGeneric,
 ) where
 
 import Apropos.Description
 import Apropos.Generator
 import Apropos.Runner
-
-import GHC.Generics qualified as GHCGeneric
-import Generics.SOP qualified as SOP
-
--- Type aliases to avoid polluting the Haddocks
-type Generic = GHCGeneric.Generic
-type SOPGeneric = SOP.Generic
-type HasDatatypeInfo = SOP.HasDatatypeInfo

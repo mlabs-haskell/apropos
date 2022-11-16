@@ -10,7 +10,7 @@ module Apropos.Description (
   Attribute (Attr),
   FieldSelector,
   typeLogic,
-  DeepHasDatatypeInfo,
+  DeepGeneric,
   attr,
   variablesToDescription,
   logic,
@@ -32,6 +32,7 @@ import Data.List.Index (iconcatMap, imap)
 import Data.Semigroup (First (First), getFirst)
 
 import Generics.SOP hiding (Generic)
+import Generics.SOP.GGP
 
 import GHC.Generics (Generic)
 
@@ -43,6 +44,7 @@ import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
 import Hedgehog (MonadGen)
 import SAT.MiniSat qualified as S
+import Generics.SOP.NS
 
 {- | Define a description type - an ADT that captures interesting properties of a type.
 
@@ -58,7 +60,7 @@ forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
 
 The type @d@ and the types of all its fields recursively must derive 'Generic', 'SOPGeneric', and 'HasDatatypeInfo'.
 -}
-class (DeepHasDatatypeInfo d) => Description d a | d -> a where
+class (DeepGeneric d) => Description d a | d -> a where
   -- | Describe a value
   --
   --  Generate a description from a value.
@@ -79,13 +81,13 @@ class (DeepHasDatatypeInfo d) => Description d a | d -> a where
 {- |
 
 This somewhat strange constraint enforces that description types and all their
-fields implement 'GHC.Generic', 'SOPGeneric', and 'HasDatatypeInfo'. This is used
+fields implement 'GHC.Generic'and are of a suitable shape. This is used
 by many Apropos functions. You can probably ignore this, but it may be helful for
 building combinators on top of Apropos.
 -}
-class (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDatatypeInfo a
+class (Generic a, GDatatypeInfo a, GFrom a, GTo a, All2 DeepGeneric (GCode a)) => DeepGeneric a
 
-instance (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDatatypeInfo a
+instance (Generic a, GDatatypeInfo a, GFrom a, GTo a, All2 DeepGeneric (GCode a)) => DeepGeneric a
 
 {- | A datatype-agnostic representation of an object, consisting of a string
  representing the constructor and a list of recursive structures representing
@@ -97,45 +99,41 @@ newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
 
 {- | Generically construct a 'FlatPack'.
 
- This method operates on any type where
- it and the types of all its fields recursively implement:
+ This method operates on any type where it and the types of all its fields
+ recursively implement @GHC.Generic@.
 
- @
-   deriving stock (GHC.Generic)
-   deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
- @
 -}
-flatten :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
+flatten :: forall a. (DeepGeneric a) => a -> FlatPack a
 flatten =
   FlatPack
     . hcollapse
-    . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (constructorInfo (datatypeInfo @a Proxy))
+    . cliftA2_NS (Proxy @(All DeepGeneric)) constr (constructorInfo (gdatatypeInfo (Proxy @a)))
     . unSOP
-    . from
+    . gfrom
   where
-    constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
+    constr :: (All DeepGeneric xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
     constr con =
       K
         . Node (constructorName con)
         . hcollapse
-        . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatten . unI)
+        . hcmap (Proxy @DeepGeneric) (K . unFlatPack . flatten . unI)
 
-unflatten :: forall a. (DeepHasDatatypeInfo a) => FlatPack a -> Maybe a
+unflatten :: forall a. (DeepGeneric a) => FlatPack a -> Maybe a
 unflatten fp =
-  fmap (to . SOP . getFirst)
+  fmap (gto . SOP . getFirst)
     . mconcat
     . hcollapse
     $ hcliftA2
-      (Proxy @(All DeepHasDatatypeInfo))
+      (Proxy @(All DeepGeneric))
       (constr (unFlatPack fp))
-      (constructorInfo (datatypeInfo @a Proxy))
-      (injections @(Code a) @(NP I))
+      (constructorInfo (gdatatypeInfo (Proxy @a)))
+      (injections @(GCode a) @(NP I))
   where
-    constr :: forall xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) (Code a) xs -> K (Maybe (First (NS (NP I) (Code a)))) xs
+    constr :: forall xs. (All DeepGeneric xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) (GCode a) xs -> K (Maybe (First (NS (NP I) (GCode a)))) xs
     constr tree con (Fn inj)
       | rootLabel tree == constructorName con = K $ do
           flds <- fromList (subForest tree)
-          prod <- hsequence . hcmap (Proxy @DeepHasDatatypeInfo) (unflatten . FlatPack . unK) $ flds
+          prod <- hsequence . hcmap (Proxy @DeepGeneric) (unflatten . FlatPack . unK) $ flds
           return . First . unK . inj $ prod
       | otherwise = K Nothing
 
@@ -206,7 +204,7 @@ pushVR cn i (Attr vrs cn') = Attr ((cn, i) : vrs) cn'
  >>> descriptionToVariables (Nothing @(Maybe Bool))
  fromList [Attr [] "Nothing"]
 -}
-descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (Attribute Int d)
+descriptionToVariables :: (DeepGeneric d) => d -> Set (Attribute Int d)
 descriptionToVariables =
   foldTree
     ( \cn flds ->
@@ -222,7 +220,7 @@ data MapTree k a = MapNode
   }
   deriving stock (Show)
 
-variablesToDescription :: (DeepHasDatatypeInfo d) => Set (Attribute Int d) -> d
+variablesToDescription :: (DeepGeneric d) => Set (Attribute Int d) -> d
 variablesToDescription s =
   let tree = collapseMapTree . buildMapTree $ s
    in case unflatten . FlatPack $ tree of
@@ -276,28 +274,28 @@ data ConsInfo = ConsInfo
   }
   deriving stock (Show)
 
-toConstructors :: forall a. (DeepHasDatatypeInfo a) => [Constructor]
+toConstructors :: forall a. (DeepGeneric a) => [Constructor]
 toConstructors = untag (toConstructors' @a)
   where
-    toConstructors' :: forall a'. (DeepHasDatatypeInfo a') => Tagged a' [Constructor]
+    toConstructors' :: forall a'. (DeepGeneric a') => Tagged a' [Constructor]
     toConstructors' =
       unproxy $
         hcollapse
-          . hcmap (Proxy @(All DeepHasDatatypeInfo)) constr
+          . hcmap (Proxy @(All DeepGeneric)) constr
           . constructorInfo
-          . datatypeInfo
+          . gdatatypeInfo
 
-    constr :: forall xs. (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> K Constructor xs
+    constr :: forall xs. (All DeepGeneric xs) => ConstructorInfo xs -> K Constructor xs
     constr ci = K $ TwoNode (ConsInfo {consName = constructorName ci, consFields = fields ci}) (hcollapse $ aux @xs)
 
     fields :: ConstructorInfo xs -> Maybe [FieldName]
     fields (Record _ flds) = Just . hcollapse . hmap (K . fieldName) $ flds
     fields _ = Nothing
 
-    aux :: forall xs. (All DeepHasDatatypeInfo xs) => NP (K [Constructor]) xs
-    aux = hcpure (Proxy @DeepHasDatatypeInfo) constructorK
+    aux :: forall xs. (All DeepGeneric xs) => NP (K [Constructor]) xs
+    aux = hcpure (Proxy @DeepGeneric) constructorK
 
-    constructorK :: forall a'. DeepHasDatatypeInfo a' => K [Constructor] a'
+    constructorK :: forall a'. DeepGeneric a' => K [Constructor] a'
     constructorK = K $ untag (toConstructors' @a')
 
 {- | Calculate a set of logical constraints governing valid @Set Attribute@s
@@ -326,7 +324,7 @@ toConstructors = untag (toConstructors' @a)
    Not (Attr (Attr [] "Right")) :->: None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
  ]
 -}
-typeLogic :: forall d. (DeepHasDatatypeInfo d) => Formula d
+typeLogic :: forall d. (DeepGeneric d) => Formula d
 typeLogic = All . sumLogic $ toConstructors @d
   where
     sumLogic :: [Constructor] -> [Formula d]
@@ -414,10 +412,10 @@ fromList
   , ([("(,)",1),("First","getFirst")],"True")
   ]
 -}
-allAttributes :: forall d. (DeepHasDatatypeInfo d) => Set ([(ConstructorName, FieldSelector)], ConstructorName)
+allAttributes :: forall d. (DeepGeneric d) => Set ([(ConstructorName, FieldSelector)], ConstructorName)
 allAttributes = Set.map ((\Attr {attrPath, attrConstr} -> (attrPath, attrConstr)) . attrIntToFS) $ allAttributes' @d
 
-allAttributes' :: forall d. (DeepHasDatatypeInfo d) => Set (Attribute Int d)
+allAttributes' :: forall d. (DeepGeneric d) => Set (Attribute Int d)
 allAttributes' = Set.unions . map constructorAttributes $ toConstructors @d
   where
     constructorAttributes :: Constructor -> Set (Attribute Int d)
@@ -447,7 +445,7 @@ See also the examples for 'allAttributes' to see what an attribute looks like.
 -}
 attr ::
   forall d.
-  (DeepHasDatatypeInfo d) =>
+  (DeepGeneric d) =>
   -- | The \'path\' to the attribute.
   [(ConstructorName, FieldSelector)] ->
   -- | The name of the constructor corresponding to the attribute.
@@ -455,7 +453,7 @@ attr ::
   Formula d
 attr p = Var . attrFSToInt . Attr p
 
-attrFSToInt :: forall d. (DeepHasDatatypeInfo d) => Attribute FieldSelector d -> Attribute Int d
+attrFSToInt :: forall d. (DeepGeneric d) => Attribute FieldSelector d -> Attribute Int d
 attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
   where
     resolvePath :: [Constructor] -> [(ConstructorName, FieldSelector)] -> [(ConstructorName, Int)]
@@ -472,7 +470,7 @@ attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) 
     resolveField :: FieldName -> Constructor -> Int
     resolveField fld con = fromJust $ elemIndex fld =<< (consFields . twoRootLabel $ con)
 
-attrIntToFS :: forall d. (DeepHasDatatypeInfo d) => Attribute Int d -> Attribute FieldSelector d
+attrIntToFS :: forall d. (DeepGeneric d) => Attribute Int d -> Attribute FieldSelector d
 attrIntToFS Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
   where
     resolvePath :: [Constructor] -> [(ConstructorName, Int)] -> [(ConstructorName, FieldSelector)]
@@ -505,7 +503,7 @@ Whether a description satisfies a formula.
 
 Useful for using a 'Formula' to create a predicate to pass to a runner.
 -}
-satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula d -> (d -> Bool)
+satisfies :: forall d. (DeepGeneric d) => Formula d -> (d -> Bool)
 satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
   where
     set :: Set (Attribute Int d)
@@ -577,7 +575,7 @@ instance (Eq attr) => Eq (Formula attr) where
 instance (Ord attr) => Ord (Formula attr) where
   compare a b = compare (translateToSAT a) (translateToSAT b)
 
-instance (Show attr, DeepHasDatatypeInfo attr) => Show (Formula attr) where
+instance (Show attr, DeepGeneric attr) => Show (Formula attr) where
   show a = show (translateToSAT a)
 
 satisfiable :: Formula attr -> Bool

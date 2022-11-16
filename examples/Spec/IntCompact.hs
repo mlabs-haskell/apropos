@@ -5,6 +5,7 @@ module Spec.IntCompact (
 ) where
 
 import Apropos
+import GHC.Generics ( Generic )
 import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
@@ -18,11 +19,9 @@ data IntDescr
   | Positive Size
   | Negative Size
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 data Size = Small | Large {isBound :: Bool}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 instance Description IntDescr Int where
   -- 'describe' is arguably simpler.

@@ -5,8 +5,13 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos
-    ( attr, selfTest, runTests, Description(..), Formula((:->:), All) )
+import Apropos.Description (
+  Description (describe, genDescribed, refineDescription),
+  Formula (All, (:->:)),
+  attr,
+ )
+import Apropos.Generator (selfTest)
+import Apropos.Runner (runTests)
 import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
 import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)

@@ -35,6 +35,7 @@ common lang
     OverloadedRecordDot
     ScopedTypeVariables
     StandaloneDeriving
+    StandaloneKindSignatures
     TupleSections
     TypeApplications
     TypeOperators

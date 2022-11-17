@@ -7,13 +7,14 @@ import Apropos.Description (Description, scenarios, variablesToDescription)
 import Apropos.Generator (decorateTests, runTest)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExceptT)
 import Data.Either (isRight)
+import Data.Kind (Type)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.String (IsString)
 import Hedgehog (Property, PropertyT, (===))
 import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest), unPropertyT)
 
-runAproposTest :: forall d a. (Description d a, Show a) => Bool -> (a -> PropertyT IO ()) -> d -> Property
+runAproposTest :: forall (d :: Type) (a :: Type). (Description d a, Show a) => Bool -> (a -> PropertyT IO ()) -> d -> Property
 runAproposTest expect test =
   runTest
     ( \a -> do
@@ -41,7 +42,7 @@ from the predicate, you can expect the test to fail for a given description.
 To ignore descriptions entirely, use 'runTestsWhere'.
 -}
 runTests ::
-  forall d a s.
+  forall (d :: Type) (a :: Type) (s :: Type).
   (Show d, Show a, Ord d, Description d a, IsString s) =>
   -- | Should the test pass or fail?
   (d -> Bool) ->
@@ -59,7 +60,7 @@ causes the description to be ignored, 'Just True' tests that it causes the test
 to pass, and 'Just False' tests that it causes it to fail.
 -}
 runTestsWhere ::
-  forall d a s.
+  forall (d :: Type) (a :: Type) (s :: Type).
   (Show d, Show a, Ord d, Description d a, IsString s) =>
   -- | Should the test pass, fail, or be ignored?
   (d -> Maybe Bool) ->

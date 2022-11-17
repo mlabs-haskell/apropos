@@ -4,8 +4,12 @@ module Spec.IntCompact (
   intCompactAproposExample,
 ) where
 
-import Apropos
-    ( selfTest, runTests, Description(describe, genDescribed) )
+import Apropos (
+  Description (describe, genDescribed),
+  runTests,
+  selfTest,
+ )
+import Data.Kind (Type)
 import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
 import Hedgehog (Group (Group), assert)
@@ -16,12 +20,14 @@ import Test.Tasty.HUnit (Assertion, assertBool)
 -- This is a variant of 'IntSimple', demonstrating a different way of building description types. Also, for variety, we switched the test up to show conditional testing.
 
 -- We've worked a bit harder defining the description, and can capture all the logic in the type. It's now impossible to construct a Large Zero or Small isBound.
+type IntDescr :: Type
 data IntDescr
   = Zero
   | Positive Size
   | Negative Size
   deriving stock (Show, Eq, Ord, Generic)
 
+type Size :: Type
 data Size = Small | Large {isBound :: Bool}
   deriving stock (Show, Eq, Ord, Generic)
 

@@ -25,7 +25,9 @@ tests =
     "all tests"
     [ testGroup
         "Simple Int types with logic"
-        [ testProperty "Bad property test: this should fail!" intSimpleBadProperty
+        [ testProperty
+            "Bad property test: this should fail!"
+            intSimpleBadProperty
         , testCase "This is why:" intSimpleExampleUnit
         , fromGroup intSimpleSelfTest
         , fromGroup intSimpleAproposExample

@@ -6,7 +6,7 @@ module Spec.IntCompact (
 
 import Apropos (
   Description (describe, genDescribed),
-  Outcome(Pass, Fail),
+  Outcome (Fail, Pass),
   runTests,
   selfTest,
  )
@@ -18,9 +18,13 @@ import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 import Test.Tasty.HUnit (Assertion, assertBool)
 
--- This is a variant of 'IntSimple', demonstrating a different way of building description types. Also, for variety, we switched the test up to show conditional testing.
+-- This is a variant of 'IntSimple', demonstrating a different way of building
+-- description types. Also, for variety, we switched the test up to show
+-- conditional testing.
 
--- We've worked a bit harder defining the description, and can capture all the logic in the type. It's now impossible to construct a Large Zero or Small isBound.
+-- We've worked a bit harder defining the description, and can capture all the
+-- logic in the type. It's now impossible to construct a Large Zero or Small
+-- isBound.
 type IntDescr :: Type
 data IntDescr
   = Zero
@@ -63,7 +67,8 @@ hasNegativeNegation n = negate n < 0
 
 -- it doesn't, unfortunately.
 intCompactExampleUnit :: Assertion
-intCompactExampleUnit = assertBool "negate minBound >= 0" (not $ hasNegativeNegation minBound)
+intCompactExampleUnit =
+  assertBool "negate minBound >= 0" (not $ hasNegativeNegation minBound)
 
 intCompactSelfTest :: Group
 intCompactSelfTest =
@@ -71,8 +76,8 @@ intCompactSelfTest =
     "self test"
     (selfTest $ Proxy @IntDescr)
 
--- Not only does 'apropos' test for values that have the given properties, it also
--- ensures that those without them fail the test.
+-- Not only does 'apropos' test for values that have the given properties, it
+-- also ensures that those without them fail the test.
 intCompactAproposExample :: Group
 intCompactAproposExample =
   Group

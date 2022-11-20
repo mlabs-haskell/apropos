@@ -16,7 +16,11 @@ import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.String (IsString)
 import Hedgehog (Property, PropertyT, (===))
-import Hedgehog.Internal.Property (PropertyT (PropertyT), TestT (TestT, unTest), unPropertyT)
+import Hedgehog.Internal.Property (
+  PropertyT (PropertyT),
+  TestT (TestT, unTest),
+  unPropertyT,
+ )
 
 -- | Whether a test should pass or fail
 data Outcome = Pass | Fail
@@ -35,7 +39,13 @@ optOutcomeToMaybe :: OptOutcome -> Maybe Outcome
 optOutcomeToMaybe Ignore = Nothing
 optOutcomeToMaybe (Run o) = Just o
 
-runAproposTest :: forall (d :: Type) (a :: Type). (Description d a, Show a) => Outcome -> (a -> PropertyT IO ()) -> d -> Property
+runAproposTest ::
+  forall (d :: Type) (a :: Type).
+  (Description d a, Show a) =>
+  Outcome ->
+  (a -> PropertyT IO ()) ->
+  d ->
+  Property
 runAproposTest expect test =
   runTest
     ( \a -> do
@@ -86,7 +96,10 @@ runTestsWhere ::
   [(s, Property)]
 runTestsWhere expect test =
   decorateTests
-    . Map.mapMaybeWithKey (\d () -> (\b -> runAproposTest b test d) <$> optOutcomeToMaybe (expect d))
+    . Map.mapMaybeWithKey
+      ( \d () ->
+          (\b -> runAproposTest b test d) <$> optOutcomeToMaybe (expect d)
+      )
     . Map.fromSet (const ())
     . Set.map variablesToDescription
     $ scenarios @d

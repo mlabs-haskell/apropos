@@ -10,7 +10,7 @@ module Spec.IntSimple (
 import Apropos (
   Description (describe, genDescribed, refineDescription),
   Formula (All, (:->:)),
-  Outcome(Pass),
+  Outcome (Pass),
   attr,
   runTests,
   selfTest,
@@ -23,7 +23,8 @@ import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 import Test.Tasty.HUnit (Assertion, assertBool)
 
--- This example is based on https://github.com/nick8325/quickcheck/issues/98, and is due to our very own Baldur Blöndal.
+-- This example is based on https://github.com/nick8325/quickcheck/issues/98,
+-- and is due to our very own Baldur Blöndal.
 
 -- This should always return true. But it has a bug!
 absIsAlwaysPositive :: Int -> Bool
@@ -31,7 +32,8 @@ absIsAlwaysPositive n = abs n >= 0
 
 -- abs minBound == minBound :-(
 intSimpleExampleUnit :: Assertion
-intSimpleExampleUnit = assertBool "abs minBound >= 0" (absIsAlwaysPositive minBound)
+intSimpleExampleUnit =
+  assertBool "abs minBound >= 0" (absIsAlwaysPositive minBound)
 
 -- A naive property test is unlikely to catch this.
 intSimpleBadProperty :: Property
@@ -73,8 +75,10 @@ instance Description IntDescr Int where
   refineDescription :: Formula IntDescr
   refineDescription =
     All
-      [ attr [("IntDescr", "sign")] "Zero" :->: attr [("IntDescr", "size")] "Small"
-      , attr [("IntDescr", "isBound")] "True" :->: attr [("IntDescr", "size")] "Large"
+      [ attr [("IntDescr", "sign")] "Zero"
+          :->: attr [("IntDescr", "size")] "Small"
+      , attr [("IntDescr", "isBound")] "True"
+          :->: attr [("IntDescr", "size")] "Large"
       ]
 
   -- We define how to generate values matching a given description.

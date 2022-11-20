@@ -82,7 +82,7 @@ Defining an instance of this typeclass is the first step for writing apropos tes
 Instances of this typeclass should observe the following law:
 
 @
-forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
+forall d. forAll (genDescribed d) >>= (\\a -> describe a === d)
 @
 
 'Apropos.selfTest' is provided for testing adherence to this law.
@@ -173,7 +173,7 @@ data Attribute i d = Attr
   { attrPath :: Vector (SOP.ConstructorName, i)
   , attrConstr :: SOP.ConstructorName
   }
-  deriving stock (Eq, Ord, Show, Generic)
+  deriving stock (Eq, Ord, Generic)
 
 {- |
   Type for specifying a field in a constructor, in an attribute path.
@@ -211,31 +211,36 @@ rootVarRep = Attr Vector.empty
 pushVR :: forall (i :: Type) (d :: Type). SOP.ConstructorName -> i -> Attribute i d -> Attribute i d
 pushVR cn i (Attr vrs cn') = Attr ((cn, i) `Vector.cons` vrs) cn'
 
+{- The examples are now out of date; there is no 'Show' instance for 'Attribute'.
+
+This has not been considered a priority to fix, as these functions (and the 'Attribute' type)
+are not currently public.
+-}
 {- | Calculate the set of variables for an object.
 
- This method operates on any type where
- it and the types of all its fields recursively implement:
+This method operates on any type where
+it and the types of all its fields recursively implement:
 
- @
-   deriving stock (GHC.Generic)
-   deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
- @
- = Examples
+@
+  deriving stock (GHC.Generic)
+  deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
+@
+= Examples
 
- >>> descriptionToVariables True
- fromList [Attr [] "True"]
+>>> descriptionToVariables True
+fromList [Attr [] "True"]
 
- >>> descriptionToVariables False
- fromList [Attr [] "False"]
+>>> descriptionToVariables False
+fromList [Attr [] "False"]
 
- >>> descriptionToVariables (True, False)
- fromList [Attr [] "(,)", Attr [("(,)",0)] "True", Attr [("(,)",1)] "False"]
+>>> descriptionToVariables (True, False)
+fromList [Attr [] "(,)", Attr [("(,)",0)] "True", Attr [("(,)",1)] "False"]
 
- >>> descriptionToVariables (Just True)
- fromList [Attr [] "Just", Attr [("Just",0)] "True"]
+>>> descriptionToVariables (Just True)
+fromList [Attr [] "Just", Attr [("Just",0)] "True"]
 
- >>> descriptionToVariables (Nothing @(Maybe Bool))
- fromList [Attr [] "Nothing"]
+>>> descriptionToVariables (Nothing @(Maybe Bool))
+fromList [Attr [] "Nothing"]
 -}
 descriptionToVariables :: forall (d :: Type). (DeepGeneric d) => d -> Set (Attribute Int d)
 descriptionToVariables =
@@ -334,30 +339,30 @@ toConstructors _ = untag (toConstructors' @a)
     constructorK = K $ untag (toConstructors' @a')
 
 {- | Calculate a set of logical constraints governing valid @Set Attribute@s
- for a type.
+for a type.
 
- = Examples (simplified)
- >>> typeLogic @Bool
- ExactlyOne [Attr Attr [] "False", Attr Attr [] "True"]
+= Examples (simplified)
+>>> typeLogic @Bool
+ExactlyOne [Attr Attr [] "False", Attr Attr [] "True"]
 
- >>> typeLogic @(Bool, Bool)
- All [
-   ExactlyOne [Attr Attr [("(,)",0)] "False", Attr Attr [("(,)",0)] "True"],
-   ExactlyOne [Attr Attr [("(,)",1)] "False", Attr Attr [("(,)",1)] "True"]
- ]
+>>> typeLogic @(Bool, Bool)
+All [
+  ExactlyOne [Attr Attr [("(,)",0)] "False", Attr Attr [("(,)",0)] "True"],
+  ExactlyOne [Attr Attr [("(,)",1)] "False", Attr Attr [("(,)",1)] "True"]
+]
 
- >>> typeLogic @(Either Bool Bool)
- All [
-   ExactlyOne [Attr Attr [] "Left",Attr Attr [] "Right"],
-   Attr Attr [] "Left" :->: All [
-     ExactlyOne [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
-   ],
-   Not (Attr (Attr [] "Left")) :->: None [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
-   Attr Attr [] "Right" :->: All [
-     ExactlyOne [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
-   ],
-   Not (Attr (Attr [] "Right")) :->: None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
- ]
+>>> typeLogic @(Either Bool Bool)
+All [
+  ExactlyOne [Attr Attr [] "Left",Attr Attr [] "Right"],
+  Attr Attr [] "Left" :->: All [
+    ExactlyOne [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
+  ],
+  Not (Attr (Attr [] "Left")) :->: None [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
+  Attr Attr [] "Right" :->: All [
+    ExactlyOne [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
+  ],
+  Not (Attr (Attr [] "Right")) :->: None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
+]
 -}
 typeLogic :: forall (d :: Type). (DeepGeneric d) => Formula d
 typeLogic = All . sumLogic $ toConstructors (Proxy @d)
@@ -396,16 +401,16 @@ Call using a type application.
 
 = Examples
 
->>> allAttributes @()
+>>> allAttributes (Proxy @())
 fromList [([],"()")]
 
->>> allAttributes @Bool
+>>> allAttributes (Proxy @Bool)
 fromList
   [ ([],"False")
   , ([],"True")
   ]
 
->>> allAttributes @(Bool,Bool)
+>>> allAttributes (Proxy @(Bool,Bool))
 fromList
   [ ([],"(,)")
   , ([("(,)",0)],"False")
@@ -414,7 +419,7 @@ fromList
   , ([("(,)",1)],"True")
   ]
 
->>> allAttributes @(Either Bool Bool)
+>>> allAttributes (Proxy @(Either Bool Bool))
 fromList
   [ ([],"Left")
   , ([],"Right")
@@ -424,7 +429,7 @@ fromList
   , ([("Right",0)],"True")
   ]
 
->>> allAttributes @(Either Bool (Bool,Bool))
+>>> allAttributes (Proxy @(Either Bool (Bool,Bool)))
 fromList
   [ ([],"Left")
   , ([],"Right")
@@ -437,7 +442,7 @@ fromList
   , ([("Right",0),("(,)",1)],"True")
   ]
 
->>> allAttributes @(Bool, First Bool)
+>>> allAttributes (Proxy @(Bool, First Bool))
 fromList
   [ ([],"(,)")
   , ([("(,)",0)],"False")
@@ -611,8 +616,8 @@ instance (Eq attr) => Eq (Formula attr) where
 instance (Ord attr) => Ord (Formula attr) where
   compare a b = compare (translateToSAT a) (translateToSAT b)
 
-instance (Show attr, DeepGeneric attr) => Show (Formula attr) where
-  show a = show (translateToSAT a)
+-- instance (Show attr, DeepGeneric attr) => Show (Formula attr) where
+--   show a = show (translateToSAT a)
 
 satisfiable :: forall (attr :: Type). Formula attr -> Bool
 satisfiable = MiniSAT.satisfiable . translateToSAT

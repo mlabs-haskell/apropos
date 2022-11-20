@@ -216,6 +216,7 @@ pushVR cn i (Attr vrs cn') = Attr ((cn, i) `Vector.cons` vrs) cn'
 This has not been considered a priority to fix, as these functions (and the 'Attribute' type)
 are not currently public.
 -}
+
 {- | Calculate the set of variables for an object.
 
 This method operates on any type where
@@ -292,7 +293,7 @@ variablesToDescription s =
     insertVar (Attr v cons) mt
       | Nothing <- Vector.uncons v = mt {mapRootLabel = cons}
       | Just ((_, i), path) <- Vector.uncons v =
-        mt {mapSubForest = Map.alter (Just . insertVar (Attr path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
+          mt {mapSubForest = Map.alter (Just . insertVar (Attr path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
 
 type Constructor :: Type
 data Constructor = Constructor
@@ -379,11 +380,11 @@ typeLogic = All . sumLogic $ toConstructors (Proxy @d)
     prodLogic (Constructor (ConsInfo cn _) cs) =
       -- for each present constructor, one of the constructors of each of its fields can be selected
       (rootVar cn :->: (All . Vector.imap (\i -> ExactlyOne . pushedSubvars cn i) $ cs))
-      `Vector.cons` -- for each absent constructor, none of the constructors of any of its fields can be selected
-        ((Not (rootVar cn) :->: (None . join . Vector.imap (pushedSubvars cn) $ cs))
-        -- recurse
-        `Vector.cons`
-          (join $ Vector.imap (\i -> fmap (mapFormula $ pushVR cn i) . Vector.concatMap prodLogic) cs))
+        `Vector.cons` ( (Not (rootVar cn) :->: (None . join . Vector.imap (pushedSubvars cn) $ cs)) -- for each absent constructor, none of the constructors of any of its fields can be selected
+
+                          -- recurse
+                          `Vector.cons` (join $ Vector.imap (\i -> fmap (mapFormula $ pushVR cn i) . Vector.concatMap prodLogic) cs)
+                      )
 
     pushedSubvars :: SOP.ConstructorName -> Int -> Vector Constructor -> Vector (Formula d)
     pushedSubvars cn i = fmap (mapFormula (pushVR cn i)) . subVars
@@ -496,7 +497,7 @@ attr p = Var . attrFSToInt . Attr p
 transformAttr :: forall (d :: Type) (i :: Type) (j :: Type). (DeepGeneric d) => (Maybe (Vector SOP.FieldName) -> i -> j) -> (Maybe (Vector SOP.FieldName) -> i -> Int) -> Attribute i d -> Attribute j d
 transformAttr trans idx Attr {attrPath, attrConstr} = Attr (evalState (mapM act attrPath) (toConstructors $ Proxy @d)) attrConstr
   where
-    act :: (SOP.ConstructorName, i) -> State (Vector Constructor) (SOP.ConstructorName, j)      
+    act :: (SOP.ConstructorName, i) -> State (Vector Constructor) (SOP.ConstructorName, j)
     act (cn, i) = do
       con <- findConstructor cn <$> get
       let lab = consFields . constructorInfo $ con

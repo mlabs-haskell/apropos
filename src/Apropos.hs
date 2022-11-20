@@ -36,6 +36,9 @@ module Apropos (
   selfTestWhere,
   runTests,
   runTestsWhere,
+  Outcome (Pass, Fail),
+  passIf,
+  OptOutcome (Run, Ignore),
 
   -- * Utility type
   DeepGeneric,
@@ -65,4 +68,4 @@ import Apropos.Description (
   satisfies,
  )
 import Apropos.Generator (selfTest, selfTestWhere)
-import Apropos.Runner (runTests, runTestsWhere)
+import Apropos.Runner (OptOutcome (Ignore, Run), Outcome (Fail, Pass), passIf, runTests, runTestsWhere)

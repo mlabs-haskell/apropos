@@ -6,6 +6,7 @@ module Spec.IntCompact (
 
 import Apropos (
   Description (describe, genDescribed),
+  Outcome(Pass, Fail),
   runTests,
   selfTest,
  )
@@ -78,7 +79,7 @@ intCompactAproposExample =
     "apropos testing"
     $ runTests @IntDescr
       ( \case
-          Positive _ -> True -- all positive values should pass.
-          _ -> False -- all other values should fail!
+          Positive _ -> Pass -- all positive values should pass.
+          _ -> Fail -- all other values should fail!
       )
       (assert . hasNegativeNegation)

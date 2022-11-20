@@ -7,13 +7,14 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos(
-  Description(describe, refineDescription, genDescribed),
-  Formula(All, (:->:)),
+import Apropos (
+  Description (describe, genDescribed, refineDescription),
+  Formula (All, (:->:)),
+  Outcome(Pass),
   attr,
-  selfTest,
   runTests,
-  )
+  selfTest,
+ )
 
 import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
@@ -113,5 +114,5 @@ intSimpleAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      (const True) -- should hold for all negative integers
+      (const Pass) -- should hold for all negative integers
       (assert . absIsAlwaysPositive)

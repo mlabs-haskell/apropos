@@ -32,7 +32,6 @@ common lang
     MultiParamTypeClasses
     NumericUnderscores
     OverloadedStrings
-    OverloadedRecordDot
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
@@ -41,9 +40,10 @@ common lang
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
+    OverloadedRecordDot
 
   build-depends:
-    , base              >=4.15
+    , base            >=4.15
     , containers
     , exceptions
     , free
@@ -67,9 +67,7 @@ common lang
 
 library
   import:          lang
-  exposed-modules:
-    Apropos
-
+  exposed-modules: Apropos
   other-modules:
     Apropos.Description
     Apropos.Generator

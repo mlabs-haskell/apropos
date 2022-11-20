@@ -58,6 +58,7 @@ common lang
     , tagged
     , text
     , transformers
+    , vector
 
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints

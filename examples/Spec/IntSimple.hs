@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module Spec.IntSimple (
   intSimpleSelfTest,
   intSimpleBadProperty,
@@ -5,13 +7,14 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos.Description (
-  Description (describe, genDescribed, refineDescription),
-  Formula (All, (:->:)),
+import Apropos(
+  Description(describe, refineDescription, genDescribed),
+  Formula(All, (:->:)),
   attr,
- )
-import Apropos.Generator (selfTest)
-import Apropos.Runner (runTests)
+  selfTest,
+  runTests,
+  )
+
 import Data.Proxy (Proxy (Proxy))
 import GHC.Generics (Generic)
 import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)

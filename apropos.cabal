@@ -6,7 +6,6 @@ extra-source-files: CHANGELOG.md
 common lang
   default-language:   Haskell2010
   default-extensions:
-    AllowAmbiguousTypes
     BangPatterns
     BinaryLiterals
     ConstraintKinds
@@ -35,15 +34,16 @@ common lang
     OverloadedStrings
     ScopedTypeVariables
     StandaloneDeriving
-    Strict
+    StandaloneKindSignatures
     TupleSections
     TypeApplications
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
+    OverloadedRecordDot
 
   build-depends:
-    , base              >=4.15
+    , base            >=4.15
     , containers
     , exceptions
     , free
@@ -56,23 +56,18 @@ common lang
     , pretty
     , pretty-show
     , tagged
-    , template-haskell
     , text
     , transformers
-
-  -- added Hashable v => Hashable (Set v)
-
+    , vector
 
   ghc-options:
     -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
     -Wmissing-export-lists -Werror -Wincomplete-record-updates
-    -Wmissing-deriving-strategies -ddump-splices -fwrite-ide-info
+    -Wmissing-deriving-strategies
 
 library
   import:          lang
-  exposed-modules:
-    Apropos
-
+  exposed-modules: Apropos
   other-modules:
     Apropos.Description
     Apropos.Generator

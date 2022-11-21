@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module Spec.IntSimple (
   intSimpleSelfTest,
   intSimpleBadProperty,
@@ -5,13 +7,24 @@ module Spec.IntSimple (
   intSimpleAproposExample,
 ) where
 
-import Apropos
+import Apropos (
+  Description (describe, genDescribed, refineDescription),
+  Formula (All, (:->:)),
+  Outcome (Pass),
+  attr,
+  runTests,
+  selfTest,
+ )
+
+import Data.Proxy (Proxy (Proxy))
+import GHC.Generics (Generic)
 import Hedgehog (Group (Group), MonadGen, Property, assert, forAll, property)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 import Test.Tasty.HUnit (Assertion, assertBool)
 
--- This example is based on https://github.com/nick8325/quickcheck/issues/98, and is due to our very own Baldur Blöndal.
+-- This example is based on https://github.com/nick8325/quickcheck/issues/98,
+-- and is due to our very own Baldur Blöndal.
 
 -- This should always return true. But it has a bug!
 absIsAlwaysPositive :: Int -> Bool
@@ -19,7 +32,8 @@ absIsAlwaysPositive n = abs n >= 0
 
 -- abs minBound == minBound :-(
 intSimpleExampleUnit :: Assertion
-intSimpleExampleUnit = assertBool "abs minBound >= 0" (absIsAlwaysPositive minBound)
+intSimpleExampleUnit =
+  assertBool "abs minBound >= 0" (absIsAlwaysPositive minBound)
 
 -- A naive property test is unlikely to catch this.
 intSimpleBadProperty :: Property
@@ -32,16 +46,13 @@ data IntDescr = IntDescr
   , size :: Size
   , isBound :: Bool -- Is this equsl to 'minBound' or 'maxBound'?
   }
-  deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo) -- These are required, unfortunately.
+  deriving stock (Generic, Eq, Ord, Show) -- These are required, unfortunately.
 
 data Sign = Positive | Negative | Zero
   deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 data Size = Large | Small
   deriving stock (Generic, Eq, Ord, Show)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 instance Description IntDescr Int where
   -- Describe an 'Int'
@@ -64,8 +75,10 @@ instance Description IntDescr Int where
   refineDescription :: Formula IntDescr
   refineDescription =
     All
-      [ attr [("IntDescr", "sign")] "Zero" :->: attr [("IntDescr", "size")] "Small"
-      , attr [("IntDescr", "isBound")] "True" :->: attr [("IntDescr", "size")] "Large"
+      [ attr [("IntDescr", "sign")] "Zero"
+          :->: attr [("IntDescr", "size")] "Small"
+      , attr [("IntDescr", "isBound")] "True"
+          :->: attr [("IntDescr", "size")] "Large"
       ]
 
   -- We define how to generate values matching a given description.
@@ -97,7 +110,7 @@ intSimpleSelfTest :: Group
 intSimpleSelfTest =
   Group
     "self test"
-    (selfTest @IntDescr)
+    (selfTest $ Proxy @IntDescr)
 
 -- And we catch our bug!
 intSimpleAproposExample :: Group
@@ -105,5 +118,5 @@ intSimpleAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
-      (const True) -- should hold for all negative integers
+      (const Pass) -- should hold for all negative integers
       (assert . absIsAlwaysPositive)

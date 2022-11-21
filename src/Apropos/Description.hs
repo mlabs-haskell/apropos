@@ -1,16 +1,30 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Apropos.Description (
-  Description (..),
-  Formula (..),
+  Description (describe, refineDescription, genDescribed),
+  Formula (
+    Yes,
+    No,
+    Not,
+    (:&&:),
+    (:||:),
+    (:++:),
+    (:->:),
+    (:<->:),
+    All,
+    Some,
+    None,
+    ExactlyOne,
+    AtMostOne
+  ),
   Attribute (Attr),
   FieldSelector,
   typeLogic,
-  DeepHasDatatypeInfo,
+  DeepGeneric,
   attr,
   variablesToDescription,
   logic,
@@ -20,45 +34,65 @@ module Apropos.Description (
   satisfies,
 ) where
 
+import Control.Monad.State
+
 import Data.String (IsString (fromString))
 
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Data.Tree hiding (flatten)
+import Data.Tree (Tree)
+import Data.Tree qualified as Tree
 
-import Data.List.Index (iconcatMap, imap)
+import Data.Proxy (Proxy (Proxy))
 
 import Data.Semigroup (First (First), getFirst)
 
-import Generics.SOP hiding (Generic)
+import Data.Vector (Vector)
+import Data.Vector qualified as Vector
+
+import Generics.SOP (All, I, K (K), NP, NS, SOP (SOP), unI, unK, unSOP)
+import Generics.SOP qualified as SOP
+import Generics.SOP.GGP (
+  GCode,
+  GDatatypeInfo,
+  GFrom,
+  GTo,
+  gdatatypeInfo,
+  gfrom,
+  gto,
+ )
 
 import GHC.Generics (Generic)
 
 import Data.Tagged (Tagged, unproxy, untag)
 
-import Data.List (elemIndex)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust, fromMaybe)
+
+import Data.Kind (Constraint, Type)
 import Hedgehog (MonadGen)
-import SAT.MiniSat qualified as S
+import SAT.MiniSat qualified as MiniSAT
 
-{- | Define a description type - an ADT that captures interesting properties of a type.
+{- | Define a description type - an ADT that captures interesting properties of
+a type.
 
-Defining an instance of this typeclass is the first step for writing apropos tests.
+Defining an instance of this typeclass is the first step for writing apropos
+tests.
 
 Instances of this typeclass should observe the following law:
 
 @
-forall d. forAll (genDescribed d) >>= (\a -> describe a === d)
+forall d. forAll (genDescribed d) >>= (\\a -> describe a === d)
 @
 
 'Apropos.selfTest' is provided for testing adherence to this law.
 
-The type @d@ and the types of all its fields recursively must derive 'Generic', 'SOPGeneric', and 'HasDatatypeInfo'.
+The type @d@ and the types of all its fields recursively must derive 'Generic'.
 -}
-class (DeepHasDatatypeInfo d) => Description d a | d -> a where
+type Description :: Type -> Type -> Constraint
+class (DeepGeneric d) => Description d a | d -> a where
   -- | Describe a value
   --
   --  Generate a description from a value.
@@ -66,84 +100,116 @@ class (DeepHasDatatypeInfo d) => Description d a | d -> a where
 
   -- | Add logic constraining valid description values
   --
-  --  Not all constructible description values may be valid. This optional method allows you to specify which. See 'Formula' for more information how to specify
-  --  these values.
+  --  Not all constructible description values may be valid. This optional
+  --  method allows you to specify which. See 'Formula' for more information how
+  -- to specify these values.
   refineDescription :: Formula d
   refineDescription = Yes
 
   -- | Generate test values matching a description.
   --
-  --  You specify a Hedgehog 'Hedgehog.Gen' that generates a value for a given description.
-  genDescribed :: (MonadGen m) => d -> m a
+  --  You specify a Hedgehog 'Hedgehog.Gen' that generates a value for a given
+  -- description.
+  genDescribed :: forall (m :: Type -> Type). (MonadGen m) => d -> m a
 
 {- |
 
 This somewhat strange constraint enforces that description types and all their
-fields implement 'GHC.Generic', 'SOPGeneric', and 'HasDatatypeInfo'. This is used
-by many Apropos functions. You can probably ignore this, but it may be helful for
+fields implement 'GHC.Generic'and are of a suitable shape. This is used by many
+Apropos functions. You can probably ignore this, but it may be helful for
 building combinators on top of Apropos.
 -}
-class (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDatatypeInfo a
+type DeepGeneric :: Type -> Constraint
+class
+  ( Generic a
+  , GDatatypeInfo a
+  , GFrom a
+  , GTo a
+  , SOP.All2 DeepGeneric (GCode a)
+  ) =>
+  DeepGeneric a
 
-instance (HasDatatypeInfo a, All2 DeepHasDatatypeInfo (Code a)) => DeepHasDatatypeInfo a
+instance
+  ( Generic a
+  , GDatatypeInfo a
+  , GFrom a
+  , GTo a
+  , SOP.All2 DeepGeneric (GCode a)
+  ) =>
+  DeepGeneric a
 
 {- | A datatype-agnostic representation of an object, consisting of a string
  representing the constructor and a list of recursive structures representing
  the fields.
+
  The type parameter is unused except to add a bit of type safety.
 -}
-newtype FlatPack a = FlatPack {unFlatPack :: Tree ConstructorName}
+type FlatPack :: Type -> Type
+newtype FlatPack a = FlatPack {unFlatPack :: Tree SOP.ConstructorName}
   deriving newtype (Show)
 
 {- | Generically construct a 'FlatPack'.
 
- This method operates on any type where
- it and the types of all its fields recursively implement:
-
- @
-   deriving stock (GHC.Generic)
-   deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
- @
+ This method operates on any type where it and the types of all its fields
+ recursively implement @GHC.Generic@.
 -}
-flatten :: forall a. (DeepHasDatatypeInfo a) => a -> FlatPack a
+flatten :: forall (a :: Type). (DeepGeneric a) => a -> FlatPack a
 flatten =
   FlatPack
-    . hcollapse
-    . hcliftA2 (Proxy @(All DeepHasDatatypeInfo)) constr (constructorInfo (datatypeInfo @a Proxy))
+    . SOP.hcollapse
+    . SOP.hcliftA2
+      (Proxy @(All DeepGeneric))
+      constr
+      (SOP.constructorInfo (gdatatypeInfo (Proxy @a)))
     . unSOP
-    . from
+    . gfrom
   where
-    constr :: (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> NP I xs -> K (Tree ConstructorName) xs
+    constr ::
+      forall (xs :: [Type]).
+      (All DeepGeneric xs) =>
+      SOP.ConstructorInfo xs ->
+      NP I xs ->
+      K (Tree SOP.ConstructorName) xs
     constr con =
       K
-        . Node (constructorName con)
-        . hcollapse
-        . hcmap (Proxy @DeepHasDatatypeInfo) (K . unFlatPack . flatten . unI)
+        . Tree.Node (SOP.constructorName con)
+        . SOP.hcollapse
+        . SOP.hcmap (Proxy @DeepGeneric) (K . unFlatPack . flatten . unI)
 
-unflatten :: forall a. (DeepHasDatatypeInfo a) => FlatPack a -> Maybe a
+unflatten :: forall (a :: Type). (DeepGeneric a) => FlatPack a -> Maybe a
 unflatten fp =
-  fmap (to . SOP . getFirst)
+  fmap (gto . SOP . getFirst)
     . mconcat
-    . hcollapse
-    $ hcliftA2
-      (Proxy @(All DeepHasDatatypeInfo))
+    . SOP.hcollapse
+    $ SOP.hcliftA2
+      (Proxy @(All DeepGeneric))
       (constr (unFlatPack fp))
-      (constructorInfo (datatypeInfo @a Proxy))
-      (injections @(Code a) @(NP I))
+      (SOP.constructorInfo (gdatatypeInfo (Proxy @a)))
+      (SOP.injections @(GCode a) @(NP I))
   where
-    constr :: forall xs. (All DeepHasDatatypeInfo xs) => Tree ConstructorName -> ConstructorInfo xs -> Injection (NP I) (Code a) xs -> K (Maybe (First (NS (NP I) (Code a)))) xs
-    constr tree con (Fn inj)
-      | rootLabel tree == constructorName con = K $ do
-          flds <- fromList (subForest tree)
-          prod <- hsequence . hcmap (Proxy @DeepHasDatatypeInfo) (unflatten . FlatPack . unK) $ flds
+    constr ::
+      forall (xs :: [Type]).
+      (All DeepGeneric xs) =>
+      Tree SOP.ConstructorName ->
+      SOP.ConstructorInfo xs ->
+      SOP.Injection (NP I) (GCode a) xs ->
+      K (Maybe (First (NS (NP I) (GCode a)))) xs
+    constr tree con (SOP.Fn inj)
+      | Tree.rootLabel tree == SOP.constructorName con = K $ do
+          flds <- SOP.fromList (Tree.subForest tree)
+          prod <-
+            SOP.hsequence
+              . SOP.hcmap (Proxy @DeepGeneric) (unflatten . FlatPack . unK)
+              $ flds
           return . First . unK . inj $ prod
       | otherwise = K Nothing
 
+type Attribute :: Type -> Type -> Type
 data Attribute i d = Attr
-  { attrPath :: [(ConstructorName, i)]
-  , attrConstr :: ConstructorName
+  { attrPath :: Vector (SOP.ConstructorName, i)
+  , attrConstr :: SOP.ConstructorName
   }
-  deriving stock (Eq, Ord, Show, Generic)
+  deriving stock (Eq, Ord, Generic)
 
 {- |
   Type for specifying a field in a constructor, in an attribute path.
@@ -154,9 +220,10 @@ data Attribute i d = Attr
 
   See the examples for 'allAttributes' for more information.
 -}
+type FieldSelector :: Type
 data FieldSelector
   = Index Int
-  | RecordField FieldName
+  | RecordField SOP.FieldName
   deriving stock (Eq, Ord)
 
 instance Show FieldSelector where
@@ -174,64 +241,83 @@ instance Num FieldSelector where
 instance IsString FieldSelector where
   fromString = RecordField
 
-rootVarRep :: ConstructorName -> Attribute i d
-rootVarRep = Attr []
+rootVarRep ::
+  forall (i :: Type) (d :: Type).
+  SOP.ConstructorName ->
+  Attribute i d
+rootVarRep = Attr Vector.empty
 
-pushVR :: ConstructorName -> i -> Attribute i d -> Attribute i d
-pushVR cn i (Attr vrs cn') = Attr ((cn, i) : vrs) cn'
+pushVR ::
+  forall (i :: Type) (d :: Type).
+  SOP.ConstructorName ->
+  i ->
+  Attribute i d ->
+  Attribute i d
+pushVR cn i (Attr vrs cn') = Attr ((cn, i) `Vector.cons` vrs) cn'
+
+{- The examples are now out of date; there is no 'Show' instance for
+'Attribute'.
+
+This has not been considered a priority to fix, as these functions (and the
+'Attribute' type) are not currently public.
+-}
 
 {- | Calculate the set of variables for an object.
 
- This method operates on any type where
- it and the types of all its fields recursively implement:
+This method operates on any type where
+it and the types of all its fields recursively implement:
 
- @
-   deriving stock (GHC.Generic)
-   deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
- @
- = Examples
+@
+  deriving stock (GHC.Generic)
+  deriving anyclass (Generics.SOP.Generic, Generics.SOP.HasDatatypeInfo)
+@
+= Examples
 
- >>> descriptionToVariables True
- fromList [Attr [] "True"]
+>>> descriptionToVariables True
+fromList [Attr [] "True"]
 
- >>> descriptionToVariables False
- fromList [Attr [] "False"]
+>>> descriptionToVariables False
+fromList [Attr [] "False"]
 
- >>> descriptionToVariables (True, False)
- fromList [Attr [] "(,)", Attr [("(,)",0)] "True", Attr [("(,)",1)] "False"]
+>>> descriptionToVariables (True, False)
+fromList [Attr [] "(,)", Attr [("(,)",0)] "True", Attr [("(,)",1)] "False"]
 
- >>> descriptionToVariables (Just True)
- fromList [Attr [] "Just", Attr [("Just",0)] "True"]
+>>> descriptionToVariables (Just True)
+fromList [Attr [] "Just", Attr [("Just",0)] "True"]
 
- >>> descriptionToVariables (Nothing @(Maybe Bool))
- fromList [Attr [] "Nothing"]
+>>> descriptionToVariables (Nothing @(Maybe Bool))
+fromList [Attr [] "Nothing"]
 -}
-descriptionToVariables :: (DeepHasDatatypeInfo d) => d -> Set (Attribute Int d)
+descriptionToVariables ::
+  forall (d :: Type). (DeepGeneric d) => d -> Set (Attribute Int d)
 descriptionToVariables =
-  foldTree
+  Tree.foldTree
     ( \cn flds ->
         Set.singleton (rootVarRep cn)
-          <> Set.unions (imap (Set.map . pushVR cn) flds)
+          <> Set.unions
+            (Vector.imap (Set.map . pushVR cn) (Vector.fromList flds))
     )
     . unFlatPack
     . flatten
 
+type MapTree :: Type -> Type -> Type
 data MapTree k a = MapNode
   { mapRootLabel :: a
   , mapSubForest :: Map k (MapTree k a)
   }
   deriving stock (Show)
 
-variablesToDescription :: (DeepHasDatatypeInfo d) => Set (Attribute Int d) -> d
+variablesToDescription ::
+  forall (d :: Type). (DeepGeneric d) => Set (Attribute Int d) -> d
 variablesToDescription s =
   let tree = collapseMapTree . buildMapTree $ s
    in case unflatten . FlatPack $ tree of
-        Nothing -> error ("Invalid FlatPack " ++ drawTree tree)
+        Nothing -> error ("Invalid FlatPack " ++ Tree.drawTree tree)
         Just a -> a
   where
-    collapseMapTree :: MapTree i a -> Tree a
+    collapseMapTree :: forall (i :: Type) (a :: Type). MapTree i a -> Tree a
     collapseMapTree mt =
-      Node
+      Tree.Node
         { rootLabel = mapRootLabel mt
         , subForest =
             map snd
@@ -241,118 +327,169 @@ variablesToDescription s =
               $ mt
         }
 
-    buildMapTree :: Set (Attribute Int d) -> MapTree Int ConstructorName
+    buildMapTree :: Set (Attribute Int d) -> MapTree Int SOP.ConstructorName
     buildMapTree = Set.foldr insertVar emptyMt
 
-    emptyMt :: MapTree k String
+    emptyMt :: forall (k :: Type). MapTree k SOP.ConstructorName
     emptyMt =
       MapNode
         { mapRootLabel = ""
         , mapSubForest = Map.empty
         }
 
-    insertVar :: Attribute Int d -> MapTree Int ConstructorName -> MapTree Int ConstructorName
-    insertVar (Attr [] cons) mt =
-      mt {mapRootLabel = cons}
-    insertVar (Attr ((_, i) : path) cons) mt =
-      mt {mapSubForest = Map.alter (Just . insertVar (Attr path cons) . fromMaybe emptyMt) i (mapSubForest mt)}
+    insertVar ::
+      Attribute Int d ->
+      MapTree Int SOP.ConstructorName ->
+      MapTree Int SOP.ConstructorName
+    insertVar (Attr v cons) mt
+      | Nothing <- Vector.uncons v = mt {mapRootLabel = cons}
+      | Just ((_, i), path) <- Vector.uncons v =
+          mt
+            { mapSubForest =
+                Map.alter
+                  (Just . insertVar (Attr path cons) . fromMaybe emptyMt)
+                  i
+                  (mapSubForest mt)
+            }
 
-data TwoTree a = TwoNode
-  { twoRootLabel :: a
-  , twoSubForest :: [[TwoTree a]]
-  }
-  deriving stock (Functor, Show)
-
-foldTwoTree :: (t -> [[b]] -> b) -> TwoTree t -> b
-foldTwoTree f = go
-  where
-    go (TwoNode x tss) = f x (map (map go) tss)
-
-type Constructor = TwoTree ConsInfo
-
-data ConsInfo = ConsInfo
-  { consName :: ConstructorName
-  , consFields :: Maybe [FieldName]
+type Constructor :: Type
+data Constructor = Constructor
+  { constructorInfo :: ConsInfo
+  , subConstructors :: Vector (Vector Constructor)
   }
   deriving stock (Show)
 
-toConstructors :: forall a. (DeepHasDatatypeInfo a) => [Constructor]
-toConstructors = untag (toConstructors' @a)
+foldConstructor ::
+  forall (a :: Type). (ConsInfo -> Vector (Vector a) -> a) -> Constructor -> a
+foldConstructor f = go
   where
-    toConstructors' :: forall a'. (DeepHasDatatypeInfo a') => Tagged a' [Constructor]
+    go (Constructor x tss) = f x (fmap (fmap go) tss)
+
+type ConsInfo :: Type
+data ConsInfo = ConsInfo
+  { consName :: SOP.ConstructorName
+  , consFields :: Maybe (Vector SOP.FieldName)
+  }
+  deriving stock (Show)
+
+toConstructors ::
+  forall (a :: Type). (DeepGeneric a) => Proxy a -> Vector Constructor
+toConstructors _ = untag (toConstructors' @a)
+  where
+    toConstructors' ::
+      forall (a' :: Type). (DeepGeneric a') => Tagged a' (Vector Constructor)
     toConstructors' =
       unproxy $
-        hcollapse
-          . hcmap (Proxy @(All DeepHasDatatypeInfo)) constr
-          . constructorInfo
-          . datatypeInfo
+        Vector.fromList
+          . SOP.hcollapse
+          . SOP.hcmap (Proxy @(All DeepGeneric)) constr
+          . SOP.constructorInfo
+          . gdatatypeInfo
 
-    constr :: forall xs. (All DeepHasDatatypeInfo xs) => ConstructorInfo xs -> K Constructor xs
-    constr ci = K $ TwoNode (ConsInfo {consName = constructorName ci, consFields = fields ci}) (hcollapse $ aux @xs)
+    constr ::
+      forall (xs :: [Type]).
+      (All DeepGeneric xs) =>
+      SOP.ConstructorInfo xs ->
+      K Constructor xs
+    constr ci =
+      K $
+        Constructor
+          (ConsInfo {consName = SOP.constructorName ci, consFields = fields ci})
+          (Vector.fromList . SOP.hcollapse $ aux @xs)
 
-    fields :: ConstructorInfo xs -> Maybe [FieldName]
-    fields (Record _ flds) = Just . hcollapse . hmap (K . fieldName) $ flds
+    fields ::
+      forall (xs :: [Type]).
+      SOP.ConstructorInfo xs ->
+      Maybe (Vector SOP.FieldName)
+    fields (SOP.Record _ flds) =
+      Just
+        . Vector.fromList
+        . SOP.hcollapse
+        . SOP.hmap (K . SOP.fieldName)
+        $ flds
     fields _ = Nothing
 
-    aux :: forall xs. (All DeepHasDatatypeInfo xs) => NP (K [Constructor]) xs
-    aux = hcpure (Proxy @DeepHasDatatypeInfo) constructorK
+    aux ::
+      forall (xs :: [Type]).
+      (All DeepGeneric xs) =>
+      NP (K (Vector Constructor)) xs
+    aux = SOP.hcpure (Proxy @DeepGeneric) constructorK
 
-    constructorK :: forall a'. DeepHasDatatypeInfo a' => K [Constructor] a'
+    constructorK ::
+      forall (a' :: Type). DeepGeneric a' => K (Vector Constructor) a'
     constructorK = K $ untag (toConstructors' @a')
 
 {- | Calculate a set of logical constraints governing valid @Set Attribute@s
- for a type.
+for a type.
 
- = Examples (simplified)
- >>> typeLogic @Bool
- ExactlyOne [Attr Attr [] "False", Attr Attr [] "True"]
+= Examples (simplified)
+>>> typeLogic @Bool
+ExactlyOne [Attr Attr [] "False", Attr Attr [] "True"]
 
- >>> typeLogic @(Bool, Bool)
- All [
-   ExactlyOne [Attr Attr [("(,)",0)] "False", Attr Attr [("(,)",0)] "True"],
-   ExactlyOne [Attr Attr [("(,)",1)] "False", Attr Attr [("(,)",1)] "True"]
- ]
+>>> typeLogic @(Bool, Bool)
+All [
+  ExactlyOne [Attr Attr [("(,)",0)] "False", Attr Attr [("(,)",0)] "True"],
+  ExactlyOne [Attr Attr [("(,)",1)] "False", Attr Attr [("(,)",1)] "True"]
+]
 
- >>> typeLogic @(Either Bool Bool)
- All [
-   ExactlyOne [Attr Attr [] "Left",Attr Attr [] "Right"],
-   Attr Attr [] "Left" :->: All [
-     ExactlyOne [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
-   ],
-   Not (Attr (Attr [] "Left")) :->: None [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
-   Attr Attr [] "Right" :->: All [
-     ExactlyOne [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
-   ],
-   Not (Attr (Attr [] "Right")) :->: None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
- ]
+>>> typeLogic @(Either Bool Bool)
+All [
+  ExactlyOne [Attr Attr [] "Left",Attr Attr [] "Right"],
+  Attr Attr [] "Left" :->: All [
+    ExactlyOne [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
+  ],
+  Not (Attr (Attr [] "Left")) :->:
+    None [Attr Attr [("Left",0)] "False",Attr Attr [("Left",0)] "True"],
+  Attr Attr [] "Right" :->: All [
+    ExactlyOne [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
+  ],
+  Not (Attr (Attr [] "Right")) :->:
+    None [Attr Attr [("Right",0)] "False",Attr Attr [("Right",0)] "True"]
+]
 -}
-typeLogic :: forall d. (DeepHasDatatypeInfo d) => Formula d
-typeLogic = All . sumLogic $ toConstructors @d
+typeLogic :: forall (d :: Type). (DeepGeneric d) => Formula d
+typeLogic = All . sumLogic $ toConstructors (Proxy @d)
   where
-    sumLogic :: [Constructor] -> [Formula d]
+    sumLogic :: Vector Constructor -> Vector (Formula d)
     sumLogic cs =
       -- Only one of the top-level constructors can be selected
-      ExactlyOne (subVars cs) :
-      -- apply 'prodLogic' to all the fields
-      concatMap prodLogic cs
+      ExactlyOne (subVars cs)
+        `Vector.cons`
+        -- apply 'prodLogic' to all the fields
+        Vector.concatMap prodLogic cs
 
-    prodLogic :: Constructor -> [Formula d]
-    prodLogic (TwoNode (ConsInfo cn _) cs) =
-      -- for each present constructor, one of the constructors of each of its fields can be selected
-      [ rootVar cn :->: (All . imap (\i -> ExactlyOne . pushedSubvars cn i) $ cs)
-      , -- for each absent constructor, none of the constructors of any of its fields can be selected
-        Not (rootVar cn) :->: (None . iconcatMap (pushedSubvars cn) $ cs)
-        -- recurse
-      ]
-        ++ iconcatMap (\i -> map (mapFormula $ pushVR cn i) . concatMap prodLogic) cs
+    prodLogic :: Constructor -> Vector (Formula d)
+    prodLogic (Constructor (ConsInfo cn _) cs) =
+      -- for each present constructor, one of the constructors of each of its
+      -- fields can be selected
+      ( rootVar cn
+          :->: (All . Vector.imap (\i -> ExactlyOne . pushedSubvars cn i) $ cs)
+      )
+        `Vector.cons`
+        -- for each absent constructor, none of the constructors of any of its
+        -- fields can be selected
+        ( ( Not (rootVar cn)
+              :->: (None . join . Vector.imap (pushedSubvars cn) $ cs)
+          )
+            -- recurse
+            `Vector.cons` ( join $
+                              Vector.imap
+                                ( \i ->
+                                    fmap (mapFormula $ pushVR cn i)
+                                      . Vector.concatMap prodLogic
+                                )
+                                cs
+                          )
+        )
 
-    pushedSubvars :: ConstructorName -> Int -> [Constructor] -> [Formula d]
-    pushedSubvars cn i = map (mapFormula (pushVR cn i)) . subVars
+    pushedSubvars ::
+      SOP.ConstructorName -> Int -> Vector Constructor -> Vector (Formula d)
+    pushedSubvars cn i = fmap (mapFormula (pushVR cn i)) . subVars
 
-    subVars :: [Constructor] -> [Formula d]
-    subVars = map (rootVar . consName . twoRootLabel)
+    subVars :: Vector Constructor -> Vector (Formula d)
+    subVars = fmap (rootVar . consName . constructorInfo)
 
-rootVar :: ConstructorName -> Formula d
+rootVar :: forall (d :: Type). SOP.ConstructorName -> Formula d
 rootVar = Var . rootVarRep
 
 {- |
@@ -362,16 +499,16 @@ Call using a type application.
 
 = Examples
 
->>> allAttributes @()
+>>> allAttributes (Proxy @())
 fromList [([],"()")]
 
->>> allAttributes @Bool
+>>> allAttributes (Proxy @Bool)
 fromList
   [ ([],"False")
   , ([],"True")
   ]
 
->>> allAttributes @(Bool,Bool)
+>>> allAttributes (Proxy @(Bool,Bool))
 fromList
   [ ([],"(,)")
   , ([("(,)",0)],"False")
@@ -380,7 +517,7 @@ fromList
   , ([("(,)",1)],"True")
   ]
 
->>> allAttributes @(Either Bool Bool)
+>>> allAttributes (Proxy @(Either Bool Bool))
 fromList
   [ ([],"Left")
   , ([],"Right")
@@ -390,7 +527,7 @@ fromList
   , ([("Right",0)],"True")
   ]
 
->>> allAttributes @(Either Bool (Bool,Bool))
+>>> allAttributes (Proxy @(Either Bool (Bool,Bool)))
 fromList
   [ ([],"Left")
   , ([],"Right")
@@ -403,7 +540,7 @@ fromList
   , ([("Right",0),("(,)",1)],"True")
   ]
 
->>> allAttributes @(Bool, First Bool)
+>>> allAttributes (Proxy @(Bool, First Bool))
 fromList
   [ ([],"(,)")
   , ([("(,)",0)],"False")
@@ -413,18 +550,27 @@ fromList
   , ([("(,)",1),("First","getFirst")],"True")
   ]
 -}
-allAttributes :: forall d. (DeepHasDatatypeInfo d) => Set ([(ConstructorName, FieldSelector)], ConstructorName)
-allAttributes = Set.map ((\Attr {attrPath, attrConstr} -> (attrPath, attrConstr)) . attrIntToFS) $ allAttributes' @d
+allAttributes ::
+  forall (d :: Type).
+  (DeepGeneric d) =>
+  Proxy d ->
+  Set (Vector (SOP.ConstructorName, FieldSelector), SOP.ConstructorName)
+allAttributes p =
+  Set.map
+    ((\Attr {attrPath, attrConstr} -> (attrPath, attrConstr)) . attrIntToFS)
+    (allAttributes' p)
 
-allAttributes' :: forall d. (DeepHasDatatypeInfo d) => Set (Attribute Int d)
-allAttributes' = Set.unions . map constructorAttributes $ toConstructors @d
+allAttributes' ::
+  forall (d :: Type). (DeepGeneric d) => Proxy d -> Set (Attribute Int d)
+allAttributes' = Set.unions . fmap constructorAttributes . toConstructors
   where
     constructorAttributes :: Constructor -> Set (Attribute Int d)
     constructorAttributes =
-      foldTwoTree
+      foldConstructor
         ( \(ConsInfo cn _) flds ->
             Set.singleton (rootVarRep cn)
-              <> Set.unions (imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
+              <> Set.unions
+                (Vector.imap (\i -> Set.map (pushVR cn i) . Set.unions) flds)
         )
 
 {- | Match against descriptions containing the given attribute.
@@ -436,81 +582,110 @@ function can be used to query the possible attributes of a type.
 
 'attr' takes two arguments:
 
-* the \'path\' to locate the attribute within the ADT, as
-a list of pairs of the containing field, and a field selector of type 'FieldSelector'.
-The 'FieldSelector' type is a little bit magic, see its docs for more details.
+* the \'path\' to locate the attribute within the ADT, as a list of pairs of the
+containing field, and a field selector of type 'FieldSelector'.
+
+    The 'FieldSelector' type is a little bit magic, see its docs for more
+    details.
 
 * The name of the constructor representing the attribute.
 
 See also the examples for 'allAttributes' to see what an attribute looks like.
 -}
 attr ::
-  forall d.
-  (DeepHasDatatypeInfo d) =>
+  forall (d :: Type).
+  (DeepGeneric d) =>
   -- | The \'path\' to the attribute.
-  [(ConstructorName, FieldSelector)] ->
+  Vector (SOP.ConstructorName, FieldSelector) ->
   -- | The name of the constructor corresponding to the attribute.
-  ConstructorName ->
+  SOP.ConstructorName ->
   Formula d
 attr p = Var . attrFSToInt . Attr p
 
-attrFSToInt :: forall d. (DeepHasDatatypeInfo d) => Attribute FieldSelector d -> Attribute Int d
-attrFSToInt Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
+transformAttr ::
+  forall (d :: Type) (i :: Type) (j :: Type).
+  (DeepGeneric d) =>
+  (Maybe (Vector SOP.FieldName) -> i -> j) ->
+  (Maybe (Vector SOP.FieldName) -> i -> Int) ->
+  Attribute i d ->
+  Attribute j d
+transformAttr trans idx Attr {attrPath, attrConstr} =
+  Attr (evalState (mapM act attrPath) (toConstructors $ Proxy @d)) attrConstr
   where
-    resolvePath :: [Constructor] -> [(ConstructorName, FieldSelector)] -> [(ConstructorName, Int)]
-    resolvePath _ [] = []
-    resolvePath cs ((cn, fs) : p') = (cn, fld) : resolvePath (twoSubForest constr !! fld) p'
-      where
-        constr = findConstructor cn cs
-        fld = resolveFS fs constr
+    act ::
+      (SOP.ConstructorName, i) ->
+      State (Vector Constructor) (SOP.ConstructorName, j)
+    act (cn, i) = do
+      con <- findConstructor cn <$> get
+      let lab = consFields . constructorInfo $ con
+      put $ subConstructors con Vector.! idx lab i
+      return (cn, trans lab i)
 
-    resolveFS :: FieldSelector -> Constructor -> Int
-    resolveFS (Index i) _ = i
-    resolveFS (RecordField fld) con = resolveField fld con
-
-    resolveField :: FieldName -> Constructor -> Int
-    resolveField fld con = fromJust $ elemIndex fld =<< (consFields . twoRootLabel $ con)
-
-attrIntToFS :: forall d. (DeepHasDatatypeInfo d) => Attribute Int d -> Attribute FieldSelector d
-attrIntToFS Attr {attrPath, attrConstr} = Attr (resolvePath (toConstructors @d) attrPath) attrConstr
+attrFSToInt ::
+  forall (d :: Type).
+  (DeepGeneric d) =>
+  Attribute FieldSelector d ->
+  Attribute Int d
+attrFSToInt = transformAttr resolveFS resolveFS
   where
-    resolvePath :: [Constructor] -> [(ConstructorName, Int)] -> [(ConstructorName, FieldSelector)]
-    resolvePath _ [] = []
-    resolvePath cs ((cn, i) : p) = (cn, fld) : resolvePath (twoSubForest constr !! i) p
-      where
-        constr = findConstructor cn cs
-        fld = index (twoRootLabel constr) i
+    resolveFS :: Maybe (Vector SOP.FieldName) -> FieldSelector -> Int
+    resolveFS _ (Index i) = i
+    resolveFS con (RecordField fld) = resolveField con fld
 
-    index :: ConsInfo -> Int -> FieldSelector
+    resolveField :: Maybe (Vector SOP.FieldName) -> SOP.FieldName -> Int
+    resolveField con fld = fromJust $ Vector.elemIndex fld =<< con
+
+attrIntToFS ::
+  forall (d :: Type).
+  (DeepGeneric d) =>
+  Attribute Int d ->
+  Attribute FieldSelector d
+attrIntToFS = transformAttr index (const id)
+  where
+    index :: Maybe (Vector SOP.FieldName) -> Int -> FieldSelector
     index cons i =
-      case consFields cons of
+      case cons of
         Nothing -> Index i
-        Just flds -> RecordField (flds !! i)
+        Just flds -> RecordField (flds Vector.! i)
 
-findConstructor :: ConstructorName -> [Constructor] -> Constructor
-findConstructor con = head . filter ((== con) . consName . twoRootLabel)
+findConstructor :: SOP.ConstructorName -> Vector Constructor -> Constructor
+findConstructor con =
+  Vector.head . Vector.filter ((== con) . consName . constructorInfo)
 
-logic :: (Description d a) => Formula d
+logic :: forall (d :: Type) (a :: Type). (Description d a) => Formula d
 logic = typeLogic :&&: refineDescription
 
-enumerateScenariosWhere :: forall d a. (Description d a) => Formula d -> Set (Set (Attribute Int d))
+enumerateScenariosWhere ::
+  forall (d :: Type) (a :: Type).
+  (Description d a) =>
+  Formula d ->
+  Set (Set (Attribute Int d))
 enumerateScenariosWhere holds = enumerateSolutions $ logic :&&: holds
 
-scenarios :: forall d a. (Description d a) => Set (Set (Attribute Int d))
+scenarios ::
+  forall (d :: Type) (a :: Type).
+  (Description d a) =>
+  Set (Set (Attribute Int d))
 scenarios = enumerateScenariosWhere Yes
 
 {- |
 Whether a description satisfies a formula.
 
-Useful for using a 'Formula' to create a predicate to pass to a runner.
+Use with 'Apropos.Runner.passIf' to create a predicate to pass to a runner from
+a 'Formula'.
 -}
-satisfies :: forall d. (DeepHasDatatypeInfo d) => Formula d -> (d -> Bool)
-satisfies f s = satisfiable $ f :&&: All (Var <$> Set.toList set) :&&: None (Var <$> Set.toList unset)
+satisfies :: forall (d :: Type). (DeepGeneric d) => Formula d -> (d -> Bool)
+satisfies f s =
+  satisfiable $ f :&&: All (setToVars set) :&&: None (setToVars unset)
   where
     set :: Set (Attribute Int d)
     set = descriptionToVariables s
+
     unset :: Set (Attribute Int d)
-    unset = Set.difference allAttributes' set
+    unset = Set.difference (allAttributes' $ Proxy @d) set
+
+    setToVars :: Set (Attribute Int d) -> Vector (Formula d)
+    setToVars = fmap Var . Vector.fromList . Set.toList
 
 infixr 6 :&&:
 infixr 5 :||:
@@ -521,6 +696,7 @@ infix 1 :<->:
 {- |
   Logical expressions for matching description types.
 -}
+type Formula :: Type -> Type
 data Formula attr
   = Var (Attribute Int attr)
   | Yes
@@ -531,30 +707,37 @@ data Formula attr
   | Formula attr :++: Formula attr
   | Formula attr :->: Formula attr
   | Formula attr :<->: Formula attr
-  | All [Formula attr]
-  | Some [Formula attr]
-  | None [Formula attr]
-  | ExactlyOne [Formula attr]
-  | AtMostOne [Formula attr]
+  | All (Vector (Formula attr))
+  | Some (Vector (Formula attr))
+  | None (Vector (Formula attr))
+  | ExactlyOne (Vector (Formula attr))
+  | AtMostOne (Vector (Formula attr))
   deriving stock (Generic)
 
-translateToSAT :: Formula attr -> S.Formula (Attribute Int attr)
-translateToSAT (Var var) = S.Var var
-translateToSAT Yes = S.Yes
-translateToSAT No = S.No
-translateToSAT (Not c) = S.Not (translateToSAT c)
-translateToSAT (a :&&: b) = translateToSAT a S.:&&: translateToSAT b
-translateToSAT (a :||: b) = translateToSAT a S.:||: translateToSAT b
-translateToSAT (a :++: b) = translateToSAT a S.:++: translateToSAT b
-translateToSAT (a :->: b) = translateToSAT a S.:->: translateToSAT b
-translateToSAT (a :<->: b) = translateToSAT a S.:<->: translateToSAT b
-translateToSAT (All cs) = S.All (translateToSAT <$> cs)
-translateToSAT (Some cs) = S.Some (translateToSAT <$> cs)
-translateToSAT (None cs) = S.None (translateToSAT <$> cs)
-translateToSAT (ExactlyOne cs) = S.ExactlyOne (translateToSAT <$> cs)
-translateToSAT (AtMostOne cs) = S.AtMostOne (translateToSAT <$> cs)
+translateToSAT ::
+  forall (attr :: Type). Formula attr -> MiniSAT.Formula (Attribute Int attr)
+translateToSAT (Var var) = MiniSAT.Var var
+translateToSAT Yes = MiniSAT.Yes
+translateToSAT No = MiniSAT.No
+translateToSAT (Not c) = MiniSAT.Not (translateToSAT c)
+translateToSAT (a :&&: b) = translateToSAT a MiniSAT.:&&: translateToSAT b
+translateToSAT (a :||: b) = translateToSAT a MiniSAT.:||: translateToSAT b
+translateToSAT (a :++: b) = translateToSAT a MiniSAT.:++: translateToSAT b
+translateToSAT (a :->: b) = translateToSAT a MiniSAT.:->: translateToSAT b
+translateToSAT (a :<->: b) = translateToSAT a MiniSAT.:<->: translateToSAT b
+translateToSAT (All cs) = MiniSAT.All . Vector.toList $ translateToSAT <$> cs
+translateToSAT (Some cs) = MiniSAT.Some . Vector.toList $ translateToSAT <$> cs
+translateToSAT (None cs) = MiniSAT.None . Vector.toList $ translateToSAT <$> cs
+translateToSAT (ExactlyOne cs) =
+  MiniSAT.ExactlyOne . Vector.toList $ translateToSAT <$> cs
+translateToSAT (AtMostOne cs) =
+  MiniSAT.AtMostOne . Vector.toList $ translateToSAT <$> cs
 
-mapFormula :: (Attribute Int a -> Attribute Int b) -> Formula a -> Formula b
+mapFormula ::
+  forall (a :: Type) (b :: Type).
+  (Attribute Int a -> Attribute Int b) ->
+  Formula a ->
+  Formula b
 mapFormula f (Var var) = Var (f var)
 mapFormula _ Yes = Yes
 mapFormula _ No = No
@@ -576,14 +759,17 @@ instance (Eq attr) => Eq (Formula attr) where
 instance (Ord attr) => Ord (Formula attr) where
   compare a b = compare (translateToSAT a) (translateToSAT b)
 
-instance (Show attr, DeepHasDatatypeInfo attr) => Show (Formula attr) where
-  show a = show (translateToSAT a)
+-- instance (Show attr, DeepGeneric attr) => Show (Formula attr) where
+--   show a = show (translateToSAT a)
 
-satisfiable :: Formula attr -> Bool
-satisfiable = S.satisfiable . translateToSAT
+satisfiable :: forall (attr :: Type). Formula attr -> Bool
+satisfiable = MiniSAT.satisfiable . translateToSAT
 
-solveAll :: Formula attr -> [Map (Attribute Int attr) Bool]
-solveAll = S.solve_all . translateToSAT
+solveAll ::
+  forall (attr :: Type). Formula attr -> Vector (Map (Attribute Int attr) Bool)
+solveAll = Vector.fromList . MiniSAT.solve_all . translateToSAT
 
-enumerateSolutions :: Formula attr -> Set (Set (Attribute Int attr))
-enumerateSolutions f = Set.fromList $ Map.keysSet . Map.filter id <$> solveAll f
+enumerateSolutions ::
+  forall (attr :: Type). Formula attr -> Set (Set (Attribute Int attr))
+enumerateSolutions f =
+  Set.fromList . Vector.toList $ Map.keysSet . Map.filter id <$> solveAll f

@@ -4,25 +4,37 @@ module Spec.IntCompact (
   intCompactAproposExample,
 ) where
 
-import Apropos
+import Apropos (
+  Description (describe, genDescribed),
+  Outcome (Fail, Pass),
+  runTests,
+  selfTest,
+ )
+import Data.Kind (Type)
+import Data.Proxy (Proxy (Proxy))
+import GHC.Generics (Generic)
 import Hedgehog (Group (Group), assert)
 import Hedgehog.Gen (int)
 import Hedgehog.Range (linear)
 import Test.Tasty.HUnit (Assertion, assertBool)
 
--- This is a variant of 'IntSimple', demonstrating a different way of building description types. Also, for variety, we switched the test up to show conditional testing.
+-- This is a variant of 'IntSimple', demonstrating a different way of building
+-- description types. Also, for variety, we switched the test up to show
+-- conditional testing.
 
--- We've worked a bit harder defining the description, and can capture all the logic in the type. It's now impossible to construct a Large Zero or Small isBound.
+-- We've worked a bit harder defining the description, and can capture all the
+-- logic in the type. It's now impossible to construct a Large Zero or Small
+-- isBound.
+type IntDescr :: Type
 data IntDescr
   = Zero
   | Positive Size
   | Negative Size
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
+type Size :: Type
 data Size = Small | Large {isBound :: Bool}
   deriving stock (Show, Eq, Ord, Generic)
-  deriving anyclass (SOPGeneric, HasDatatypeInfo)
 
 instance Description IntDescr Int where
   -- 'describe' is arguably simpler.
@@ -55,23 +67,24 @@ hasNegativeNegation n = negate n < 0
 
 -- it doesn't, unfortunately.
 intCompactExampleUnit :: Assertion
-intCompactExampleUnit = assertBool "negate minBound >= 0" (not $ hasNegativeNegation minBound)
+intCompactExampleUnit =
+  assertBool "negate minBound >= 0" (not $ hasNegativeNegation minBound)
 
 intCompactSelfTest :: Group
 intCompactSelfTest =
   Group
     "self test"
-    (selfTest @IntDescr)
+    (selfTest $ Proxy @IntDescr)
 
--- Not only does 'apropos' test for values that have the given properties, it also
--- ensures that those without them fail the test.
+-- Not only does 'apropos' test for values that have the given properties, it
+-- also ensures that those without them fail the test.
 intCompactAproposExample :: Group
 intCompactAproposExample =
   Group
     "apropos testing"
     $ runTests @IntDescr
       ( \case
-          Positive _ -> True -- all positive values should pass.
-          _ -> False -- all other values should fail!
+          Positive _ -> Pass -- all positive values should pass.
+          _ -> Fail -- all other values should fail!
       )
       (assert . hasNegativeNegation)

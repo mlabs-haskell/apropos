@@ -56,3 +56,5 @@ cabal.project.local*
 .haddock/
 
 weeder.dhall
+
+cabal.project.local

@@ -80,7 +80,7 @@ library
 
   hs-source-dirs:  src
 
-test-suite examples
+executable examples
   import:         lang
   type:           exitcode-stdio-1.0
   main-is:        Main.hs

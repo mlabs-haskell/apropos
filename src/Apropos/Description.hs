@@ -2,7 +2,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Apropos.Description (
   Description (describe, refineDescription, genDescribed),
@@ -472,14 +471,14 @@ typeLogic = All . sumLogic $ toConstructors (Proxy @d)
               :->: (None . join . Vector.imap (pushedSubvars cn) $ cs)
           )
             -- recurse
-            `Vector.cons` ( join $
-                              Vector.imap
-                                ( \i ->
-                                    fmap (mapFormula $ pushVR cn i)
-                                      . Vector.concatMap prodLogic
-                                )
-                                cs
-                          )
+            `Vector.cons` join
+              ( Vector.imap
+                  ( \i ->
+                      fmap (mapFormula $ pushVR cn i)
+                        . Vector.concatMap prodLogic
+                  )
+                  cs
+              )
         )
 
     pushedSubvars ::
@@ -616,7 +615,7 @@ transformAttr trans idx Attr {attrPath, attrConstr} =
       (SOP.ConstructorName, i) ->
       State (Vector Constructor) (SOP.ConstructorName, j)
     act (cn, i) = do
-      con <- findConstructor cn <$> get
+      con <- gets (findConstructor cn)
       let lab = consFields . constructorInfo $ con
       put $ subConstructors con Vector.! idx lab i
       return (cn, trans lab i)

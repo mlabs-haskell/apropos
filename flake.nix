@@ -66,12 +66,9 @@
                 pkgs.fd
               ];
             additional = ps: [
-              ps.digraph
             ];
           };
           sha256map = {
-            "https://github.com/mlabs-haskell/digraph"."32afdad81d02301c6c6f37f2a2e6e9e7f3bdc9eb" = "sha256-eN1wEkd/gAoQHARck/F5US7L4OPJisc9glWxNkvHaF8=";
-
           };
         };
 

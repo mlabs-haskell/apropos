@@ -1,11 +1,7 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
-
 module Apropos.Description (
   Description (describe, refineDescription, genDescribed),
-  Formula (
+  Formula,
+  Formula' (
     Yes,
     No,
     Not,
@@ -474,7 +470,7 @@ typeLogic = All . sumLogic $ toConstructors (Proxy @d)
             `Vector.cons` join
               ( Vector.imap
                   ( \i ->
-                      fmap (mapFormula $ pushVR cn i)
+                      fmap (fmap $ pushVR cn i)
                         . Vector.concatMap prodLogic
                   )
                   cs
@@ -483,7 +479,7 @@ typeLogic = All . sumLogic $ toConstructors (Proxy @d)
 
     pushedSubvars ::
       SOP.ConstructorName -> Int -> Vector Constructor -> Vector (Formula d)
-    pushedSubvars cn i = fmap (mapFormula (pushVR cn i)) . subVars
+    pushedSubvars cn i = fmap (fmap (pushVR cn i)) . subVars
 
     subVars :: Vector Constructor -> Vector (Formula d)
     subVars = fmap (rootVar . consName . constructorInfo)
@@ -695,23 +691,24 @@ infix 1 :<->:
 {- |
   Logical expressions for matching description types.
 -}
-type Formula :: Type -> Type
-data Formula attr
-  = Var (Attribute Int attr)
+type Formula attr = Formula' (Attribute Int attr)
+type Formula' :: Type -> Type
+data Formula' attr
+  = Var attr
   | Yes
   | No
-  | Not (Formula attr)
-  | Formula attr :&&: Formula attr
-  | Formula attr :||: Formula attr
-  | Formula attr :++: Formula attr
-  | Formula attr :->: Formula attr
-  | Formula attr :<->: Formula attr
-  | All (Vector (Formula attr))
-  | Some (Vector (Formula attr))
-  | None (Vector (Formula attr))
-  | ExactlyOne (Vector (Formula attr))
-  | AtMostOne (Vector (Formula attr))
-  deriving stock (Generic)
+  | Not (Formula' attr)
+  | Formula' attr :&&: Formula' attr
+  | Formula' attr :||: Formula' attr
+  | Formula' attr :++: Formula' attr
+  | Formula' attr :->: Formula' attr
+  | Formula' attr :<->: Formula' attr
+  | All (Vector (Formula' attr))
+  | Some (Vector (Formula' attr))
+  | None (Vector (Formula' attr))
+  | ExactlyOne (Vector (Formula' attr))
+  | AtMostOne (Vector (Formula' attr))
+  deriving stock (Generic,Functor,Eq,Ord)
 
 translateToSAT ::
   forall (attr :: Type). Formula attr -> MiniSAT.Formula (Attribute Int attr)
@@ -731,32 +728,6 @@ translateToSAT (ExactlyOne cs) =
   MiniSAT.ExactlyOne . Vector.toList $ translateToSAT <$> cs
 translateToSAT (AtMostOne cs) =
   MiniSAT.AtMostOne . Vector.toList $ translateToSAT <$> cs
-
-mapFormula ::
-  forall (a :: Type) (b :: Type).
-  (Attribute Int a -> Attribute Int b) ->
-  Formula a ->
-  Formula b
-mapFormula f (Var var) = Var (f var)
-mapFormula _ Yes = Yes
-mapFormula _ No = No
-mapFormula f (Not c) = Not (mapFormula f c)
-mapFormula f (a :&&: b) = mapFormula f a :&&: mapFormula f b
-mapFormula f (a :||: b) = mapFormula f a :||: mapFormula f b
-mapFormula f (a :++: b) = mapFormula f a :++: mapFormula f b
-mapFormula f (a :->: b) = mapFormula f a :->: mapFormula f b
-mapFormula f (a :<->: b) = mapFormula f a :<->: mapFormula f b
-mapFormula f (All cs) = All (mapFormula f <$> cs)
-mapFormula f (Some cs) = Some (mapFormula f <$> cs)
-mapFormula f (None cs) = None (mapFormula f <$> cs)
-mapFormula f (ExactlyOne cs) = ExactlyOne (mapFormula f <$> cs)
-mapFormula f (AtMostOne cs) = AtMostOne (mapFormula f <$> cs)
-
-instance (Eq attr) => Eq (Formula attr) where
-  a == b = translateToSAT a == translateToSAT b
-
-instance (Ord attr) => Ord (Formula attr) where
-  compare a b = compare (translateToSAT a) (translateToSAT b)
 
 -- instance (Show attr, DeepGeneric attr) => Show (Formula attr) where
 --   show a = show (translateToSAT a)

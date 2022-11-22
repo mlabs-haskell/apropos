@@ -30,17 +30,22 @@ common lang
     KindSignatures
     LambdaCase
     MultiParamTypeClasses
+    NamedFieldPuns
     NumericUnderscores
+    OverloadedLists
+    OverloadedRecordDot
     OverloadedStrings
+    RankNTypes
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
     TupleSections
     TypeApplications
+    TypeFamilies
     TypeOperators
     TypeSynonymInstances
     UndecidableInstances
-    OverloadedRecordDot
+    UndecidableSuperClasses
 
   build-depends:
     , base            >=4.15

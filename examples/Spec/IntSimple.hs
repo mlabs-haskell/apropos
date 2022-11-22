@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 module Spec.IntSimple (
   intSimpleSelfTest,
   intSimpleBadProperty,
@@ -9,7 +7,8 @@ module Spec.IntSimple (
 
 import Apropos (
   Description (describe, genDescribed, refineDescription),
-  Formula (All, (:->:)),
+  Formula,
+  Formula' (All, (:->:)),
   Outcome (Pass),
   attr,
   runTests,

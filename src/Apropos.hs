@@ -21,7 +21,8 @@ module Apropos (
   -- 'Formula' type.
   attr,
   FieldSelector,
-  Formula (
+  Formula,
+  Formula' (
     Yes,
     No,
     Not,
@@ -56,7 +57,8 @@ import Apropos.Description (
   DeepGeneric,
   Description (describe, genDescribed, refineDescription),
   FieldSelector,
-  Formula (
+  Formula,
+  Formula' (
     All,
     AtMostOne,
     ExactlyOne,

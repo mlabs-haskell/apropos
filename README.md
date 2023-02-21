@@ -115,7 +115,7 @@ Now let's define our `Description` instance, asserting that `IntDescr` describes
 instance Description IntDescr Int where
 ```
 
-Next, we derive desciptions:
+Next, we derive descriptions:
 
 ```haskell
   describe :: Int -> IntDescr
@@ -230,7 +230,7 @@ the test to pass or fail. `apropos` by default also tests the negation of each
 property to ensure it fails. You can filter out properties you don't want to
 test at all using `runTestsWhere`.
 
-`aproposTest` is a `Hedgehog` property test that tests agains the given value `a`.
+`aproposTest` is a `Hedgehog` property test that tests against the given value `a`.
 
 The return type of `runTests` is `IsString s => [(s, Property)]`, which can be 
 plugged straight into Hedgehog's `Group`.
